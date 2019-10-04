@@ -42,10 +42,12 @@ jobs:
 workflows:
   version: 2
   build:
-    - build
+    jobs:
+      - build
   dump:
-    - build
-    - dump-isabelle:
-        type: approval
-        requires:
-          - build
+    jobs:
+      - build
+      - dump-isabelle:
+          type: approval
+          requires:
+            - build
