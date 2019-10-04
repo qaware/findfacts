@@ -1,0 +1,4 @@
+[submodule "isabelle"]
+	path = isabelle
+	url = https://github.com/seL4/isabelle.git
+	ignore = dirty
