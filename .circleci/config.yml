@@ -32,6 +32,7 @@ jobs:
       - image: circleci/openjdk:11
     steps:
       - checkout
+      - run: git submodule init && git submodule update --remote
       - run: |
           isabelle/bin/isabelle components -I
           isabelle/bin/isabelle components -a

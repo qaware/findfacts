@@ -1,0 +1,5 @@
+<schema name="theorydata" version="0.1.0">
+    <fields>
+        <field name="id" type="string" indexed="true" required="true" multiValued="false"/>
+    </fields>
+</schema>
