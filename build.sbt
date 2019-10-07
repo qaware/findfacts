@@ -16,7 +16,7 @@ lazy val importer = (project in file("solr-dump-importer"))
   )
   .dependsOn(solr)
 
-lazy val solr = (project in file("common-solr"))
+lazy val solr = (project in file("common"))
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.solr" % "solr-core" % "8.2.0",
