@@ -1,5 +1,7 @@
 package de.qaware.common.solr.dt
 
+import scala.annotation.meta.field
+
 import de.qaware.common.solr.dt.SolrSchema._
 import org.apache.solr.client.solrj.beans.Field
 
@@ -36,15 +38,15 @@ case class TypeEntity(
   * @param uses ids of entities that the constant uses
   */
 case class ConstEntity(
-    @Field(ID) id: String,
-    @Field(SOURCE_FILE) sourceFile: String,
-    @Field(START_POS) startPos: Int,
-    @Field(END_POS) endPos: Int,
-    @Field(KIND) kind: EntityKind.Value,
-    @Field(NAME) name: String,
-    @Field(CONST_TYPE) constType: String,
-    @Field(TERM) definition: String,
-    @Field(USES) uses: List[String]
+    @field @Field(ID) id: String,
+    @field @Field(SOURCE_FILE) sourceFile: String,
+    @field @Field(START_POS) startPos: Int,
+    @field @Field(END_POS) endPos: Int,
+    @field @Field(KIND) kind: EntityKind.Value,
+    @field @Field(NAME) name: String,
+    @field @Field(CONST_TYPE) constType: String,
+    @field @Field(TERM) definition: String,
+    @field @Field(USES) uses: List[String]
 )
 
 /** Entity class for axiomatic facts.

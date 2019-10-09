@@ -2,9 +2,12 @@ package de.qaware.common.solr
 
 import java.io.File
 import java.net.URL
+import java.nio.file.{Files, Path, StandardCopyOption}
 
 import scala.jdk.CollectionConverters._
+import scala.util.Using
 
+import com.typesafe.scalalogging.Logger
 import org.apache.solr.client.solrj.SolrClient
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
 import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}
@@ -12,7 +15,7 @@ import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}
 /**
   * Repository to provide connections to different types of solr instances.
   */
-trait SolrRepository {
+sealed trait SolrRepository {
 
   /**
     * Creates a configured and initialized client to the repositories' solr instance.
@@ -25,17 +28,39 @@ trait SolrRepository {
 /**
   * Local, embedded solr client.
   */
-case class LocalSolr() extends SolrRepository {
-  override def getSolrConnection: SolrClient =
-    new EmbeddedSolrServer(new File(LocalSolr.SOLR_HOME).toPath, LocalSolr.CORE_NAME)
-}
-object LocalSolr {
+case class LocalSolr(solrHome: File) extends SolrRepository {
 
   /** Name of the default core for embedded solr */
-  val CORE_NAME = "theorydata"
+  final val CORE_NAME = "theorydata"
+  final val SOLR_CONF_FILES = Seq(
+    "solr.xml",
+    "enumsConfig.xml",
+    "theorydata/schema.xml",
+    "theorydata/core.properties"
+  )
 
-  /** Solr home directory, relative to project */
-  val SOLR_HOME = "./solr" // TODO resource level
+  private val logger = Logger[LocalSolr]
+
+  require(solrHome.isDirectory, "Solr home does not exist")
+  require(solrHome.canWrite, "No write access to solr home directory")
+
+  private lazy val client = {
+    // Unpack solr resources
+    SOLR_CONF_FILES.map(res =>
+      Using.resource(getClass.getResourceAsStream("/solr/" + res)) { stream =>
+        val destDir = Path.of(solrHome.getCanonicalPath, res).getParent.toFile
+        if (!destDir.exists()) {
+          logger.info("Creating config dir: {}", destDir)
+          Files.createDirectory(destDir.toPath)
+        }
+        logger.info("Writing config file {} to {}", res, solrHome.getCanonicalPath)
+        Files.copy(stream, Path.of(solrHome.getCanonicalPath, res), StandardCopyOption.REPLACE_EXISTING)
+    })
+
+    new EmbeddedSolrServer(solrHome.toPath, CORE_NAME)
+  }
+
+  override def getSolrConnection: SolrClient = client
 }
 
 /**
