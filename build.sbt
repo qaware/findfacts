@@ -5,6 +5,7 @@ ThisBuild / scalaVersion := "2.13.1"
 // Project-wide dependency management
 ThisBuild / resolvers += "Restlet" at "https://maven.restlet.com/"
 ThisBuild / libraryDependencies ++= Seq(
+  "com.github.pathikrit" %% "better-files" % "3.8.0",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
   "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.12.1" exclude("org.slf4j", "slf4j-api"),
   "org.apache.logging.log4j" % "log4j-core" % "2.12.1"

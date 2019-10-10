@@ -6,6 +6,7 @@ import de.qaware.common.solr.dt.SolrSchema._
 import org.apache.solr.client.solrj.beans.Field
 
 // scalastyle:off
+// Justification: solrj bean mapping requires no-args c-tors
 
 /** Entity class for type definitions.
   *

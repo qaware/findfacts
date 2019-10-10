@@ -1,11 +1,11 @@
 package de.qaware.dumpimporter
 
-import java.io.File
 import java.net.URL
 import java.util.UUID
 
 import scala.util.Using
 
+import better.files.File
 import com.typesafe.scalalogging.Logger
 import de.qaware.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
 import de.qaware.common.solr.dt.ConstEntity
@@ -18,21 +18,22 @@ import scopt.{OptionParser, Read}
   * @param solr solr repository to write to
   * @param isValid help flag for argument parsing
   */
-sealed case class Config(dump: File = new File("."), solr: Option[SolrRepository] = None, isValid: Boolean = true)
+sealed case class Config(dump: File = File(""), solr: Option[SolrRepository] = None, isValid: Boolean = true)
 
 /** Command-line interface app for importer. */
 object ImporterApp extends App {
 
-  /**
-    * Parsing of zookeeper hosts, specified as 'host:port' strings
-    */
+  /** Parsing of zookeeper hosts, specified as 'host:port' strings */
   implicit val zkHostRead: Read[ZKHost] = Read.reads(zkhost =>
     zkhost.indexOf(':') match {
       case -1     => throw new IllegalArgumentException("Expected host:port")
       case n: Any => ZKHost(zkhost.take(n), Integer.parseInt(zkhost.drop(n + 1)))
   })
 
-  val addRepo: (Config, SolrRepository) => Config = (conf, repo) =>
+  /** Parse files from better.files */
+  implicit val betterFileRead: Read[File] = Read.reads(File(_))
+
+  private val addRepo: (Config, SolrRepository) => Config = (conf, repo) =>
     if (conf.solr.isEmpty) conf.copy(solr = Some(repo)) else conf.copy(isValid = false)
 
   private val builder = new OptionParser[Config]("solr-dump-importer") {
@@ -68,7 +69,7 @@ object ImporterApp extends App {
   builder.parse(args, Config()) match {
     case Some(config) =>
       logger.info("Read config: {}", config)
-      Using.resource(config.solr.get.getSolrConnection) { client =>
+      Using.resource(config.solr.get.solrConnection) { client =>
         logger.info("Connected to solr at {}", config.solr)
         // TODO
         val bean =

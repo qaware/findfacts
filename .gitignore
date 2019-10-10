@@ -6,3 +6,4 @@ out/
 build/
 target/
 /solr
+/dump

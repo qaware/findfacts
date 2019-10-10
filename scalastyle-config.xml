@@ -147,6 +147,13 @@
   </parameters>
  </check>
  <check level="error" class="org.scalastyle.scalariform.ImportGroupingChecker" enabled="true"/>
+ <!-- Rules that may be broken in the development process and thus do NOT break the build -->
+ <check enabled="true" class="org.scalastyle.scalariform.ScalaDocChecker" level="warning">
+  <parameters>
+   <parameter name="ignoreOverride">true</parameter>
+   <parameter name="indentStyle">anydoc</parameter><!--scaladoc does not work according to specification-->
+  </parameters>
+ </check>
  <!-- Rules that explicitly do NOT apply in this project -->
  <check level="error" class="org.scalastyle.scalariform.StructuralTypeChecker" enabled="false"/>
  <check level="error" class="org.scalastyle.scalariform.WhileChecker" enabled="false"/>
