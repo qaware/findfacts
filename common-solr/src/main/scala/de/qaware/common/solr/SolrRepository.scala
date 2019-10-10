@@ -34,9 +34,10 @@ case class LocalSolr(solrHome: File) extends SolrRepository {
   final val CORE_NAME = "theorydata"
   final val SOLR_CONF_FILES = Seq(
     "solr.xml",
-    "enumsConfig.xml",
     "theorydata/schema.xml",
-    "theorydata/core.properties"
+    "theorydata/enumsConfig.xml",
+    "theorydata/core.properties",
+    "theorydata/conf/solrconfig.xml"
   )
 
   private val logger = Logger[LocalSolr]
@@ -45,9 +46,13 @@ case class LocalSolr(solrHome: File) extends SolrRepository {
   require(solrHome.canWrite, "No write access to solr home directory")
 
   private lazy val client = {
+    logger.info("Starting up embedded solr server...")
     // Unpack solr resources
     SOLR_CONF_FILES.map(res =>
       Using.resource(getClass.getResourceAsStream("/solr/" + res)) { stream =>
+        if (stream == null) {
+          throw new IllegalStateException("Could not find config file " + res + " in " + solrHome.getCanonicalPath)
+        }
         val destDir = Path.of(solrHome.getCanonicalPath, res).getParent.toFile
         if (!destDir.exists()) {
           logger.info("Creating config dir: {}", destDir)

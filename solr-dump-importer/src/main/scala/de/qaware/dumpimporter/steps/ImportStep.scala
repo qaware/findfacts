@@ -6,7 +6,7 @@ import de.qaware.dumpimporter.Config
 trait ImportStep {
 
   /**  */
-  def config: Config
+  val config: Config
 
   /**  */
   def apply(ctx: StepContext): Unit

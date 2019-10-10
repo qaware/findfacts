@@ -5,6 +5,8 @@ import scala.annotation.meta.field
 import de.qaware.common.solr.dt.SolrSchema._
 import org.apache.solr.client.solrj.beans.Field
 
+// scalastyle:off
+
 /** Entity class for type definitions.
   *
   * @param id solr doc id
@@ -16,14 +18,18 @@ import org.apache.solr.client.solrj.beans.Field
   * @param constructors ids of constructors this type has
   */
 case class TypeEntity(
-    @Field(ID) id: String,
-    @Field(SOURCE_FILE) sourceFile: String,
-    @Field(START_POS) startPos: Int,
-    @Field(END_POS) endPos: Int,
-    @Field(KIND) kind: EntityKind.Value,
-    @Field(NAME) typeName: String,
-    @Field(USES) constructors: List[String]
-)
+    @(Field @field)(ID) id: String,
+    @(Field @field)(SOURCE_FILE) sourceFile: String,
+    @(Field @field)(START_POS) startPos: Int,
+    @(Field @field)(END_POS) endPos: Int,
+    @(Field @field)(NAME) typeName: String,
+    @(Field @field)(USES) constructors: Array[String],
+    @(Field @field)(KIND) kind: String = EntityKind.Type
+) {
+  def this() {
+    this(null, null, -1, -1, null, null)
+  }
+}
 
 /** Entity class for constants.
   *
@@ -38,16 +44,20 @@ case class TypeEntity(
   * @param uses ids of entities that the constant uses
   */
 case class ConstEntity(
-    @field @Field(ID) id: String,
-    @field @Field(SOURCE_FILE) sourceFile: String,
-    @field @Field(START_POS) startPos: Int,
-    @field @Field(END_POS) endPos: Int,
-    @field @Field(KIND) kind: EntityKind.Value,
-    @field @Field(NAME) name: String,
-    @field @Field(CONST_TYPE) constType: String,
-    @field @Field(TERM) definition: String,
-    @field @Field(USES) uses: List[String]
-)
+    @(Field @field)(ID) id: String,
+    @(Field @field)(SOURCE_FILE) sourceFile: String,
+    @(Field @field)(START_POS) startPos: Int,
+    @(Field @field)(END_POS) endPos: Int,
+    @(Field @field)(NAME) name: String,
+    @(Field @field)(CONST_TYPE) constType: String,
+    @(Field @field)(TERM) definition: String,
+    @(Field @field)(USES) uses: Array[String],
+    @(Field @field)(KIND) kind: String = EntityKind.Constant
+) {
+  def this() {
+    this(null, null, -1, -1, null, null, null, null)
+  }
+}
 
 /** Entity class for axiomatic facts.
   *
@@ -60,14 +70,18 @@ case class ConstEntity(
   * @param uses ids of entities that the axiom uses
   */
 case class AxiomEntity(
-    @Field(ID) id: String,
-    @Field(SOURCE_FILE) sourceFile: String,
-    @Field(START_POS) startPos: Int,
-    @Field(END_POS) endPos: Int,
-    @Field(KIND) kind: EntityKind.Value,
-    @Field(TERM) term: String,
-    @Field(USES) uses: List[String]
-)
+    @(Field @field)(ID) id: String,
+    @(Field @field)(SOURCE_FILE) sourceFile: String,
+    @(Field @field)(START_POS) startPos: Int,
+    @(Field @field)(END_POS) endPos: Int,
+    @(Field @field)(TERM) term: String,
+    @(Field @field)(USES) uses: Array[String],
+    @(Field @field)(KIND) kind: String = EntityKind.Axiom
+) {
+  def this() {
+    this(null, null, -1, -1, null, null, null)
+  }
+}
 
 /** Entity class for proven lemmas and theories.
   *
@@ -80,14 +94,18 @@ case class AxiomEntity(
   * @param uses ids of entities that the fact uses
   */
 case class FactEntity(
-    @Field(ID) id: String,
-    @Field(SOURCE_FILE) sourceFile: String,
-    @Field(START_POS) startPos: Int,
-    @Field(END_POS) endPos: Int,
-    @Field(KIND) kind: EntityKind.Value,
-    @Field(TERM) term: List[String],
-    @Field(USES) uses: List[String]
-)
+    @(Field @field)(ID) id: String,
+    @(Field @field)(SOURCE_FILE) sourceFile: String,
+    @(Field @field)(START_POS) startPos: Int,
+    @(Field @field)(END_POS) endPos: Int,
+    @(Field @field)(TERM) term: String,
+    @(Field @field)(USES) uses: Array[String],
+    @(Field @field)(KIND) kind: String = EntityKind.Fact
+) {
+  def this() {
+    this(null, null, -1, -1, null, null)
+  }
+}
 
 /** Entity class for documentation and comments.
   *
@@ -99,10 +117,14 @@ case class FactEntity(
   * @param text text of the documentation
   */
 case class DocumentationEntity(
-    @Field(ID) id: String,
-    @Field(SOURCE_FILE) sourceFile: String,
-    @Field(START_POS) startPos: Int,
-    @Field(END_POS) endPos: Int,
-    @Field(KIND) kind: EntityKind.Value,
-    @Field(TEXT) text: String
-)
+    @(Field @field)(ID) id: String,
+    @(Field @field)(SOURCE_FILE) sourceFile: String,
+    @(Field @field)(START_POS) startPos: Int,
+    @(Field @field)(END_POS) endPos: Int,
+    @(Field @field)(TEXT) text: String,
+    @(Field @field)(KIND) kind: String = EntityKind.Documentation
+) {
+  def this() {
+    this(null, null, -1, -1, null)
+  }
+}

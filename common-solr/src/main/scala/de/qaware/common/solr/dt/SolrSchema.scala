@@ -1,5 +1,7 @@
 package de.qaware.common.solr.dt
 
+import scala.language.implicitConversions
+
 /** All solr fields and enums. */
 object SolrSchema extends Enumeration {
   final val ID = "id"
@@ -14,9 +16,8 @@ object SolrSchema extends Enumeration {
   final val USES = "uses"
 }
 
-/** Kinds of solr documents */
+/** Kinds of solr documents. Java enum as scala enums won't be recognized by default solr mapper. */
 object EntityKind extends Enumeration {
-
   val
   /** Type definition. */
   Type,
@@ -28,4 +29,6 @@ object EntityKind extends Enumeration {
   Fact,
   /** Comments, sections, titles etc. */
   Documentation = Value
+
+  implicit def toString(entityKind: EntityKind.Value): String = entityKind.toString
 }
