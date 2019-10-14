@@ -6,6 +6,7 @@ ThisBuild / scalaVersion := "2.13.1"
 ThisBuild / resolvers += "Restlet" at "https://maven.restlet.com/"
 ThisBuild / libraryDependencies ++= Seq(
   "com.github.pathikrit" %% "better-files" % "3.8.0",
+  "org.scalatest" %% "scalatest" % "3.0.8" % "test",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
   "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.12.1" exclude("org.slf4j", "slf4j-api"),
   "org.apache.logging.log4j" % "log4j-core" % "2.12.1"
@@ -13,13 +14,13 @@ ThisBuild / libraryDependencies ++= Seq(
 
 lazy val root = (project in file("."))
   .settings()
-  .aggregate(importer, solr)
+  .aggregate(importer, solr, yxml)
 
 lazy val importer = (project in file("solr-dump-importer"))
   .settings(
-    libraryDependencies += "com.github.scopt" %% "scopt" % "3.7.1"
+    libraryDependencies += "com.github.scopt" %% "scopt" % "3.7.1",
   )
-  .dependsOn(solr)
+  .dependsOn(solr, yxml)
 
 lazy val solr = (project in file("common-solr"))
   .settings(
@@ -28,4 +29,9 @@ lazy val solr = (project in file("common-solr"))
       exclude("org.apache.logging.log4j", "log4j-api")
       exclude("org.apache.logging.log4j", "log4j-core")
       exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
+  )
+
+lazy val yxml = (project in file("yxml-parser"))
+  .settings(
+    libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
   )
