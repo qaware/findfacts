@@ -34,7 +34,7 @@ object YXMLTokenParser extends Parsers {
     }
   }
   protected def inner: Parser[Inner] = positioned {
-    (body | tree) ^^ (inner => inner)
+    (body | tree) ^^ identity
   }
   protected def close: Parser[Close] = positioned {
     (x ~ y ~ x) ^^ (_ => Close())

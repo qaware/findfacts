@@ -5,7 +5,7 @@ import scala.util.parsing.combinator.RegexParsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
 /** Wraps errors while lexing/parsing. */
-trait YXMLParseError
+trait YXMLParseError extends Throwable
 
 /** Location of parse error.
   *

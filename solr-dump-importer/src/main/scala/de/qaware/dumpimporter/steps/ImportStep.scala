@@ -1,5 +1,8 @@
 package de.qaware.dumpimporter.steps
 
+import scala.collection.mutable
+
+import de.qaware.common.solr.dt.DocumentationEntity
 import de.qaware.dumpimporter.Config
 
 /** Step of the import process. */
@@ -16,7 +19,7 @@ trait ImportStep {
 }
 
 /** Context shared throughout the steps. */
-case class StepContext()
+case class StepContext(doc: mutable.Set[DocumentationEntity] = mutable.Set())
 object StepContext {
 
   /** Builds an empty context.

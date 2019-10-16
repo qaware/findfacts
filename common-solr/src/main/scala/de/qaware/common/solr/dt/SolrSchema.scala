@@ -3,7 +3,7 @@ package de.qaware.common.solr.dt
 import scala.language.implicitConversions
 
 /** All solr fields and enums. */
-object SolrSchema extends Enumeration {
+object SolrSchema {
   // scalastyle:off scaladoc
   // justification: better explained in the entity classes.
   final val ID = "id"

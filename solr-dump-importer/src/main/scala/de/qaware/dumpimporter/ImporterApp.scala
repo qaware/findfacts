@@ -1,15 +1,14 @@
 package de.qaware.dumpimporter
 
 import java.net.URL
-import java.util.UUID
 
 import scala.util.Using
 
 import better.files.File
 import com.typesafe.scalalogging.Logger
 import de.qaware.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
-import de.qaware.common.solr.dt.ConstEntity
-import org.apache.solr.client.solrj.SolrQuery
+import de.qaware.dumpimporter.steps.StepContext
+import de.qaware.dumpimporter.steps.pide.LoadPIDEMarkupStep
 import scopt.{OptionParser, Read}
 
 /** Configuration of the importer.
@@ -26,7 +25,7 @@ object ImporterApp extends App {
   /** Parsing of zookeeper hosts, specified as 'host:port' strings */
   implicit val zkHostRead: Read[ZKHost] = Read.reads(zkhost =>
     zkhost.indexOf(':') match {
-      case -1     => throw new IllegalArgumentException("Expected host:port")
+      case -1 => throw new IllegalArgumentException("Expected host:port")
       case n: Any => ZKHost(zkhost.take(n), Integer.parseInt(zkhost.drop(n + 1)))
   })
 
@@ -71,13 +70,13 @@ object ImporterApp extends App {
       logger.info("Read config: {}", config)
       Using.resource(config.solr.get.solrConnection) { client =>
         logger.info("Connected to solr at {}", config.solr)
-        // TODO
-        val bean =
-          ConstEntity(UUID.randomUUID().toString, "testsrc", 1, 2, "testname", "'a=>'b", "def", Array("1", "2"))
-        client.addBean(bean)
-        client.commit()
-        val beans = client.query(new SolrQuery("*:*")).getBeans(classOf[ConstEntity])
-        logger.info("Found {} beans. First: {}", beans.size, beans.get(0))
+        val context = StepContext.empty
+        val steps = Seq(new LoadPIDEMarkupStep(config))
+        steps.zipWithIndex.foreach({
+          case (step, i) =>
+            logger.info("Step {}/{}...", i + 1, steps.size)
+            step.apply(context)
+        })
       }
       logger.info("Finished importing.")
     case _ =>
