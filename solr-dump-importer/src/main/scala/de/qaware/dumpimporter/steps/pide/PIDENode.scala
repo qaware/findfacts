@@ -1,8 +1,8 @@
 package de.qaware.dumpimporter.steps.pide
 
-import scala.languageFeature.implicitConversions
+import scala.language.implicitConversions
 
-import de.qaware.dumpimporter.dataacess.{Node, Query}
+import de.qaware.dumpimporter.dataaccess.{Node, TreeQuery}
 import de.qaware.yxml.{Body, Inner, Tree}
 
 case class PIDEField(name: String)
@@ -11,6 +11,7 @@ object PIDEField extends Enumeration {
   final val NAME = PIDEField("name")
   final val DEFINITION = PIDEField("definition")
   final val ENTITY = PIDEField("entity")
+  final val REF = PIDEField("ref")
 
   implicit def toString(field: PIDEField): String = field.name
 }
@@ -28,15 +29,16 @@ object PIDENode {
 }
 
 object PIDEQuery {
-  def body(): Query[Inner] = Query(_.data.getClass == classOf[Body], _.children)
-  def tag(name: PIDEField): Query[Inner] = treeFilter(t => t.elem.name.str == name.name)
-  def key(name: PIDEField): Query[Inner] = treeFilter(t => t.elem.kvPairs.exists(_.key.str == name.name))
-  def value(content: String): Query[Inner] = treeFilter(t => t.elem.kvPairs.exists(_.value.str == content))
-  def keyValue(key: PIDEField, value: String): Query[Inner] =
+  def body(): TreeQuery[Inner] = TreeQuery(_.data.getClass == classOf[Body])
+  def tag(name: PIDEField): TreeQuery[Inner] = treeFilter(t => t.elem.name.str == name.name)
+  def key(name: PIDEField): TreeQuery[Inner] = treeFilter(t => t.elem.kvPairs.exists(_.key.str == name.name))
+  def value(content: String): TreeQuery[Inner] = treeFilter(t => t.elem.kvPairs.exists(_.value.str == content))
+  def keyValue(key: PIDEField, value: String): TreeQuery[Inner] = {
     treeFilter(t => t.elem.kvPairs.exists(p => p.key.str == key.name && p.value.str == value))
-  def treeFilter(filter: Tree => Boolean): Query[Inner] =
-    Query(_.data match {
+  }
+  private def treeFilter(filter: Tree => Boolean): TreeQuery[Inner] =
+    TreeQuery(_.data match {
       case t: Tree => filter(t)
       case _ => false
-    }, _.children.filter(_.data.getClass == classOf[Tree]))
+    }, n => { case c: Node[Inner] if n.children.contains(c) => c.data.getClass == classOf[Tree] })
 }

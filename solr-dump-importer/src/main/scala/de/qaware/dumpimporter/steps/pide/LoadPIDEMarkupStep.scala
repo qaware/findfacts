@@ -2,7 +2,7 @@ package de.qaware.dumpimporter.steps.pide
 
 import com.typesafe.scalalogging.Logger
 import de.qaware.dumpimporter.Config
-import de.qaware.dumpimporter.dataacess.RepositoryReader
+import de.qaware.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
 import de.qaware.dumpimporter.steps.pide.PIDENode.yxmlTree
 import de.qaware.yxml.{YXMLParseError, YXMLParser}
@@ -29,7 +29,12 @@ class LoadPIDEMarkupStep(override val config: Config) extends ImportStep {
           .keyValue(PIDEField.NAME, PIDEField.DEFINITION)
           .parent()
           .parent()
-          .execute(yxml.trees)
+          .find(yxml.trees)
+
+        definitions.foreach(definition => {
+          val uses = PIDEQuery.tag(PIDEField.ENTITY).and(PIDEQuery.key(PIDEField.REF)).find(Seq(definition))
+
+        })
 
         logger.info("{} definitions found!", definitions.size)
       })

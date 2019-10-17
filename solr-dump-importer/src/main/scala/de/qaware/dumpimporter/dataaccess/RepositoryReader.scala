@@ -1,4 +1,4 @@
-package de.qaware.dumpimporter.dataacess
+package de.qaware.dumpimporter.dataaccess
 
 import scala.util.matching.Regex
 
@@ -30,7 +30,8 @@ case class RepositoryReader(rootdir: File) {
     */
   def readAll(regex: Regex): Iterator[RepositoryFile] = {
     rootdir
-      .list(file => regex.matches(file.name) | regex.matches(relativeFile(file)))
+      .list(file =>
+        file.isReadable && !file.isDirectory && (regex.matches(file.name) || regex.matches(relativeFile(file))))
       .map(file => {
         val repoFile = RepositoryFile(relativeFile(file), file.contentAsString)
         logger.info("Reading file {} in {}", repoFile.sourceFile, rootdir)
