@@ -54,7 +54,7 @@ case class TreeQuery[N <: Node[_, N]](
       (n: N) => {
         val f1 = nodeChildFilter(n)
         val f2 = query.nodeChildFilter(n);
-        { case n: Any if f1.isDefinedAt(n) && f2.isDefinedAt(n) => f1(n) && f2(n) }
+        { case n: N if f1.isDefinedAt(n) && f2.isDefinedAt(n) => f1(n) && f2(n) }
       }
     )
   }
