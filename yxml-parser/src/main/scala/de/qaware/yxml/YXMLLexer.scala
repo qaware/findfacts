@@ -4,6 +4,8 @@ import scala.language.implicitConversions
 import scala.util.parsing.combinator.RegexParsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
+import com.typesafe.scalalogging.Logger
+
 /** Wraps errors while lexing/parsing. */
 trait YXMLParseError extends Throwable
 
@@ -28,10 +30,10 @@ case class YXMLLexerError(location: Location, msg: String) extends YXMLParseErro
   * @param tokens list of token to read
   */
 protected class YXMLTokenReader(tokens: Seq[YXMLToken]) extends Reader[YXMLToken] {
-  override def first: YXMLToken = tokens.head
-  override def rest: Reader[YXMLToken] = new YXMLTokenReader(tokens.tail)
-  override def pos: Position = tokens.headOption.map(_.pos).getOrElse(NoPosition)
-  override def atEnd: Boolean = tokens.isEmpty
+  @inline override def first: YXMLToken = tokens.head
+  @inline override def rest: Reader[YXMLToken] = new YXMLTokenReader(tokens.tail)
+  @inline override def pos: Position = tokens.headOption.map(_.pos).getOrElse(NoPosition)
+  @inline override def atEnd: Boolean = tokens.isEmpty
 }
 
 /** Lexer for yxml. */
@@ -48,15 +50,21 @@ object YXMLLexer extends RegexParsers {
   protected def tokens: Parser[List[YXMLToken]] = phrase(rep(x | y | equal | text | ws)) ^^ (tokens => tokens)
   // scalastyle:on scaladoc
 
+  private val logger = Logger[YXMLLexer.type]
+
   /** Lexes input string into token stream.
     *
     * @param yxml the input to lex
     * @return the corresponding tokens stream
     */
-  def apply(yxml: String): Either[YXMLParseError, List[YXMLToken]] = parse(tokens, yxml) match {
-    case NoSuccess(msg, next) =>
-      Left(YXMLLexerError(Location(next.pos.line, next.pos.column), msg))
-    case Success(result, _) =>
-      Right(result)
+  def apply(yxml: String): Either[YXMLParseError, List[YXMLToken]] = {
+    val start = System.currentTimeMillis()
+    parse(tokens, yxml) match {
+      case NoSuccess(msg, next) =>
+        Left(YXMLLexerError(Location(next.pos.line, next.pos.column), msg))
+      case Success(result, _) =>
+        logger.debug("Tokenization took {} ms", System.currentTimeMillis() - start)
+        Right(result)
+    }
   }
 }

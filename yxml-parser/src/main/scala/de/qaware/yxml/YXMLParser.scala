@@ -2,6 +2,8 @@ package de.qaware.yxml
 
 import scala.util.parsing.combinator.Parsers
 
+import com.typesafe.scalalogging.Logger
+
 /** Parser error.
   *
   * @param location location of the error
@@ -18,56 +20,58 @@ object YXMLTokenParser extends Parsers {
   protected def yxml: Parser[YXML] = positioned {
     phrase(rep1(tree)) ^^ (tree => YXML(tree))
   }
-  protected def tree: Parser[Tree] = positioned {
+  @inline protected def tree: Parser[Tree] = positioned {
     (opt(ws) ~ tag ~ opt(ws) ~ rep(inner) ~ opt(ws) ~ close ~ opt(ws)) ^^ {
       case _ ~ tag ~ _ ~ inner ~ _ ~ _ ~ _ => Tree(tag, inner)
     }
   }
-  protected def tag: Parser[Tag] = positioned {
+  @inline protected def tag: Parser[Tag] = positioned {
     (x ~ y ~ name ~ rep(kvpair) ~ x) ^^ {
       case _ ~ _ ~ name ~ kvs ~ _ => Tag(name, kvs)
     }
   }
-  protected def kvpair: Parser[KVPair] = positioned {
+  @inline protected def kvpair: Parser[KVPair] = positioned {
     (y ~ key ~ equal ~ value) ^^ {
       case _ ~ key ~ _ ~ value => KVPair(key, value)
     }
   }
-  protected def inner: Parser[Inner] = positioned {
+  @inline protected def inner: Parser[Inner] = positioned {
     (body | tree) ^^ identity
   }
-  protected def close: Parser[Close] = positioned {
+  @inline protected def close: Parser[Close] = positioned {
     (x ~ y ~ x) ^^ (_ => Close())
   }
   // Lower-level value parsers
-  protected def name: Parser[Value] = positioned {
+  @inline protected def name: Parser[Value] = positioned {
     rep1(ws | equal | text) ^^ (t => Value(mkTokenString(t)))
   }
-  protected def key: Parser[Value] = positioned {
+  @inline protected def key: Parser[Value] = positioned {
     rep1(ws | text) ^^ (t => Value(mkTokenString(t)))
   }
-  protected def value: Parser[Value] = positioned {
+  @inline protected def value: Parser[Value] = positioned {
     rep(ws | equal | text) ^^ (t => Value(mkTokenString(t)))
   }
-  protected def body: Parser[Body] = positioned {
+  @inline protected def body: Parser[Body] = positioned {
     ((text | equal) ~ rep(eqWsText)) ^^ { case t ~ ts => Body(mkTokenString(t +: ts)) }
   }
   // parse text with equal signs and whitespaces
-  protected def eqWsText: Parser[TEXT] = positioned {
+  @inline protected def eqWsText: Parser[TEXT] = positioned {
     (rep(ws) ~ (text | equal)) ^^ { case ts ~ t => TEXT(mkTokenString(ts :+ t)) }
   }
   // scalastyle:on scaladoc
 
   // Text token helper
-  private def mkTokenString(in: Seq[TextToken]): String =
+  @inline def mkTokenString(in: Seq[TextToken]): String =
     in.map(_.str).foldLeft(new StringBuilder)((sb, str) => sb.append(str)).toString()
 
   // Lift lexer definitions to use here
-  private def x = accept("x", { case x: X => x })
-  private def y = accept("y", { case y: Y => y })
-  private def equal = accept("equal", { case e: EQUAL => e })
-  private def text = accept("text", { case t: TEXT => t })
-  private def ws = accept("ws", { case w: WS => w })
+  @inline private def x = accept("x", { case x: X => x })
+  @inline private def y = accept("y", { case y: Y => y })
+  @inline private def equal = accept("equal", { case e: EQUAL => e })
+  @inline private def text = accept("text", { case t: TEXT => t })
+  @inline private def ws = accept("ws", { case w: WS => w })
+
+  private val logger = Logger[YXMLTokenParser.type]
 
   /** Parses tokens into yxml forest structure.
     *
@@ -75,11 +79,13 @@ object YXMLTokenParser extends Parsers {
     * @return yxml forest or parse error
     */
   def apply(tokens: Seq[YXMLToken]): Either[YXMLParserError, YXML] = {
+    val start = System.currentTimeMillis()
     val reader = new YXMLTokenReader(tokens)
     yxml(reader) match {
       case NoSuccess(msg, next) =>
         Left(YXMLParserError(Location(next.pos.line, next.pos.column), msg))
       case Success(result, _) =>
+        logger.debug("Token parsing took {} ms", System.currentTimeMillis() - start)
         Right(result)
     }
   }
@@ -88,15 +94,21 @@ object YXMLTokenParser extends Parsers {
 /** Combined YXML lexer and parser. */
 object YXMLParser {
 
+  private val logger = Logger[YXMLParser.type]
+
   /** Parses yxml string into forest.
     *
     * @param yxml string to parse
     * @return yxml forest or parse error
     */
   def apply(yxml: String): Either[YXMLParseError, YXML] = {
+    val start = System.currentTimeMillis()
     for {
       tokens <- YXMLLexer(yxml)
       ast <- YXMLTokenParser(tokens)
-    } yield ast
+    } yield {
+      logger.debug("Total parsing took {} ms", System.currentTimeMillis() - start)
+      ast
+    }
   }
 }

@@ -2,6 +2,14 @@ ThisBuild / organization := "de.qaware"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.1"
 
+// Enable compiler optimizations
+ThisBuild / scalacOptions ++= Seq(
+  "-optimize",
+  "-opt:l:method",
+  "-opt:l:inline",
+  "-opt-inline-from:l:method,inline"
+)
+
 // Project-wide dependency management
 ThisBuild / resolvers += "Restlet" at "https://maven.restlet.com/"
 ThisBuild / libraryDependencies ++= Seq(

@@ -140,12 +140,6 @@
   </parameters>
  </check>
  <check level="error" class="org.scalastyle.scalariform.LowercasePatternMatchChecker" enabled="true"/>
- <check level="error" class="org.scalastyle.scalariform.MultipleStringLiteralsChecker" enabled="true">
-  <parameters>
-   <parameter name="allowed"><![CDATA[2]]></parameter>
-   <parameter name="ignoreRegex"><![CDATA[^""$]]></parameter>
-  </parameters>
- </check>
  <check level="error" class="org.scalastyle.scalariform.ImportGroupingChecker" enabled="true"/>
  <!-- Rules that may be broken in the development process and thus do NOT break the build -->
  <check enabled="true" class="org.scalastyle.scalariform.ScalaDocChecker" level="warning">
@@ -161,4 +155,6 @@
  <check level="error" class="org.scalastyle.scalariform.VarLocalChecker" enabled="false"/>
  <check level="error" class="org.scalastyle.scalariform.XmlLiteralChecker" enabled="false"/>
  <check level="error" class="org.scalastyle.file.NoNewLineAtEofChecker" enabled="false"/>
+ <!-- Rules that have errors and do not work properly -->
+ <check level="error" class="org.scalastyle.scalariform.MultipleStringLiteralsChecker" enabled="false"/>
 </scalastyle>
