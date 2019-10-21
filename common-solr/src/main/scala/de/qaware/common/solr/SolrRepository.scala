@@ -26,7 +26,7 @@ sealed trait SolrRepository {
   *
   * @param solrHome sole home directory to read config from/write data to
   */
-case class LocalSolr(solrHome: File) extends SolrRepository {
+final case class LocalSolr(solrHome: File) extends SolrRepository {
 
   /** Name of the default core for embedded solr. */
   final val CORE_NAME = "theorydata"
@@ -70,7 +70,7 @@ case class LocalSolr(solrHome: File) extends SolrRepository {
   *
   * @param url to solr instance
   */
-case class RemoteSolr(url: URL) extends SolrRepository {
+final case class RemoteSolr(url: URL) extends SolrRepository {
   override def solrConnection: SolrClient = new HttpSolrClient.Builder().withBaseSolrUrl(url.toString).build
 }
 
@@ -78,7 +78,7 @@ case class RemoteSolr(url: URL) extends SolrRepository {
   *
   * @param zkhosts list of zookeeper hosts
   */
-case class CloudSolr(zkhosts: Seq[ZKHost]) extends SolrRepository {
+final case class CloudSolr(zkhosts: Seq[ZKHost]) extends SolrRepository {
   require(zkhosts.nonEmpty, "must have at least one zookeeper")
 
   override def solrConnection: SolrClient = {
@@ -92,7 +92,7 @@ case class CloudSolr(zkhosts: Seq[ZKHost]) extends SolrRepository {
   * @param host zookeeper host address
   * @param port zookeeper port
   */
-case class ZKHost(host: String, port: Int) {
+final case class ZKHost(host: String, port: Int) {
   require(host.nonEmpty, "host must not be empty")
   require(port > 0 && port < 65535, "port must be between 0 and 65535, was " + port)
 }

@@ -19,7 +19,7 @@ trait ImportStep {
 }
 
 /** Context shared throughout the steps. */
-case class StepContext(doc: mutable.Set[DocumentationEntity] = mutable.Set())
+final case class StepContext(doc: mutable.Set[DocumentationEntity] = mutable.Set.empty)
 object StepContext {
 
   /** Builds an empty context.

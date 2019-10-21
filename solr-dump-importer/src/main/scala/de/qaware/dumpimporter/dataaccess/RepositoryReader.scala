@@ -10,13 +10,13 @@ import com.typesafe.scalalogging.Logger
   * @param sourceFile file path relative to repository root
   * @param content of the file as string
   */
-case class RepositoryFile(sourceFile: String, content: String)
+final case class RepositoryFile(sourceFile: String, content: String)
 
 /** Reader for repository files.
   *
   * @param rootdir of the repository
   */
-case class RepositoryReader(rootdir: File) {
+final case class RepositoryReader(rootdir: File) {
   private val logger = Logger[RepositoryReader]
 
   private def relativeFile(file: File): String = {

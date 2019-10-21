@@ -30,6 +30,7 @@ case class YXMLLexerError(location: Location, msg: String) extends YXMLParseErro
   * @param tokens list of token to read
   */
 protected class YXMLTokenReader(tokens: Seq[YXMLToken]) extends Reader[YXMLToken] {
+  @SuppressWarnings(Array("TraversableHead")) // Justification: External reader interface is unsafe
   @inline override def first: YXMLToken = tokens.head
   @inline override def rest: Reader[YXMLToken] = new YXMLTokenReader(tokens.tail)
   @inline override def pos: Position = tokens.headOption.map(_.pos).getOrElse(NoPosition)

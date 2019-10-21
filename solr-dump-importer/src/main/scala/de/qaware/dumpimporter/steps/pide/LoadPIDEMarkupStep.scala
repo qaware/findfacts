@@ -8,7 +8,7 @@ import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
 import de.qaware.dumpimporter.steps.pide.PIDEField.{CONSTANT, DEF, DEFINITION, ENTITY, KIND, NAME, REF}
 import de.qaware.dumpimporter.steps.pide.PIDENode.yxmlTree
 import de.qaware.dumpimporter.steps.pide.PIDEQuery.{body, key, keyValue, tag}
-import de.qaware.yxml.{YXML, YXMLParseError, YXMLParser}
+import de.qaware.yxml.{YXML, YXMLParser}
 
 /** Importer step that loads theory data from PIDE config.
   *
@@ -28,9 +28,17 @@ class LoadPIDEMarkupStep(override val config: Config) extends ImportStep {
       .foreach(file => {
         logger.info("Reading {}", file.sourceFile)
         var start = System.currentTimeMillis()
-        val yxml = YXMLParser(file.content).toTry(implicitly[YXMLParseError <:< Throwable]).get
+
+        // Try to parse file
+        val yxml = YXMLParser(file.content) match {
+          case Right(yxml) => yxml
+          case Left(parseError) =>
+            logger.error("Could not parse {}: {}", file.sourceFile, parseError)
+            throw parseError
+        }
         logger.info("\tParsed in {}", System.currentTimeMillis() - start)
         start = System.currentTimeMillis()
+
         val constants = findConstants(yxml, file)
         logger.info("\t{} constants found in {}", constants.size, System.currentTimeMillis() - start)
       })
@@ -49,6 +57,7 @@ class LoadPIDEMarkupStep(override val config: Config) extends ImportStep {
           .first()
           .findSingle(definition)
         logger.debug("{} constant entities found", constEntity)
+
         val constName = body().findSingle(constEntity).getBody
         val constId = constEntity.getValue(DEF)
         val uses = tag(ENTITY)

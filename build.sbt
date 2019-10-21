@@ -46,8 +46,8 @@ lazy val `yxml-parser` = project
 lazy val `common-utils` = project
 
 // Settings for sonarqube integration
-coverageExcludedFiles := "*Using.scala"
-scapegoatIgnoredFiles += "*Using.scala"
+ThisBuild / coverageExcludedFiles := "*.*/Using.scala"
+ThisBuild / scapegoatIgnoredFiles += ".*/Using.scala"
 
 lazy val sonarSettings = Seq(
   sonarProperties ++= Map(

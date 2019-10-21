@@ -4,7 +4,8 @@ import scala.collection.mutable.ListBuffer
 
 /** Generic immutable tree node.
   *
-  * @tparam A type of inner element.
+  * @tparam A type of inner element
+  * @tparam T type of whole node
   */
 trait Node[+A, T <: Node[A, T]] { self: T =>
 
@@ -19,12 +20,13 @@ trait Node[+A, T <: Node[A, T]] { self: T =>
   *
   * @param filter function to check whether a node matches the query
   * @param nodeChildFilter partial function to filter which of the node's children are used in the recursive traversal
+  * @tparam N type of node
   */
-case class TreeQuery[N <: Node[_, N]](
+final case class TreeQuery[N <: Node[_, N]](
     filter: N => Boolean,
     nodeChildFilter: N => PartialFunction[N, Boolean] = (n: N) =>
       ({
-        case c: Any if n.children.contains(c) => true
+        case c: N if n.children.contains(c) => true
       }: PartialFunction[N, Boolean])) {
 
   /** Stops the recursion after the first match. Not that this does NOT mean that a query will only match one element!
@@ -61,7 +63,7 @@ case class TreeQuery[N <: Node[_, N]](
 
   /** Execute the query on a given single tree.
     *
-    * @ param tree to execute on
+    * @param tree to execute on
     * @return all matches
     */
   def find(tree: N): Iterable[N] = {

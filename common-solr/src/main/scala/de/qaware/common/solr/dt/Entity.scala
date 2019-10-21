@@ -18,7 +18,8 @@ import org.apache.solr.client.solrj.beans.Field
   * @param typeName name of the defined type
   * @param constructors ids of constructors this type has
   */
-case class TypeEntity(
+@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
+final case class TypeEntity(
     @(Field @field)(ID) id: String,
     @(Field @field)(SOURCE_FILE) sourceFile: String,
     @(Field @field)(START_POS) startPos: Int,
@@ -44,7 +45,8 @@ case class TypeEntity(
   * @param definition definition term in string representation
   * @param uses ids of entities that the constant uses
   */
-case class ConstEntity(
+@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
+final case class ConstEntity(
     @(Field @field)(ID) id: String,
     @(Field @field)(SOURCE_FILE) sourceFile: String,
     @(Field @field)(START_POS) startPos: Int,
@@ -70,7 +72,8 @@ case class ConstEntity(
   * @param term term of the axiom as string representation
   * @param uses ids of entities that the axiom uses
   */
-case class AxiomEntity(
+@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
+final case class AxiomEntity(
     @(Field @field)(ID) id: String,
     @(Field @field)(SOURCE_FILE) sourceFile: String,
     @(Field @field)(START_POS) startPos: Int,
@@ -94,7 +97,8 @@ case class AxiomEntity(
   * @param term all terms of the fact as string representation
   * @param uses ids of entities that the fact uses
   */
-case class FactEntity(
+@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
+final case class FactEntity(
     @(Field @field)(ID) id: String,
     @(Field @field)(SOURCE_FILE) sourceFile: String,
     @(Field @field)(START_POS) startPos: Int,
@@ -117,7 +121,8 @@ case class FactEntity(
   * @param kind kind of the entity, i.e. [[EntityKind.Documentation]] for this entity
   * @param text text of the documentation
   */
-case class DocumentationEntity(
+@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
+final case class DocumentationEntity(
     @(Field @field)(ID) id: String,
     @(Field @field)(SOURCE_FILE) sourceFile: String,
     @(Field @field)(START_POS) startPos: Int,

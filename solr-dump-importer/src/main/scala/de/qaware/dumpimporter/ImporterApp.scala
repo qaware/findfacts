@@ -16,9 +16,10 @@ import scopt.{OptionParser, Read}
   * @param solr solr repository to write to
   * @param isValid help flag for argument parsing
   */
-sealed case class Config(dump: File = File(""), solr: Option[SolrRepository] = None, isValid: Boolean = true)
+final case class Config(dump: File = File(""), solr: Option[SolrRepository] = None, isValid: Boolean = true)
 
 /** Command-line interface app for importer. */
+@SuppressWarnings(Array("OptionGet")) // Justification: cli-options are checked in the [[checkConfig]] method
 object ImporterApp extends App {
 
   /** Parsing of zookeeper hosts, specified as 'host:port' strings */
@@ -69,8 +70,8 @@ object ImporterApp extends App {
       logger.info("Read config: {}", config)
       Using.resource(config.solr.get.solrConnection) { client =>
         logger.info("Connected to solr at {}", config.solr)
-        val context = StepContext.empty
-        val steps = Seq(new LoadPIDEMarkupStep(config))
+        val context = StepContext.empty // scalastyle:ignore
+        val steps = Seq(new LoadPIDEMarkupStep(config)) // scalastyle:ignore
         steps.zipWithIndex.foreach({
           case (step, i) =>
             logger.info("Step {}/{}...", i + 1, steps.size)
