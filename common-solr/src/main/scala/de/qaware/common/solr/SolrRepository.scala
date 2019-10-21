@@ -3,11 +3,11 @@ package de.qaware.common.solr
 import java.net.URL
 import java.nio.file.{Files, StandardCopyOption}
 
-import scala.jdk.CollectionConverters._
-import scala.util.Using
+import scala.collection.JavaConverters._
 
 import better.files.{File, Resource}
 import com.typesafe.scalalogging.Logger
+import de.qaware.scalautils.Using
 import org.apache.solr.client.solrj.SolrClient
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
 import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}

@@ -1,0 +1,16 @@
+stages:
+  - analyze # linting, testing (with coverage), static code analysis, and upload to sonarqube
+
+gradle-build:
+  stage: analyze
+  image: openjdk:11-jdk
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - "~/.ivy2/cache"
+      - "~/.sbt"
+      - "~/.m2"
+  script:
+    - ./sbt clean scalastyle coverage test coverageReport coverageOff
+    - ./sbt scapegoat || true
+    - ./sbt sonarScan -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_TOKEN

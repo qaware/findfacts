@@ -7,7 +7,7 @@ jobs:
       - checkout
       - restore_cache:
           key: sbt-cache
-      - run: ./sbt scalastyle compile test
+      - run: ./sbt compile test
       - save_cache:
           key: sbt-cache
           paths:

@@ -62,8 +62,6 @@ case class TreeQuery[N <: Node[_, N]](
   /** Execute the query on a given single tree.
     *
     * @ param tree to execute on
-    * @ param ev conversion method from nodes [[B]] of the forest to [[N]]s
-    * @ tparam B nodes of the forest before conversion
     * @return all matches
     */
   def find(tree: N): Iterable[N] = {
@@ -73,8 +71,6 @@ case class TreeQuery[N <: Node[_, N]](
   /** Executes the query on a given forest.
     *
     * @param forest to execute on
-    * @ param ev conversion method from nodes [[B]] of the forest to [[Node]][[A]]s
-    * @ tparam B nodes of the forest before conversion
     * @return all matches
     */
   def find(forest: Iterable[N]): Iterable[N] = {
@@ -86,8 +82,6 @@ case class TreeQuery[N <: Node[_, N]](
   /** Finds a single element in the given tree. Throws [[IllegalArgumentException]] if result is no single argument.
     *
     * @param tree to execute on
-    * @ param ev conversion method from nodes [[B]] of the forest to [[N]]s
-    * @ tparam B nodes of the forest before conversion
     * @return single match
     */
   def findSingle(tree: N): N = find(Seq(tree)).toSeq match {
@@ -98,7 +92,7 @@ case class TreeQuery[N <: Node[_, N]](
 
   @scala.annotation.tailrec
   private def findRec(forest: Iterable[N], results: ListBuffer[N]): Unit = {
-    results.addAll(forest.filter(filter))
+    results.appendAll(forest.filter(filter))
     val children = forest.flatMap(t => t.children.filter(c => nodeChildFilter(t)(c)))
     if (children.nonEmpty) {
       findRec(children, results)

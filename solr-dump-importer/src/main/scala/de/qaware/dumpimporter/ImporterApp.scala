@@ -2,13 +2,12 @@ package de.qaware.dumpimporter
 
 import java.net.URL
 
-import scala.util.Using
-
 import better.files.File
 import com.typesafe.scalalogging.Logger
 import de.qaware.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
 import de.qaware.dumpimporter.steps.StepContext
 import de.qaware.dumpimporter.steps.pide.LoadPIDEMarkupStep
+import de.qaware.scalautils.Using
 import scopt.{OptionParser, Read}
 
 /** Configuration of the importer.
