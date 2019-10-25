@@ -7,9 +7,9 @@ gradle-build:
   cache:
     key: $CI_COMMIT_REF_SLUG
     paths:
-      - "~/.ivy2/cache"
-      - "~/.sbt"
-      - "~/.m2"
+      - "/root/.ivy2/cache"
+      - "/root/.sbt"
+      - "/root/.m2"
   script:
     - ./sbt clean scalastyle coverage test coverageReport coverageOff
     - ./sbt scapegoat || true

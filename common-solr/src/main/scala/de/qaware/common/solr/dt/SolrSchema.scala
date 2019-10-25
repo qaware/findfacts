@@ -15,6 +15,7 @@ object SolrSchema {
   final val CONST_TYPE = "const_type"
   final val TERM = "term"
   final val TEXT = "text"
+  final val DOCTYPE = "doc_type"
   final val USES = "uses"
   // scalastyle:on scaladoc
 }
@@ -23,10 +24,14 @@ object SolrSchema {
 object EntityKind extends Enumeration {
   val
   /** Type definition. */
-  Type, /** Constants, including constructors. */
-  Constant, /** Single propositions. */
-  Axiom, /** Multiple propositions. */
-  Fact, /** Comments, sections, titles etc. */
+  Type,
+  /** Constants, including constructors. */
+  Constant,
+  /** Single propositions. */
+  Axiom,
+  /** Multiple propositions. */
+  Fact,
+  /** Comments, sections, titles etc. */
   Documentation = Value
 
   /** String conversion method for use with entities, since solrj can not directly handle enum fields.
@@ -35,4 +40,22 @@ object EntityKind extends Enumeration {
     * @return string name of entityKind
     */
   implicit def toString(entityKind: EntityKind.Value): String = entityKind.toString
+}
+
+/** Types of documentation. */
+object DocumentationType extends Enumeration {
+  val
+  /** Comments in the meta-language, (* ... *) */
+  Meta,
+  /** Latex documentation: sections, etc. */
+  Latex,
+  /** Inline comments, usually in cartouches. */
+  Inline = Value
+
+  /** String conversion method for use with entities, since solrj can not directly handle enum fields.
+    *
+    * @param docType to convert to string
+    * @return string name of documentation type
+    */
+  implicit def toString(docType: DocumentationType.Value): String = docType.toString
 }

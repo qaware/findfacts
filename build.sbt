@@ -5,7 +5,7 @@ ThisBuild / scapegoatVersion := "1.3.8"
 
 // Enable compiler optimizations
 ThisBuild / scalacOptions ++= Seq(
-  "-optimize",
+  "-deprecation",
   "-opt:l:method",
   "-opt:l:inline",
   "-opt-inline-from:l:method,inline"

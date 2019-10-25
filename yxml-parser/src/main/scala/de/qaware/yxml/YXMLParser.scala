@@ -61,8 +61,7 @@ object YXMLTokenParser extends Parsers {
   // scalastyle:on scaladoc
 
   // Text token helper
-  @inline def mkTokenString(in: Seq[TextToken]): String =
-    in.map(_.str).foldLeft(new StringBuilder)((sb, str) => sb.append(str)).toString()
+  @inline def mkTokenString(in: Seq[TextToken]): String = in.map(_.str).mkString
 
   // Lift lexer definitions to use here
   @inline private def x = accept("x", { case x: X => x })

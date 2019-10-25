@@ -2,7 +2,7 @@ package de.qaware.dumpimporter.steps.pide
 
 import scala.language.implicitConversions
 
-import de.qaware.dumpimporter.dataaccess.{Node, TreeQuery}
+import de.qaware.dumpimporter.dataaccess.treequery.{FilterQuery, Node}
 import de.qaware.yxml.{Body, Inner, KVPair, Tag, Tree}
 
 case class PIDEField(name: String)
@@ -15,12 +15,18 @@ object PIDEField extends Enumeration {
   final val REF = PIDEField("ref")
   final val KIND = PIDEField("kind")
   final val CONSTANT = PIDEField("constant")
+  final val KEYWORD1 = PIDEField("keyword1")
+  final val KEYWORD2 = PIDEField("keyword2")
+  final val WHERE = PIDEField("where")
+  final val STRING = PIDEField("string")
+  final val DELETE = PIDEField("delete")
+  final val PLAIN_TEXT = PIDEField("plain_text")
 
   implicit def toString(field: PIDEField): String = field.name
 }
 
-case class PIDENode(inner: Inner) extends Node[Inner, PIDENode] {
-  override val data: Inner = inner
+case class PIDENode(inner: Inner) extends Node[PIDENode] {
+  val data: Inner = inner
 
   override val children: Seq[PIDENode] = inner match {
     case _: Body => Seq.empty
@@ -46,21 +52,29 @@ case class PIDENode(inner: Inner) extends Node[Inner, PIDENode] {
 }
 
 object PIDENode {
-  implicit def yxmlTree[A <: Inner](inner: A): PIDENode = PIDENode(inner)
+  implicit def fromInner(inner: Inner): PIDENode = PIDENode(inner)
 }
 
 object PIDEQuery {
-  def body(): TreeQuery[PIDENode] = TreeQuery[PIDENode](_.data.getClass == classOf[Body])
-  def tag(name: PIDEField): TreeQuery[PIDENode] = treeFilter(t => t.elem.name.str == name.name)
-  def key(name: PIDEField): TreeQuery[PIDENode] = treeFilter(t => t.elem.kvPairs.exists(_.key.str == name.name))
-  def value(content: String): TreeQuery[PIDENode] = treeFilter(t => t.elem.kvPairs.exists(_.value.str == content))
-  def keyValue(key: PIDEField, value: String): TreeQuery[PIDENode] = {
-    treeFilter(t => t.elem.kvPairs.exists(p => p.key.str == key.name && p.value.str == value))
+  def body(): FilterQuery[PIDENode] = {
+    FilterQuery[PIDENode](_.data.getClass == classOf[Body])
   }
-
-  private def treeFilter(filter: Tree => Boolean): TreeQuery[PIDENode] =
-    TreeQuery[PIDENode](_.data match {
+  def tag(name: PIDEField): FilterQuery[PIDENode] = {
+    treeFilter(_.elem.name.str == name.name)
+  }
+  def key(name: PIDEField): FilterQuery[PIDENode] = {
+    treeFilter(_.elem.kvPairs.exists(_.key.str == name.name))
+  }
+  def value(content: String): FilterQuery[PIDENode] = {
+    treeFilter(_.elem.kvPairs.exists(_.value.str == content))
+  }
+  def keyValue(key: PIDEField, value: String): FilterQuery[PIDENode] = {
+    treeFilter(_.elem.kvPairs.exists(p => p.key.str == key.name && p.value.str == value))
+  }
+  private def treeFilter(filter: Tree => Boolean): FilterQuery[PIDENode] = {
+    FilterQuery(_.data match {
       case t: Tree => filter(t)
       case _ => false
-    }, n => { case c: Any if n.children.contains(c) => c.data.getClass == classOf[Tree] })
+    })
+  }
 }

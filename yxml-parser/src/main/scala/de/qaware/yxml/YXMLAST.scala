@@ -28,7 +28,7 @@ case class Tree(elem: Tag, inner: Seq[Inner] = Seq()) extends YXMLAST with Inner
   * @param kvPairs key=value pairs in the tag
   */
 case class Tag(name: Value, kvPairs: Seq[KVPair] = Seq()) extends YXMLAST {
-  override def toString: String = f"$name ${kvPairs.map(_.toString).foldLeft("")(_ + " " + _)}"
+  override def toString: String = f"$name ${kvPairs.map(_.toString).mkString(" ")}"
 }
 
 /** Closing tag. Contains only positional information. */

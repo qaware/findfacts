@@ -128,9 +128,10 @@ final case class DocumentationEntity(
     @(Field @field)(START_POS) startPos: Int,
     @(Field @field)(END_POS) endPos: Int,
     @(Field @field)(TEXT) text: String,
+    @(Field @field)(DOCTYPE) docType: String,
     @(Field @field)(KIND) kind: String = EntityKind.Documentation
 ) {
   def this() {
-    this(null, null, -1, -1, null)
+    this(null, null, -1, -1, null, null)
   }
 }
