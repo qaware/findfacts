@@ -19,7 +19,7 @@ sealed trait SolrRepository {
     *
     * @return a configured, initialized client to a solr instance
     */
-  def solrConnection: SolrClient
+  def solrConnection(): SolrClient
 }
 
 /** Local, embedded solr client.
@@ -63,7 +63,7 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
     new EmbeddedSolrServer(solrHome.path, CORE_NAME)
   }
 
-  override def solrConnection: SolrClient = client
+  override def solrConnection(): SolrClient = client
 }
 
 /** Remote http solr client.
@@ -71,7 +71,7 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
   * @param url to solr instance
   */
 final case class RemoteSolr(url: URL) extends SolrRepository {
-  override def solrConnection: SolrClient = new HttpSolrClient.Builder().withBaseSolrUrl(url.toString).build
+  override def solrConnection(): SolrClient = new HttpSolrClient.Builder().withBaseSolrUrl(url.toString).build
 }
 
 /** Remote solr cloud.
@@ -81,7 +81,7 @@ final case class RemoteSolr(url: URL) extends SolrRepository {
 final case class CloudSolr(zkhosts: Seq[ZKHost]) extends SolrRepository {
   require(zkhosts.nonEmpty, "must have at least one zookeeper")
 
-  override def solrConnection: SolrClient = {
+  override def solrConnection(): SolrClient = {
     val hosts: java.util.List[String] = zkhosts.map(zkhost => zkhost.host + zkhost.port.toString).toBuffer.asJava
     new CloudSolrClient.Builder(hosts).build
   }

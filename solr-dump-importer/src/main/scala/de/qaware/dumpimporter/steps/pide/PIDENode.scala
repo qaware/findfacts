@@ -3,7 +3,7 @@ package de.qaware.dumpimporter.steps.pide
 import scala.language.implicitConversions
 
 import de.qaware.dumpimporter.dataaccess.treequery.{FilterQuery, Node}
-import de.qaware.yxml.{Body, Inner, KVPair, Tag, Tree}
+import de.qaware.yxml.{Inner, KVPair, Markup, Text, Yxml, YxmlAST}
 
 case class PIDEField(name: String)
 object PIDEField extends Enumeration {
@@ -15,6 +15,7 @@ object PIDEField extends Enumeration {
   final val REF = PIDEField("ref")
   final val KIND = PIDEField("kind")
   final val CONSTANT = PIDEField("constant")
+  final val KEYWORD = PIDEField("keyword")
   final val KEYWORD1 = PIDEField("keyword1")
   final val KEYWORD2 = PIDEField("keyword2")
   final val WHERE = PIDEField("where")
@@ -25,29 +26,27 @@ object PIDEField extends Enumeration {
   implicit def toString(field: PIDEField): String = field.name
 }
 
-case class PIDENode(inner: Inner) extends Node[PIDENode] {
-  val data: Inner = inner
-
+case class PIDENode(inner: YxmlAST) extends Node[PIDENode] {
   override val children: Seq[PIDENode] = inner match {
-    case _: Body => Seq.empty
-    case t: Tree => t.inner.map(e => PIDENode(e))
+    case Markup(_, _, inner) => inner.elems.map(e => PIDENode(e))
+    case _ => Seq.empty
   }
 
-  override def toString: String = f"P${inner.toString}"
+  override def toString: String = s"P${inner.toString}"
 
-  def getBody: String = data match {
-    case b: Body => b.str
-    case e: Any => throw new IllegalStateException(f"Was no body element: $e")
+  def getBody: String = inner match {
+    case Text(str) => str
+    case e: Any => throw new IllegalStateException(s"Was no body element: $e")
   }
 
-  def getValue(key: PIDEField): String = data match {
-    case Tree(Tag(_, kvs), _) =>
-      kvs.filter(_.key.str == key.name) match {
-        case Seq() => throw new IllegalStateException(f"Had no key $key")
-        case Seq(KVPair(_, value)) => value.str
-        case _ => throw new IllegalStateException(f"Multiple key $key")
+  def getValue(key: PIDEField): String = inner match {
+    case Markup(_, kvs, _) =>
+      kvs.filter(_._1 == key.name) match {
+        case Seq() => throw new IllegalStateException(s"Had no key $key")
+        case Seq((_, value)) => value
+        case _ => throw new IllegalStateException(s"Multiple key $key")
       }
-    case e: Any => throw new IllegalStateException(f"Was no tag element: $e")
+    case e: Any => throw new IllegalStateException(s"Was no tag element: $e")
   }
 }
 
@@ -57,23 +56,32 @@ object PIDENode {
 
 object PIDEQuery {
   def body(): FilterQuery[PIDENode] = {
-    FilterQuery[PIDENode](_.data.getClass == classOf[Body])
+    FilterQuery[PIDENode](_.inner.getClass == classOf[Text])
+  }
+  def body(content: String): FilterQuery[PIDENode] = {
+    FilterQuery[PIDENode](_.inner match {
+      case Text(str) if str == content => true
+      case _ => false
+    })
+  }
+  def tag(): FilterQuery[PIDENode] = {
+    treeFilter(_ => true)
   }
   def tag(name: PIDEField): FilterQuery[PIDENode] = {
-    treeFilter(_.elem.name.str == name.name)
+    treeFilter(_.tag == name.name)
   }
   def key(name: PIDEField): FilterQuery[PIDENode] = {
-    treeFilter(_.elem.kvPairs.exists(_.key.str == name.name))
+    treeFilter(_.kvs.exists(_._1 == name.name))
   }
   def value(content: String): FilterQuery[PIDENode] = {
-    treeFilter(_.elem.kvPairs.exists(_.value.str == content))
+    treeFilter(_.kvs.exists(_._2 == content))
   }
   def keyValue(key: PIDEField, value: String): FilterQuery[PIDENode] = {
-    treeFilter(_.elem.kvPairs.exists(p => p.key.str == key.name && p.value.str == value))
+    treeFilter(_.kvs.exists(p => p._1 == key.name && p._2 == value))
   }
-  private def treeFilter(filter: Tree => Boolean): FilterQuery[PIDENode] = {
-    FilterQuery(_.data match {
-      case t: Tree => filter(t)
+  private def treeFilter(filter: Markup => Boolean): FilterQuery[PIDENode] = {
+    FilterQuery(_.inner match {
+      case t: Markup => filter(t)
       case _ => false
     })
   }

@@ -67,17 +67,19 @@ object ImporterApp extends App {
 
   builder.parse(args, Config()) match {
     case Some(config) =>
-      logger.info("Read config: {}", config)
-      Using.resource(config.solr.get.solrConnection) { client =>
-        logger.info("Connected to solr at {}", config.solr)
-        val context = StepContext.empty // scalastyle:ignore
-        val steps = Seq(new LoadPIDEMarkupStep(config)) // scalastyle:ignore
-        steps.zipWithIndex.foreach({
-          case (step, i) =>
-            logger.info("Step {}/{}...", i + 1, steps.size)
-            step.apply(context)
-        })
+      //logger.info("Read config: {}", config)
+      if (config.solr.get.getClass != classOf[LocalSolr]) {
+        // Check if non-embedded solr instance is available to fail early if it is not
+        config.solr.get.solrConnection().close()
+        logger.info("Could successfully connect to solr at {}", config.solr)
       }
+      val context = StepContext.empty // scalastyle:ignore
+      val steps = Seq(new LoadPIDEMarkupStep(config)) // scalastyle:ignore
+      steps.zipWithIndex.foreach({
+        case (step, i) =>
+          logger.info("Step {}/{}...", i + 1, steps.size)
+          step.apply(context)
+      })
       logger.info("Finished importing.")
     case _ =>
   }
