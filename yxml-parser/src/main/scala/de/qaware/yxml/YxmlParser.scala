@@ -1,14 +1,15 @@
 package de.qaware.yxml
 
 import scala.util.parsing.combinator.Parsers
-
 import com.typesafe.scalalogging.Logger
 
+import scala.language.postfixOps
+
 /** Parser error.
-  *
-  * @param location location of the error
-  * @param msg error message
-  */
+ *
+ * @param location location of the error
+ * @param msg      error message
+ */
 case class YxmlParserError(location: Location, msg: String) extends YxmlParseError
 
 /** Parser for yxml token stream. */
@@ -17,32 +18,38 @@ object YxmlTokenParser extends Parsers {
 
   // scalastyle:off scaladoc
   // justification: parsing rules are documented in antlr grammar file
-  @inline protected def file: Parser[Yxml] = positioned {
+  protected def file: Parser[Yxml] = positioned {
     phrase(markup ~ yxml) ^^ { case root ~ remaining => Yxml(root +: remaining.elems) }
   }
+
   @inline protected def yxml: Parser[Yxml] = positioned {
     rep(inner) ^^ Yxml
   }
+
   @inline protected def inner: Parser[Inner] = positioned {
     (markup | text) ^^ identity
   }
+
   @inline protected def markup: Parser[Markup] = positioned {
-    (x ~ y ~ text ~ rep(kvpair) ~ x ~ yxml ~ x ~ y ~ x) ^^ {
+    (x ~ y ~ text ~ (kvpair *) ~ x ~ yxml ~ x ~ y ~ x) ^^ {
       case _ ~ _ ~ name ~ kvs ~ _ ~ inner ~ _ ~ _ ~ _ =>
         Markup(name.str, kvs.map(e => (e.key, e.value)), inner)
     }
   }
+
   @inline protected def kvpair: Parser[KVPair] = positioned {
-    (y ~ ts ~ eq ~ opt(text)) ^^ {
+    (y ~ ts ~ eq ~ (text ?)) ^^ {
       case _ ~ key ~ _ ~ None => KVPair(key.str, "")
       case _ ~ key ~ _ ~ Some(value) => KVPair(key.str, value.str)
     }
   }
+
   @inline protected def text: Parser[Text] = positioned {
-    rep1(eq | ts) ^^ { ts =>
+    ((eq | ts) +) ^^ { ts =>
       Text(mkTokenString(ts))
     }
   }
+
   // scalastyle:on scaladoc
 
   // Text token helper
@@ -54,17 +61,20 @@ object YxmlTokenParser extends Parsers {
 
   // Lift lexer definitions to use here
   @inline private def x = accept("x", { case x: X => x })
+
   @inline private def y = accept("y", { case y: Y => y })
+
   @inline private def eq = accept("eq", { case e: EQ => e })
+
   @inline private def ts = accept("ts", { case t: TS => t })
 
   private val logger = Logger[YxmlTokenParser.type]
 
   /** Parses tokens into yxml forest structure.
-    *
-    * @param tokens to parse
-    * @return yxml forest or parse error
-    */
+   *
+   * @param tokens to parse
+   * @return yxml forest or parse error
+   */
   def apply(tokens: Seq[YxmlToken]): Either[YxmlParserError, Yxml] = {
     val start = System.currentTimeMillis()
     val reader = new YXMLTokenReader(tokens)
@@ -84,10 +94,10 @@ object YxmlParser {
   private val logger = Logger[YxmlParser.type]
 
   /** Parses yxml string into forest.
-    *
-    * @param yxml string to parse
-    * @return yxml forest or parse error
-    */
+   *
+   * @param yxml string to parse
+   * @return yxml forest or parse error
+   */
   def apply(yxml: String): Either[YxmlParseError, Yxml] = {
     val start = System.currentTimeMillis()
     for {

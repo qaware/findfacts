@@ -13,9 +13,10 @@ ThisBuild / scalacOptions ++= Seq(
 
 // Project-wide dependency management
 ThisBuild / resolvers += "Restlet" at "https://maven.restlet.com/"
+val scalatest = "org.scalatest" %% "scalatest" % "3.0.8"
 ThisBuild / libraryDependencies ++= Seq(
   "com.github.pathikrit" %% "better-files" % "3.8.0",
-  "org.scalatest" %% "scalatest" % "3.0.8" % "test",
+  scalatest % "test",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
   "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.12.1" exclude ("org.slf4j", "slf4j-api"),
   "org.apache.logging.log4j" % "log4j-core" % "2.12.1"
@@ -27,7 +28,16 @@ lazy val root = (project in file("."))
   .settings(aggregate in sonarScan := false)
 
 lazy val `solr-dump-importer` = project
-  .settings(libraryDependencies += "com.github.scopt" %% "scopt" % "3.7.1")
+  .configs(IntegrationTest)
+  .settings(
+    inConfig(IntegrationTest)(Defaults.testSettings),
+    Defaults.itSettings,
+    libraryDependencies ++= Seq(
+      "com.github.scopt" %% "scopt" % "3.7.1",
+      scalatest % "it",
+      "org.scala-lang" % "scala-compiler" % "2.12.10" % "it"
+    ),
+  )
   .dependsOn(`common-solr`, `yxml-parser`, `common-utils`)
 
 lazy val `common-solr` = project

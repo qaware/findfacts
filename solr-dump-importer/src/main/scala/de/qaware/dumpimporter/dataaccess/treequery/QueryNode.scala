@@ -142,6 +142,8 @@ sealed trait ChainNode[N <: Node[N], R] extends QueryNode[N, R] {
     * @return new [[Thats]]
     */
   def thats(fq: FilterQuery[N]): Thats[N, R] = Thats(this, fq)
+
+  def without(fq: FilterQuery[N]): Without[N, R] = Without(this, fq)
 }
 
 /** Mixing trait for nodes that are upstream of others.
@@ -349,5 +351,22 @@ final case class Thats[N <: Node[N], R](downstream: QueryNode[N, R], fq: FilterQ
     with ChainNode[N, R] {
   override def transformRecursively(node: ResultNode[N]): ResultNode[N] = {
     node.copy(selected = node.selected && fq.matches(node.inner), children = node.children.map(transformRecursively))
+  }
+}
+
+/** Query-node to filter out complete sub-trees where the root node was selected before and is selected by the filter query.
+*
+ * @param downstream
+ * @param fq
+ * @tparam N type of nodes to query
+ * @tparam R result type
+ */
+final case class Without[N <: Node[N], R](downstream: QueryNode[N, R], fq: FilterQuery[N]) extends UpstreamNode[N, R] with ChainNode[N, R] {
+  override def transformRecursively(node: ResultNode[N]): ResultNode[N] = {
+    if (node.selected && fq.matches(node.inner)) {
+      node.copy(selected = false, children = Seq.empty)
+    } else{
+      node.copy(children = node.children.map(transformRecursively))
+    }
   }
 }

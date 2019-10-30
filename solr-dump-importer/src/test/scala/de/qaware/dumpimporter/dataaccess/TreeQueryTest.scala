@@ -57,6 +57,10 @@ class TreeQueryTest extends FunSuite with Matchers {
     }
   }
 
+  test("Query thats on root level") {
+    shouldFind(tAll thats (tNot (number(0))) in tree, Seq(1, 2, 3, 4, 5, 6, 7))
+  }
+
   test("Query and filter") {
     shouldFind(tAll thats (number(1, 2) and number(2, 3)) in tree, 2)
   }
@@ -98,6 +102,10 @@ class TreeQueryTest extends FunSuite with Matchers {
   test("Query root nodes") {
     shouldFind(tAll root ofOne thats number(2) in tree, Seq())
     shouldFind(tAll root ofOne thats number(0, 1) in tree, Seq(0))
+  }
+
+  test("Qury without") {
+    shouldFind(tAll thats number(0, 1, 2, 3, 4, 5) without number(1) in tree, Seq(0, 2))
   }
 
   test("Combining queries") {

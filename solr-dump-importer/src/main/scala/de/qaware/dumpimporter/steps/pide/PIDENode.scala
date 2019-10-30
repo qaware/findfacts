@@ -1,12 +1,18 @@
 package de.qaware.dumpimporter.steps.pide
 
 import scala.language.implicitConversions
-
 import de.qaware.dumpimporter.dataaccess.treequery.{FilterQuery, Node}
 import de.qaware.yxml.{Inner, KVPair, Markup, Text, Yxml, YxmlAST}
 
+import scala.util.matching.Regex
+
 case class PIDEField(name: String)
 object PIDEField extends Enumeration {
+  final val ACCEPTED = PIDEField("accepted")
+  final val TIMING = PIDEField("timing")
+  final val RUNNING = PIDEField("running")
+  final val FINISHED = PIDEField("finished")
+
   final val COMMENT = PIDEField("comment")
   final val NAME = PIDEField("name")
   final val DEFINITION = PIDEField("definition")
@@ -22,6 +28,9 @@ object PIDEField extends Enumeration {
   final val STRING = PIDEField("string")
   final val DELETE = PIDEField("delete")
   final val PLAIN_TEXT = PIDEField("plain_text")
+  final val DELIMITER = PIDEField("delimiter")
+  final val NO_COMPLETION = PIDEField("no_completion")
+  final val XML_BODY = PIDEField("xml_body")
 
   implicit def toString(field: PIDEField): String = field.name
 }
@@ -60,7 +69,13 @@ object PIDEQuery {
   }
   def body(content: String): FilterQuery[PIDENode] = {
     FilterQuery[PIDENode](_.inner match {
-      case Text(str) if str == content => true
+      case Text(str) => str == content
+      case _ => false
+    })
+  }
+  def body(content: Regex): FilterQuery[PIDENode] = {
+    FilterQuery[PIDENode](_.inner match {
+      case Text(str) => content.pattern.matcher(str).matches()
       case _ => false
     })
   }
