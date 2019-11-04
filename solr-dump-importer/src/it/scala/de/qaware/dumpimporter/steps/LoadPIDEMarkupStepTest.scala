@@ -1,9 +1,9 @@
 package de.qaware.dumpimporter.steps
 
 import better.files.Resource
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{FunSuite, Matchers, Suite}
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
 
@@ -12,7 +12,7 @@ case class TestSpec(mapping: TestSpecPosition, code: String)
 class LoadPIDEMarkupStepTest extends FunSuite with Matchers {
   private final val SPEC_BEGIN = "(*SPEC:BEGIN:"
 
-  test("Import example file") {
+  override lazy val nestedSuites: immutable.IndexedSeq[Suite] = {
     var tests: Seq[TestSpec] = mutable.Seq.empty
 
     var thyFile = Resource.getAsString("Example.thy").linesIterator.toSeq.zipWithIndex
@@ -29,16 +29,19 @@ class LoadPIDEMarkupStepTest extends FunSuite with Matchers {
     val tb = currentMirror.mkToolBox()
 
     // Compile and run tests
-    val testCommand = s"""new de.qaware.dumpimporter.steps.ImportStepITSpecExecutor({
-                         |    case de.qaware.dumpimporter.steps.TestSpecContext(entity, begin, end) =>
-                         |      new org.scalatest.FunSuite with org.scalatest.Matchers {
-                         |        ${tests map { t => s"""test("PIDE Spec Test ${t.mapping.id}"){ ${t.code} }"""} mkString ("\n")}
-                         |  }},
-                         |  Seq(${tests.map(_.mapping.toFQNString).mkString(",")}),
-                         |  new de.qaware.dumpimporter.steps.pide.LoadPIDEMarkupStep(
-                         |    de.qaware.dumpimporter.Config(better.files.File("dump/example")))
-                         |).execute()""".stripMargin
-    tb.eval(tb.parse(testCommand))
+    val testCommand =
+      s"""new de.qaware.dumpimporter.steps.ImportStepITSpecExecutor({
+       |    case de.qaware.dumpimporter.steps.TestSpecContext(entity, begin, end) =>
+       |      new org.scalatest.FunSuite with org.scalatest.Matchers {
+       |        ${tests map { t => s"""test("PIDE Spec Test ${t.mapping.id}"){ ${t.code} }"""} mkString ("\n")}
+       |  }},
+       |  Seq(${tests.map(_.mapping.toFQNString).mkString(",")}),
+       |  new de.qaware.dumpimporter.steps.pide.LoadPIDEMarkupStep(
+       |    de.qaware.dumpimporter.Config(better.files.File("dump/example")))
+       |).buildSuite()""".stripMargin
+
+    val testSuite = tb.eval(tb.parse(testCommand)).asInstanceOf[Suite]
+    immutable.IndexedSeq(testSuite)
   }
 
   private def findTests(elems: Seq[(String, Int)]): (Seq[(String, Int)], Option[TestSpec]) = {

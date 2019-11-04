@@ -7,7 +7,6 @@ import com.typesafe.scalalogging.Logger
 import de.qaware.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
 import de.qaware.dumpimporter.steps.StepContext
 import de.qaware.dumpimporter.steps.pide.LoadPIDEMarkupStep
-import de.qaware.scalautils.Using
 import scopt.{OptionParser, Read}
 
 /** Configuration of the importer.
@@ -63,11 +62,11 @@ object ImporterApp extends App {
     })
   }
 
-  private val logger = Logger("ImporterApp")
+  private val logger = Logger[ImporterApp.type]
 
   builder.parse(args, Config()) match {
     case Some(config) =>
-      //logger.info("Read config: {}", config)
+      logger.info("Starting import...")
       if (config.solr.get.getClass != classOf[LocalSolr]) {
         // Check if non-embedded solr instance is available to fail early if it is not
         config.solr.get.solrConnection().close()
