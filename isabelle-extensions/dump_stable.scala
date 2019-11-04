@@ -1,84 +1,134 @@
-import java.io.File
+import java.io.{ByteArrayOutputStream, ObjectOutputStream}
 
-import isabelle.{Getopts, Path, Export_Theory, Sessions, Options, Console_Progress, Library, Dump, Bytes}
+import scala.collection.immutable
+
+import isabelle.{Getopts, Path, Export_Theory, Sessions, Options, Console_Progress, Library, Dump, Bytes, Properties}
 import isabelle.Export.{Entry, Provider}
 import isabelle.Library.space_explode
 import isabelle.Dump.Aspect
 
-// Theory content interface
-/*
-sealed abstract class Typ
-case class Type(name: String, args: List[Typ] = Nil) extends Typ
-case class TFree(name: String, sort: Sort = Nil) extends Typ
-case class TVar(name: Indexname, sort: Sort = Nil) extends Typ
-*/
-type Typ = String
+/* Theory content interface needs to be wrapped in order to be serializable by JIT compiler. */
 
-/*
-sealed abstract class Term
-case class Const(name: String, typargs: List[Typ] = Nil) extends Term
-case class Free(name: String, typ: Typ) extends Term
-case class Var(name: Indexname, typ: Typ) extends Term
-case class Bound(index: Int) extends Term
-case class Abs(name: String, typ: Typ, body: Term) extends Term
-case class App(fun: Term, arg: Term) extends Term
- */
-type Term = String
+object SerializableWrapper extends Serializable
+{
+  /* Simplification of:
+  sealed abstract class Typ
+  case class Type(name: String, args: List[Typ] = Nil) extends Typ
+  case class TFree(name: String, sort: Sort = Nil) extends Typ
+  case class TVar(name: Indexname, sort: Sort = Nil) extends Typ */
 
-/*
-sealed abstract class Proof
-case object MinProof extends Proof
-case class PBound(index: Int) extends Proof
-case class Abst(name: String, typ: Typ, body: Proof) extends Proof
-case class AbsP(name: String, hyp: Term, body: Proof) extends Proof
-case class Appt(fun: Proof, arg: Term) extends Proof
-case class AppP(fun: Proof, arg: Proof) extends Proof
-case class Hyp(hyp: Term) extends Proof
-case class PAxm(name: String, types: List[Typ]) extends Proof
-case class OfClass(typ: Typ, cls: Class) extends Proof
-case class Oracle(name: String, prop: Term, types: List[Typ]) extends Proof
-case class PThm(serial: Long, theory_name: String, name: String, types: List[Typ]) extends Proof
- */
-type Proof = String
+  type Typ = String
 
-@SerialVersionUID(3183536477684108136L)
-sealed case class Theory(session: String, name: String, src: File) extends Serializable
-@SerialVersionUID(8749406778058397417L)
-sealed case class Position(theory: Theory, startPos: Int, endPos: Int) extends Serializable
-@SerialVersionUID(- 8781951096341398528L)
-sealed case class Entity(id: String, pos: Position) extends Serializable
-@SerialVersionUID(8214256252769140008L)
-sealed case class Constant(entity: Entity, typargs: List[String], typ: Typ) extends Serializable
-@SerialVersionUID(4245087039579397970L)
-sealed case class Thm(
-   entity: Entity,
-   typargs: List[String],
-   args: List[(String, Typ)],
-   term: Term,
-   deps: List[String],
-   proof: Proof) extends Serializable
+  /* Simplification of:
+  sealed abstract class Term
+  case class Const(name: String, typargs: List[Typ] = Nil) extends Term
+  case class Free(name: String, typ: Typ) extends Term
+  case class Var(name: Indexname, typ: Typ) extends Term
+  case class Bound(index: Int) extends Term
+  case class Abs(name: String, typ: Typ, body: Term) extends Term
+  case class App(fun: Term, arg: Term) extends Term */
 
-// Serializes theory entries into stable interface elements
+  type Term = String
+
+  /* Simplification of:
+  sealed abstract class Proof
+  case object MinProof extends Proof
+  case class PBound(index: Int) extends Proof
+  case class Abst(name: String, typ: Typ, body: Proof) extends Proof
+  case class AbsP(name: String, hyp: Term, body: Proof) extends Proof
+  case class Appt(fun: Proof, arg: Term) extends Proof
+  case class AppP(fun: Proof, arg: Proof) extends Proof
+  case class Hyp(hyp: Term) extends Proof
+  case class PAxm(name: String, types: List[Typ]) extends Proof
+  case class OfClass(typ: Typ, cls: Class) extends Proof
+  case class Oracle(name: String, prop: Term, types: List[Typ]) extends Proof
+  case class PThm(serial: Long, theory_name: String, name: String, types: List[Typ]) extends Proof */
+
+  type Proof = String
+
+  @SerialVersionUID(-6600248326866346277L)
+  sealed case class Entity(name: String, id: Long, startPos: Int, endPos: Int) extends Serializable
+
+  @SerialVersionUID(8214256252769140008L)
+  sealed case class Constant(entity: Entity, typargs: immutable.Vector[String], typ: Typ) extends Serializable
+
+  @SerialVersionUID(4245087039579397970L)
+  sealed case class Theorem(
+     entity: Entity,
+     typargs: immutable.Vector[String],
+     args: immutable.Vector[(String, Typ)],
+     term: Term,
+     deps: immutable.Vector[String],
+     proof: Proof) extends Serializable
+
+  @SerialVersionUID(-7187211222156107352L)
+  sealed case class Theory(
+    name: String,
+    consts: immutable.Vector[Constant],
+    thms: immutable.Vector[Theorem]) extends Serializable
+
+}
+
+/* Import wrapper content to top level. Wrapper is only necessary because of jit compiler bug/missing feature. */
+
+import SerializableWrapper._
+
+/* Serializes theory entries into stable interface elements */
+
 object MappingSerializer
 {
-  def serialize(e: Entry) = {
-    println(s"$e")
-    ???
-    Bytes.empty
+  private def mapEntity(e: Export_Theory.Entity) =
+  {
+    if (!Properties.defined(e.pos, "offset") || !Properties.defined(e.pos, "end_offset")) {
+      throw new IllegalArgumentException("Offsets need to be defined for entity " + e)
+    }
+
+    val start = Properties.get(e.pos, "offset").get.toInt
+    val end = Properties.get(e.pos, "end_offset").get.toInt
+
+    Entity(e.xname, e.serial, start, end)
+  }
+
+  def serialize_theory(theory: Export_Theory.Theory) : Bytes = {
+    // Map to stable elements
+    val consts = theory.consts map {const =>
+      Constant(mapEntity(const.entity), const.typargs.toVector, const.typ.toString)
+    } toVector
+    val thms = theory.thms map {thm =>
+      Theorem(mapEntity(thm.entity),
+        thm.prop.typargs.map(_._1).toVector,
+        thm.prop.args map { t => (t._1, t._2.toString) } toVector,
+        thm.prop.term.toString,
+        thm.deps.toVector,
+        thm.proof.toString)
+    } toVector
+    val thy = Theory(theory.name, consts, thms)
+
+    // Serialize entities
+    val byteStream = new ByteArrayOutputStream()
+    val objectStream = new ObjectOutputStream(byteStream)
+
+    objectStream.writeObject(thy)
+    objectStream.close()
+    byteStream.close()
+
+    Bytes(byteStream.toByteArray)
   }
 }
 
-// Aspect wrapper for stable interface
+/* Aspect wrapper for stable interface */
+
 val serialize_theory_aspect = Aspect("theory", "foundational theory content (stable entities)",
   { case args =>
-    for {
-      entry <- args.snapshot.exports
-      if entry.name.startsWith(Export_Theory.export_prefix)
-    } args.write(Path.explode(entry.name), MappingSerializer.serialize(entry))
+    val name = args.snapshot.node_name.toString
+    val snapshot_provider = Provider.snapshot(args.snapshot)
+    val theory = Export_Theory.read_theory(snapshot_provider, name, name)
+    args.write(Path.explode("theory/serialized_thy"), MappingSerializer.serialize_theory(theory))
   }, options = List("export_theory"))
 
-// CLI for the stable interface aspect. (Mostly) copied from src/Pure/Tools/dump.scala.
-var aspects: List[Aspect] = Dump.known_aspects
+/* CLI for the stable interface aspect. (Mostly) copied from src/Pure/Tools/dump.scala. */
+
+var aspects: List[Aspect] = Nil
 var base_sessions: List[String] = Nil
 var select_dirs: List[Path] = Nil
 var output_dir = Dump.default_output_dir
@@ -96,7 +146,7 @@ val getopts = Getopts("""
 Usage: isabelle scala dump_stable.scala [OPTIONS] [SESSIONS ...]
 
   Options are:
-    -A NAMES     dump named aspects (default: """ + Dump.known_aspects.mkString("\"", ",", "\"") + """)
+    -A NAMES     dump named aspects, in addition to stable theory serialization (default: none)
     -B NAME      include session NAME and all descendants
     -D DIR       include session directory and select its sessions
     -O DIR       output directory for dumped files (default: """ + Dump.default_output_dir + """)
@@ -133,7 +183,7 @@ val progress = new Console_Progress(verbose = verbose)
 
 progress.interrupt_handler {
   Dump.dump(options, logic,
-    aspects = List(serialize_theory_aspect),
+    aspects = aspects :+ serialize_theory_aspect,
     progress = progress,
     dirs = dirs,
     select_dirs = select_dirs,
