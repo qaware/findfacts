@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.Logger
 import de.qaware.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
 import de.qaware.dumpimporter.steps.StepContext
 import de.qaware.dumpimporter.steps.pide.LoadPIDEMarkupStep
+import de.qaware.dumpimporter.steps.thyexport.LoadThyExportStep
 import scopt.{OptionParser, Read}
 
 /** Configuration of the importer.
@@ -73,7 +74,10 @@ object ImporterApp extends App {
         logger.info("Could successfully connect to solr at {}", config.solr)
       }
       val context = StepContext.empty // scalastyle:ignore
-      val steps = Seq(new LoadPIDEMarkupStep(config)) // scalastyle:ignore
+      val steps = Seq(
+        new LoadThyExportStep(config),
+        new LoadPIDEMarkupStep(config)
+      ) // scalastyle:ignore
       steps.zipWithIndex.foreach({
         case (step, i) =>
           logger.info("Step {}/{}...", i + 1, steps.size)

@@ -28,29 +28,30 @@ class LoadPIDEMarkupStep(override val config: Config) extends ImportStep {
   private val logger = Logger[LoadPIDEMarkupStep]
 
   override def apply(ctx: StepContext): Unit = {
-    val consts = RepositoryReader(config.dump)
-      .readAll(MARKUP_FILE.r)
-      .flatMap(file => {
-        logger.info("Reading {}", file.sourceFile)
-        var start = System.currentTimeMillis()
+    val markupFiles = RepositoryReader(config.dump).readAll(MARKUP_FILE.r)
+    logger.info("Found {} markup files", markupFiles.size)
 
-        // Try to parse file
-        val yxml = YxmlParser(file.content) match {
-          case Right(yxml) => yxml.elems.map(fromInner)
-          case Left(parseError) =>
-            logger.error("Could not parse {}: {}", file.sourceFile, parseError)
-            throw parseError
-        }
-        logger.info("\tParsed in {}", System.currentTimeMillis() - start)
-        start = System.currentTimeMillis()
-        val yxmlContent = all first ofOne thats not(tag(ACCEPTED) or tag(RUNNING) or tag(FINISHED) or tag(TIMING)) in yxml
-        val sourceTheory = file.sourceFile.drop(1).dropRight(MARKUP_FILE.length + 1)
-        val constants = PIDEParser(yxmlContent) map {_.copy(sourceFile = sourceTheory)}
+    val consts = markupFiles.flatMap(file => {
+      logger.info("Reading {}", file.relativeName)
+      var start = System.currentTimeMillis()
 
-        //val constants = findConstants(yxmlContent, file)
-        logger.info("\t{} constants found in {}: {}", constants.size, System.currentTimeMillis() - start, constants)
-        constants
-      })
+      // Try to parse file
+      val yxml = YxmlParser(file.file.contentAsString) match {
+        case Right(yxml) => yxml.elems.map(fromInner)
+        case Left(parseError) =>
+          logger.error("Could not parse {}: {}", file.relativeName, parseError)
+          throw parseError
+      }
+      logger.info("\tParsed in {}", System.currentTimeMillis() - start)
+      start = System.currentTimeMillis()
+      val yxmlContent = all first ofOne thats not(tag(ACCEPTED) or tag(RUNNING) or tag(FINISHED) or tag(TIMING)) in yxml
+      val sourceTheory = file.relativeName.drop(1).dropRight(MARKUP_FILE.length + 1)
+      val constants = PIDEParser(yxmlContent) map {_.copy(sourceFile = sourceTheory)}
+
+      //val constants = findConstants(yxmlContent, file)
+      logger.info("\t{} constants found in {}: {}", constants.size, System.currentTimeMillis() - start, constants)
+      constants
+    })
     ctx.consts ++= consts
   }
 
@@ -78,7 +79,7 @@ class LoadPIDEMarkupStep(override val config: Config) extends ImportStep {
           Some(
             ConstEntity(
               constId,
-              file.sourceFile,
+              file.relativeName,
               0,
               0,
               constName,

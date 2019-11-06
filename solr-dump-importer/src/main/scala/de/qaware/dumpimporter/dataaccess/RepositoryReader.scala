@@ -1,16 +1,19 @@
 package de.qaware.dumpimporter.dataaccess
 
 import scala.util.matching.Regex
-
 import better.files.File
 import com.typesafe.scalalogging.Logger
 
+import scala.language.postfixOps
+
 /** File in the repository.
   *
-  * @param sourceFile file path relative to repository root
-  * @param content of the file as string
+  * @param relativeName file path relative to repository root
+  * @param file the file itself
   */
-final case class RepositoryFile(sourceFile: String, content: String)
+final case class RepositoryFile(relativeName: String, file: File) {
+  override def toString: String = s"~$relativeName"
+}
 
 /** Reader for repository files.
   *
@@ -28,16 +31,14 @@ final case class RepositoryReader(rootdir: File) {
     * @param regex to match the file name or relative file path
     * @return an iterator over all found [[RepositoryFile]]s
     */
-  def readAll(regex: Regex): Iterator[RepositoryFile] = {
-    rootdir
-      .list(
-        file =>
-          file.isReadable && !file.isDirectory && (regex.pattern.matcher(file.name).matches
-            || regex.pattern.matcher(relativeFile(file)).matches))
-      .map(file => {
-        val repoFile = RepositoryFile(relativeFile(file), file.contentAsString)
-        logger.info("Reading file {} in {}", repoFile.sourceFile, rootdir)
-        repoFile
-      })
+  def readAll(regex: Regex): Seq[RepositoryFile] = {
+    rootdir list { file =>
+      file.isReadable && !file.isDirectory && (regex.pattern.matcher(file.name).matches
+      || regex.pattern.matcher(relativeFile(file)).matches)
+    } map { file =>
+      val repoFile = RepositoryFile(relativeFile(file), file)
+      logger.debug("Found file {} in {}", repoFile, rootdir)
+      repoFile
+    } toSeq
   }
 }
