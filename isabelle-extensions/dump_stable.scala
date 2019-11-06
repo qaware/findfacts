@@ -50,38 +50,29 @@ var options = Options.init()
 var verbose = false
 var exclude_sessions: List[String] = Nil
 
+val getopts = Getopts("""
+Usage: isabelle scala dump_stable.scala [OPTIONS] [SESSIONS ...]
+
+  Options are:
+    -A NAMES     dump named aspects, in addition to stable theory serialization (default: none)
+    -B NAME      include session NAME and all descendants
+    -D DIR       include session directory and select its sessions
+    -O DIR       output directory for dumped files (default: """ + Dump.default_output_dir + """)
+    -R           operate on requirements of selected sessions
+    -X NAME      exclude sessions from group NAME and all descendants
+    -a           select all sessions
+    -b NAME      base logic image (default """ + isabelle.quote(Dump.default_logic) + """)
+    -d DIR       include session directory
+    -g NAME      select session group NAME
+    -o OPTION    override Isabelle system OPTION (via NAME=VAL or NAME)
+    -v           verbose
+    -x NAME      exclude session NAME and all descendants
+
+  Dump cumulative PIDE session database, with the following aspects:
+
+""" + Library.prefix_lines("    ", Dump.show_aspects) + "\n",
 val getopts = Getopts("" + Library.prefix_lines("    ", Dump.show_aspects) + "\n",
   "A:" -> (arg => aspects = Library.distinct(Library.space_explode(',', arg)).map(Dump.the_aspect(_))),
   "B:" -> (arg => base_sessions = base_sessions ::: List(arg)),
   "D:" -> (arg => select_dirs = select_dirs ::: List(Path.explode(arg))),
   "O:" -> (arg => output_dir = Path.explode(arg)),
-  "R" -> (_ => requirements = true),
-  "X:" -> (arg => exclude_session_groups = exclude_session_groups ::: List(arg)),
-  "a" -> (_ => all_sessions = true),
-  "b:" -> (arg => logic = arg),
-  "d:" -> (arg => dirs = dirs ::: List(Path.explode(arg))),
-  "g:" -> (arg => session_groups = session_groups ::: List(arg)),
-  "o:" -> (arg => options = options + arg),
-  "v" -> (_ => verbose = true),
-  "x:" -> (arg => exclude_sessions = exclude_sessions ::: List(arg)))
-
-val sessions = getopts(args)
-
-val progress = new Console_Progress(verbose = verbose)
-
-progress.interrupt_handler {
-  Dump.dump(options, logic,
-    aspects = aspects :+ serialize_theory_aspect,
-    progress = progress,
-    dirs = dirs,
-    select_dirs = select_dirs,
-    output_dir = output_dir,
-    selection = Sessions.Selection(
-      requirements = requirements,
-      all_sessions = all_sessions,
-      base_sessions = base_sessions,
-      exclude_session_groups = exclude_session_groups,
-      exclude_sessions = exclude_sessions,
-      session_groups = session_groups,
-      sessions = sessions))
-}

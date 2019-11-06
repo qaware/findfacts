@@ -1,18 +1,18 @@
 package de.qaware.dumpimporter.steps.pide
 
-import scala.language.postfixOps
 import com.typesafe.scalalogging.Logger
 import de.qaware.common.solr.dt.{ConstEntity, DocumentationEntity, DocumentationType}
 import de.qaware.dumpimporter.Config
-import de.qaware.dumpimporter.dataaccess.{RepositoryFile, RepositoryReader}
 import de.qaware.dumpimporter.dataaccess.treequery.QueryDSL._
 import de.qaware.dumpimporter.dataaccess.treequery.QueryNode
-import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
+import de.qaware.dumpimporter.dataaccess.{RepositoryFile, RepositoryReader}
 import de.qaware.dumpimporter.steps.pide.PIDEField._
 import de.qaware.dumpimporter.steps.pide.PIDENode.fromInner
 import de.qaware.dumpimporter.steps.pide.PIDEQuery._
+import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
 import de.qaware.yxml.{Text, YxmlParser}
 
+import scala.language.postfixOps
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
@@ -46,7 +46,7 @@ class LoadPIDEMarkupStep(override val config: Config) extends ImportStep {
       start = System.currentTimeMillis()
       val yxmlContent = all first ofOne thats not(tag(ACCEPTED) or tag(RUNNING) or tag(FINISHED) or tag(TIMING)) in yxml
       val sourceTheory = file.relativeName.drop(1).dropRight(MARKUP_FILE.length + 1)
-      val constants = PIDEParser(yxmlContent) map {_.copy(sourceFile = sourceTheory)}
+      val constants = PIDEParser(yxmlContent) map { _.copy(sourceFile = sourceTheory) }
 
       //val constants = findConstants(yxmlContent, file)
       logger.info("\t{} constants found in {}: {}", constants.size, System.currentTimeMillis() - start, constants)
@@ -84,7 +84,7 @@ class LoadPIDEMarkupStep(override val config: Config) extends ImportStep {
               0,
               constName,
               "",
-              defCode,
+              Array(defCode),
               uses.map(_.getValue(REF)).toArray.distinct))
         case elems => throw new IllegalStateException(s"Found too many constant def blocks: $elems in $const")
       }
@@ -133,29 +133,31 @@ object PIDEParser extends Parsers {
   }
 
   def entities: Parser[List[ConstEntity]] = {
-    ignoreAnyUntil(constant)*
+    ignoreAnyUntil(constant) *
   }
 
   // Technical Stuff
   def ignoreUntil[U, T](ignore: Parser[T], parser: Parser[U]): Parser[U] = {
-    (((ignore - parser)*) ~ parser) ^^ { case _ ~ r => r}
+    (((ignore - parser) *) ~ parser) ^^ { case _ ~ r => r }
   }
   def ignoreAnyUntil[U](p: Parser[U]): Parser[U] = (((elem("", _ => true) - p) *) ~ p) ^^ { case _ ~ r => r }
   def ws: Parser[PIDENode] = matches(all root ofOne thats body("\\s+".r))
-  def ignoreWSUntil[U](p: Parser[U]): Parser[U] = (((ws - p) *) ~ p) ^^ {case _ ~ r => r}
+  def ignoreWSUntil[U](p: Parser[U]): Parser[U] = (((ws - p) *) ~ p) ^^ { case _ ~ r => r }
   def matches(query: QueryNode[PIDENode, Seq[PIDENode]]): Parser[PIDENode] = {
     elem("TODO", { e =>
       (query in e).size == 1
     })
   }
-  /** Allows whitespace before a parser */
-  def ` `[U](p: Parser[U]): Parser[U] = (ws*) ~> p
 
+  /** Allows whitespace before a parser */
+  def ` `[U](p: Parser[U]): Parser[U] = (ws *) ~> p
 
   // Application-view of entities
-  def constant: Parser[ConstEntity] = ` `(defToken) ~ opt(` `(typeDef?) <~ ` `(where)) ~ ` `(defBlock) ^^ {
-    case defN ~ Some(Some(defT)) ~ defB => ConstEntity(defN.id, null, defN.startPos, defB.endPos, defN.name, defT, defB.code, Array())
-    case defN ~ _ ~ defB => ConstEntity(defN.id, null, defN.startPos, defB.endPos, defN.name, null, defB.code, Array())
+  def constant: Parser[ConstEntity] = ` `(defToken) ~ opt(` `(typeDef ?) <~ ` `(where)) ~ ` `(defBlock) ^^ {
+    case defN ~ Some(Some(defT)) ~ defB =>
+      ConstEntity(defN.id, null, defN.startPos, defB.endPos, defN.name, defT, Array(defB.code), Array())
+    case defN ~ _ ~ defB =>
+      ConstEntity(defN.id, null, defN.startPos, defB.endPos, defN.name, null, Array(defB.code), Array())
   }
 
   case class Definition(name: String, id: String, startPos: Int)
@@ -174,8 +176,7 @@ object PIDEParser extends Parsers {
     }
   }
 
-  def typeDef: Parser[String] = ` `(`::`) ~>  ` `(defLine) ^^ (_.code)
-
+  def typeDef: Parser[String] = ` `(`::`) ~> ` `(defLine) ^^ (_.code)
 
   def where: Parser[PIDENode] = {
     matches(all root ofOne thats (tag(KEYWORD2) and keyValue(KIND, KEYWORD)) parent ofOne thats body(WHERE))
@@ -186,11 +187,11 @@ object PIDEParser extends Parsers {
     case l ~ ls => DefinitionCode(l.code + ls.map(_.code).mkString("|"), (l +: ls).last.endPos)
   }
 
-  def `::`: Parser[PIDENode] = {
+  def `::` : Parser[PIDENode] = {
     matches(all root ofOne thats tag(DELIMITER) parent ofOne thats tag(NO_COMPLETION) parent ofOne thats body("::"))
   }
 
-  def `|`: Parser[PIDENode] = {
+  def `|` : Parser[PIDENode] = {
     matches(all root ofOne thats tag(DELIMITER) parent ofOne thats tag(NO_COMPLETION) parent ofOne thats body("|"))
   }
   def defLine: Parser[DefinitionCode] = Parser { input =>
@@ -199,8 +200,7 @@ object PIDEParser extends Parsers {
     } else {
 
       // XML_BODY tags are generated by isabelle and do not belong to the original source text
-      all thats body without(tag(XML_BODY)) in (
-        all root ofOne thats tag(STRING) in input.first) match {
+      all thats body without (tag(XML_BODY)) in (all root ofOne thats tag(STRING) in input.first) match {
         case Seq() => Failure("Was no definition line", input)
         case elems => Success(DefinitionCode(elems.map(_.getBody).mkString(""), elems.last.inner.pos.line), input.rest)
       }

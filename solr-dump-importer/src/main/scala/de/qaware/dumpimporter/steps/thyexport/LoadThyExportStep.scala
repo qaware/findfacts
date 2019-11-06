@@ -1,27 +1,25 @@
 package de.qaware.dumpimporter.steps.thyexport
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.common.solr.dt.ConstEntity
+import de.qaware.common.solr.dt.{ConstEntity, FactEntity}
 import de.qaware.dumpimporter.Config
 import de.qaware.dumpimporter.dataaccess.RepositoryReader
-import de.qaware.dumpimporter.steps.thyexport.EntityWrapper.Theorem
 import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
 
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 class LoadThyExportStep(override val config: Config) extends ImportStep {
   private val logger = Logger[LoadThyExportStep]
 
   override def apply(context: StepContext): Unit = {
-    val thyFiles = RepositoryReader(config.dump).readAll("(.*)Example/theory/serialized_thy".r)
+    val thyFiles = RepositoryReader(config.dump).readAll("(.*)theory/serialized_thy".r)
     logger.info("Found {} serialized theories", thyFiles.size)
 
     val theories = thyFiles flatMap { repoEntry =>
       Deserializer.deserialize(repoEntry.file.byteArray) match {
         case Failure(ex) =>
-          logger.error(s"Could not deserialize $repoEntry: $ex")
+          logger.error(s"Could not deserialize $repoEntry:", ex)
           None
         case Success(value) =>
           Some(value)
@@ -30,29 +28,54 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
     logger.info(s"Successfully deserialized ${theories.size} theories")
 
     theories foreach { thy =>
-      val constByPos = thy.consts.groupBy(c => (c.entity.startPos, c.entity.endPos))
-      val thyByPos = thy.thms.groupBy(t => (t.entity.startPos, t.entity.endPos))
-      constByPos.keys foreach {pos =>
-        val consts = constByPos(pos)
-        val thys = thyByPos.getOrElse(pos, Seq())
-        println(s"Pos $pos consts: $consts.size thys: $thys.size")
-      }
-      (thyByPos.keySet -- constByPos.keySet) foreach {pos =>
-        val thys = thyByPos(pos)
-        println(s"Pos $pos thys: $thys.size")
-      }
+      // Partition axioms in constant definition axioms and "normal" axioms
+      val constAxNames = thy.constdefs.map(_.axiomName).toSet
+      val (constAxioms, axioms) = thy.axioms.partition(ax => constAxNames.contains(ax.entity.name))
 
-      val thms: mutable.Set[Theorem] = mutable.Set()
-      thms ++= thy.thms
-      val consts = thy.consts flatMap {c =>
-        thms.filter(_.entity.name == (c.entity.name + "_def")).toSeq match {
-          case Seq(defn) =>
-            thms.remove(defn)
-            Some(ConstEntity(c.entity.id.toString, thy.name, c.entity.startPos, defn.entity.endPos, c.entity.name, c.typ, defn.term, Array()))
-          case arr => logger.error("Did not found exactly one definition!")
+      context.consts ++= extractConsts(thy, constAxioms.toSeq)
+      context.facts ++= extractFacts(thy, axioms.toSeq)
+    }
+  }
+
+  protected def extractConsts(thy: Theory, constAxioms: Seq[Axiom]): Seq[ConstEntity] = {
+    // Find related axioms, if any
+    val axNameByConstName = thy.constdefs.groupBy(_.name).mapValues(_.map(_.axiomName))
+    val constAxiomsByName = constAxioms.groupBy(_.entity.name)
+
+    thy.consts flatMap { const =>
+      val axioms = axNameByConstName.getOrElse(const.entity.name, Array.empty) flatMap { axName =>
+        constAxiomsByName.getOrElse(axName, Seq.empty) match {
+          case Seq(ax) => Some(ax)
+          case axs =>
+            logger.error(s"Expected exactly one axiom for name $axName, got: ${axs.mkString(",")}")
             None
         }
       }
+
+      if (axioms.isEmpty) {
+        logger.whenDebugEnabled(logger.debug(s"No constant definition for ${const.entity.name}"))
+      }
+
+      // Enrich const data with axiom def
+      Some(
+        ConstEntity(
+          const.entity.serial.toString,
+          thy.name,
+          const.entity.startPos,
+          const.entity.endPos,
+          const.entity.name,
+          const.typ,
+          axioms.map(_.prop.term),
+          Array()
+        ))
     }
+  } toSeq
+
+  protected def extractFacts(thy: Theory, axioms: Seq[Axiom]): Seq[FactEntity] = {
+    (thy.thms map { thm =>
+      FactEntity(thm.entity.serial.toString, thy.name, thm.entity.startPos, thm.entity.endPos, thm.prop.term, Array())
+    } toSeq) ++ (axioms map { ax =>
+      FactEntity(ax.entity.serial.toString, thy.name, ax.entity.startPos, ax.entity.endPos, ax.prop.term, Array())
+    })
   }
 }

@@ -1,9 +1,9 @@
 package de.qaware.common.solr.dt
 
-import scala.annotation.meta.field
-
 import de.qaware.common.solr.dt.SolrSchema._
 import org.apache.solr.client.solrj.beans.Field
+
+import scala.annotation.meta.field
 
 // scalastyle:off
 // Justification: solrj bean mapping requires no-args c-tors
@@ -42,7 +42,7 @@ final case class TypeEntity(
   * @param kind kind of the entity, i.e. [[EntityKind.Constant]] for this entity
   * @param name name of the constant
   * @param constType functional type of the constant
-  * @param definition definition term in string representation
+  * @param definitions definition(s) term in string representation
   * @param uses ids of entities that the constant uses
   */
 @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
@@ -53,37 +53,12 @@ final case class ConstEntity(
     @(Field @field)(END_POS) endPos: Int,
     @(Field @field)(NAME) name: String,
     @(Field @field)(CONST_TYPE) constType: String,
-    @(Field @field)(TERM) definition: String,
+    @(Field @field)(TERM) definitions: Array[String],
     @(Field @field)(USES) uses: Array[String],
     @(Field @field)(KIND) kind: String = EntityKind.Constant
 ) {
   def this() {
     this(null, null, -1, -1, null, null, null, null)
-  }
-}
-
-/** Entity class for axiomatic facts.
-  *
-  * @param id solr doc id
-  * @param sourceFile relative path to file containing entity
-  * @param startPos token in src at which entity begins
-  * @param endPos token in src at which entity ends
-  * @param kind kind of the entity, i.e. [[EntityKind.Axiom]] for this entity
-  * @param term term of the axiom as string representation
-  * @param uses ids of entities that the axiom uses
-  */
-@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
-final case class AxiomEntity(
-    @(Field @field)(ID) id: String,
-    @(Field @field)(SOURCE_FILE) sourceFile: String,
-    @(Field @field)(START_POS) startPos: Int,
-    @(Field @field)(END_POS) endPos: Int,
-    @(Field @field)(TERM) term: String,
-    @(Field @field)(USES) uses: Array[String],
-    @(Field @field)(KIND) kind: String = EntityKind.Axiom
-) {
-  def this() {
-    this(null, null, -1, -1, null, null, null)
   }
 }
 

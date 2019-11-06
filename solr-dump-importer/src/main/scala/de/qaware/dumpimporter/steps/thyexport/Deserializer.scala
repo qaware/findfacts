@@ -1,34 +1,38 @@
 package de.qaware.dumpimporter.steps.thyexport
 
-import java.io.{ByteArrayInputStream, InputStream, ObjectInputStream, ObjectOutputStream, ObjectStreamClass}
+import java.io.{ByteArrayInputStream, InputStream, ObjectInputStream, ObjectStreamClass}
 
 import scala.util.Try
 import scala.util.matching.Regex
 
-object EntityWrapper {
-  type Typ = String
-  type Term = String
-  type Proof = String
+@SerialVersionUID(-4468468967588042461L)
+sealed case class Entity(name: String, localName: String, serial: Long, startPos: Int, endPos: Int)
 
-  @SerialVersionUID(-6600248326866346277L)
-  sealed case class Entity(name: String, id: Long, startPos: Int, endPos: Int) extends Serializable
+@SerialVersionUID(-6479946311825844471L)
+sealed case class Const(entity: Entity, typargs: Array[String], typ: String)
 
-  @SerialVersionUID(8214256252769140008L)
-  sealed case class Constant(entity: Entity, typargs: Array[String], typ: Typ) extends Serializable
+@SerialVersionUID(645511391258153528L)
+sealed case class Constdef(name: String, axiomName: String)
 
-  @SerialVersionUID(4245087039579397970L)
-  sealed case class Theorem(
-      entity: Entity,
-      typargs: Array[String],
-      args: Array[(String, Typ)],
-      term: Term,
-      deps: Array[String],
-      proof: Proof)
-      extends Serializable
+@SerialVersionUID(-6072692905282064541L)
+sealed case class Axiom(entity: Entity, prop: Prop)
 
-  @SerialVersionUID(-7187211222156107352L)
-  sealed case class Theory(name: String, consts: Array[Constant], thms: Array[Theorem]) extends Serializable
-}
+@SerialVersionUID(-5240318743403678874L)
+sealed case class Prop(typargs: Array[(String, String)], args: Array[(String, String)], term: String)
+
+@SerialVersionUID(3258375583870971926L)
+sealed case class ThmId(serial: Long, theory_name: String)
+
+@SerialVersionUID(-5164559171920544926L)
+sealed case class Thm(entity: Entity, prop: Prop, deps: Array[String], proofBoxes: Array[ThmId], proof: String)
+
+@SerialVersionUID(-8070090537415643108L)
+sealed case class Theory(
+    name: String,
+    consts: Array[Const],
+    axioms: Array[Axiom],
+    thms: Array[Thm],
+    constdefs: Array[Constdef])
 
 /* Deserializer for dump_stable data. */
 object Deserializer {
@@ -38,15 +42,15 @@ object Deserializer {
     * @param bytes to deserialize
     * @return deserialized theory
     */
-  def deserialize(bytes: Array[Byte]): Try[EntityWrapper.Theory] = {
+  def deserialize(bytes: Array[Byte]): Try[Theory] = {
     val ois = new NameMappingObjectInputStream(
-      "__wrapper(.*).EntityWrapper".r,
-      "de.qaware.dumpimporter.steps.thyexport.EntityWrapper",
+      "__wrapper(.*).EntityWrapper\\$".r,
+      "de.qaware.dumpimporter.steps.thyexport.",
       new ByteArrayInputStream(bytes))
     Try {
       val theory = ois.readObject
       ois.close()
-      theory.asInstanceOf[EntityWrapper.Theory]
+      theory.asInstanceOf[Theory]
     }
   }
 }
@@ -58,5 +62,10 @@ object Deserializer {
   * @param in input stream
   */
 class NameMappingObjectInputStream(from: Regex, to: String, in: InputStream) extends ObjectInputStream(in) {
-  override def resolveClass(desc: ObjectStreamClass): Class[_] = Class.forName(desc.getName.replaceAll(from.regex, to))
+  override def resolveClass(desc: ObjectStreamClass): Class[_] = {
+    Class.forName(desc.getName.replaceAll(from.regex, to))
+  }
+  override def readClassDescriptor(): ObjectStreamClass = {
+    ObjectStreamClass.lookup(resolveClass(super.readClassDescriptor()))
+  }
 }

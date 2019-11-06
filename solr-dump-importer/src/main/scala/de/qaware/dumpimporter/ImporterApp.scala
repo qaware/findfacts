@@ -4,10 +4,10 @@ import java.net.URL
 
 import better.files.File
 import com.typesafe.scalalogging.Logger
-import de.qaware.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
-import de.qaware.dumpimporter.steps.StepContext
+import de.qaware.common.solr._
 import de.qaware.dumpimporter.steps.pide.LoadPIDEMarkupStep
 import de.qaware.dumpimporter.steps.thyexport.LoadThyExportStep
+import de.qaware.dumpimporter.steps.{StepContext, WriteSolrStep}
 import scopt.{OptionParser, Read}
 
 /** Configuration of the importer.
@@ -76,7 +76,8 @@ object ImporterApp extends App {
       val context = StepContext.empty // scalastyle:ignore
       val steps = Seq(
         new LoadThyExportStep(config),
-        new LoadPIDEMarkupStep(config)
+        new LoadPIDEMarkupStep(config),
+        new WriteSolrStep(config)
       ) // scalastyle:ignore
       steps.zipWithIndex.foreach({
         case (step, i) =>
