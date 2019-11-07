@@ -1,4 +1,6 @@
-object EntityWrapper {
+package de.qaware.dumpimporter.steps.thyexport
+
+object IsabelleEntities {
   @SerialVersionUID(5381987416567122528L)
   sealed case class Indexname(name: String, index: Int)
 
@@ -7,25 +9,55 @@ object EntityWrapper {
 
   sealed abstract class Typ
   @SerialVersionUID(1288274563903406362L)
-  case class TProd(name: String, args: Array[Typ]) extends Typ
+  case class TProd(name: String, args: Array[Typ]) extends Typ {
+    override def toString: String = s"$name(${args.mkString(",")})"
+  }
   @SerialVersionUID(4632215889499084620L)
-  case class TFree(name: String, sort: Sort) extends Typ
+  case class TFree(name: String, sort: Sort) extends Typ {
+    override def toString: String = {
+      if (sort.isEmpty) {
+        name
+      } else {
+        s"($name<:${sort.mkString("+")})"
+      }
+    }
+  }
   @SerialVersionUID(-7154596930660649505L)
-  case class TVar(name: Indexname, sort: Sort) extends Typ
+  case class TVar(name: Indexname, sort: Sort) extends Typ {
+    override def toString: String = {
+      if (sort.isEmpty) {
+        s"${name.name}_${name.index}"
+      } else {
+        s"(${name.name}_${name.index}<:${sort.mkString("+")})"
+      }
+    }
+  }
 
   sealed abstract class Term
   @SerialVersionUID(-4831700261800560597L)
-  case class Constref(name: String, typargs: Array[Typ]) extends Term
+  case class Constref(name: String, typargs: Array[Typ]) extends Term {
+    override def toString: String = name
+  }
   @SerialVersionUID(3537669541329937639L)
-  case class Free(name: String, typ: Typ) extends Term
+  case class Free(name: String, typ: Typ) extends Term {
+    override def toString: String = name
+  }
   @SerialVersionUID(1681230165060449254L)
-  case class Var(name: Indexname, typ: Typ) extends Term
+  case class Var(name: Indexname, typ: Typ) extends Term {
+    override def toString: String = name.toString
+  }
   @SerialVersionUID(-3254303285314576246L)
-  case class Bound(index: Int) extends Term
+  case class Bound(index: Int) extends Term {
+    override def toString: String = s"B($index)"
+  }
   @SerialVersionUID(2356134117982949924L)
-  case class Abs(name: String, typ: Typ, body: Term) extends Term
+  case class Abs(name: String, typ: Typ, body: Term) extends Term {
+    override def toString: String = s"λ$name.$body"
+  }
   @SerialVersionUID(-9129660572822677999L)
-  case class App(fun: Term, arg: Term) extends Term
+  case class App(fun: Term, arg: Term) extends Term {
+    override def toString: String = s"$fun ($arg)"
+  }
 
   sealed abstract class Proof
   @SerialVersionUID(1079683092354666971L)

@@ -7,9 +7,9 @@
         <field name="endPos" type="pint" required="true" uninvertible="false" multiValued="false"/>
         <field name="kind" type="entityKind" required="true" docValues="true" multiValued="false"/>
         <field name="name" type="string" multiValued="false"/>
-        <field name="const_type" type="string" multiValued="false"/><!-- TODO constant type representation -->
+        <field name="const_type" type="string" multiValued="false"/>
         <field name="doc_type" type="string" multiValued="false"/>
-        <field name="term" type="text_general" stored="false" uninvertible="false" multiValued="true"/><!--TODO term search: type, stored-->
+        <field name="term" type="text_general" stored="false" uninvertible="false" multiValued="true"/>
         <field name="text" type="text_general" stored="false" uninvertible="false" multiValued="false"/>
         <field name="uses" type="string" uninvertible="false" multiValued="true"/>
         <field name="_version_" type="plong" indexed="false" stored="false" multiValued="false" />

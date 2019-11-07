@@ -7,6 +7,7 @@ object SolrSchema {
   // scalastyle:off scaladoc
   // justification: better explained in the entity classes.
   final val ID = "id"
+  final val SERIAL = "serial"
   final val SOURCE_FILE = "sourceFile"
   final val START_POS = "startPos"
   final val END_POS = "endPos"

@@ -25,22 +25,24 @@ class LoadPIDEMarkupStepTest extends FunSuite with Matchers {
       }
     }
 
-    // Create JIT-compiler
-    val tb = currentMirror.mkToolBox()
-
     // Compile and run tests
     val testCommand =
       s"""new de.qaware.dumpimporter.steps.ImportStepITSpecExecutor({
        |    case de.qaware.dumpimporter.steps.TestSpecContext(entity, begin, end) =>
        |      new org.scalatest.FunSuite with org.scalatest.Matchers {
-       |        ${tests map { t => s"""test("PIDE Spec Test ${t.mapping.id}"){ ${t.code} }"""} mkString ("\n")}
-       |  }},
+       |        ${tests map { t => s"""test("PIDE Spec Test ${t.mapping.id}") { ${t.code}
+       |        }""".stripMargin} mkString ("\n")}
+       |    }
+       |  },
        |  Seq(${tests.map(_.mapping.toFQNString).mkString(",")}),
        |  new de.qaware.dumpimporter.steps.pide.LoadPIDEMarkupStep(
        |    de.qaware.dumpimporter.Config(better.files.File("dump/example")))
        |).buildSuite()""".stripMargin
 
-    val testSuite = tb.eval(tb.parse(testCommand)).asInstanceOf[Suite]
+    // Create JIT-compiler
+    val tb = currentMirror.mkToolBox()
+    val parsed = tb.parse(testCommand)
+    val testSuite = tb.eval(parsed).asInstanceOf[Suite]
     immutable.IndexedSeq(testSuite)
   }
 
@@ -54,10 +56,3 @@ class LoadPIDEMarkupStepTest extends FunSuite with Matchers {
     (begin.drop(1), Some(spec))
   }
 }
-/*val consts = context.consts map {e => (e.sourceFile, e.startPos, e.endPos, e.name, e.constType, e.kind)}
-consts should have size 5
-consts should contain ("Example.Example", 5, 7, "fun_const", "\"nat \\<Rightarrow> 'a\"", EntityKind.Constant.toString)
-consts should contain ("Example.Example", 9, 10, "primrec_const", "\"nat \\<Rightarrow> 'a\"", EntityKind.Constant.toString)
-consts should contain ("Example.Example", 12, 14, "function_const", null, EntityKind.Constant.toString)
-consts should contain ("Example.Example", 17, 18, "abbreviation_const", "\"nat \\<Rightarrow> nat\"", EntityKind.Constant.toString)
-consts should contain ("Example.Example", 22, 23, "definition_const", null, EntityKind.Constant.toString)*/

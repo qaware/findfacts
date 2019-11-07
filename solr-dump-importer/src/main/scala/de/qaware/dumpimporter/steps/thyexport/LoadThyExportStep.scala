@@ -1,19 +1,20 @@
 package de.qaware.dumpimporter.steps.thyexport
 
+import scala.language.postfixOps
+import scala.util.{Failure, Success}
+
 import com.typesafe.scalalogging.Logger
 import de.qaware.common.solr.dt.{ConstEntity, FactEntity}
 import de.qaware.dumpimporter.Config
 import de.qaware.dumpimporter.dataaccess.RepositoryReader
+import de.qaware.dumpimporter.steps.thyexport.IsabelleEntities.{Axiom, Theory}
 import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
-
-import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
 class LoadThyExportStep(override val config: Config) extends ImportStep {
   private val logger = Logger[LoadThyExportStep]
 
   override def apply(context: StepContext): Unit = {
-    val thyFiles = RepositoryReader(config.dump).readAll("(.*)theory/serialized_thy".r)
+    val thyFiles = RepositoryReader(config.dump).readAll("(.*)Example/theory/serialized_thy".r)
     logger.info("Found {} serialized theories", thyFiles.size)
 
     val theories = thyFiles flatMap { repoEntry =>
@@ -59,13 +60,12 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
       // Enrich const data with axiom def
       Some(
         ConstEntity(
-          const.entity.serial.toString,
           thy.name,
           const.entity.startPos,
           const.entity.endPos,
           const.entity.name,
-          const.typ,
-          axioms.map(_.prop.term),
+          const.typ.toString,
+          axioms.map(_.prop.term.toString),
           Array()
         ))
     }
@@ -73,9 +73,9 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
 
   protected def extractFacts(thy: Theory, axioms: Seq[Axiom]): Seq[FactEntity] = {
     (thy.thms map { thm =>
-      FactEntity(thm.entity.serial.toString, thy.name, thm.entity.startPos, thm.entity.endPos, thm.prop.term, Array())
+      FactEntity(thy.name, thm.entity.startPos, thm.entity.endPos, thm.entity.name, thm.prop.term.toString, Array())
     } toSeq) ++ (axioms map { ax =>
-      FactEntity(ax.entity.serial.toString, thy.name, ax.entity.startPos, ax.entity.endPos, ax.prop.term, Array())
+      FactEntity(thy.name, ax.entity.startPos, ax.entity.endPos, ax.entity.name, ax.prop.term.toString, Array())
     })
   }
 }

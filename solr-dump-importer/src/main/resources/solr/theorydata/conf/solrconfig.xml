@@ -599,6 +599,7 @@
                     formdataUploadLimitInKB="-1"
                     addHttpRequestToContext="false"/>
       -->
+    <requestParsers enableStreamBody="true"/>
 
     <!-- HTTP Caching
 
@@ -1063,19 +1064,19 @@
        uniqueness based on that anyway.
 
     -->
-  <!--
-     <updateRequestProcessorChain name="dedupe">
-       <processor class="solr.processor.SignatureUpdateProcessorFactory">
-         <bool name="enabled">true</bool>
-         <str name="signatureField">id</str>
-         <bool name="overwriteDupes">false</bool>
-         <str name="fields">name,features,cat</str>
-         <str name="signatureClass">solr.processor.Lookup3Signature</str>
-       </processor>
-       <processor class="solr.LogUpdateProcessorFactory" />
-       <processor class="solr.RunUpdateProcessorFactory" />
-     </updateRequestProcessorChain>
-    -->
+
+   <!--<updateRequestProcessorChain name="dedupe">
+     <processor class="solr.processor.SignatureUpdateProcessorFactory">
+       <bool name="enabled">true</bool>
+       <str name="signatureField">id</str>
+       <bool name="overwriteDupes">false</bool>
+       <str name="fields">sourceFile,startPos,endPos,kind,name</str>
+       <str name="signatureClass">solr.processor.Lookup3Signature</str>
+     </processor>
+     <processor class="solr.LogUpdateProcessorFactory" />
+     <processor class="solr.RunUpdateProcessorFactory" />
+   </updateRequestProcessorChain>-->
+
 
   <!-- Language identification
 
