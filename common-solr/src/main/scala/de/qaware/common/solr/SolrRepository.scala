@@ -30,6 +30,7 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
 
   /** Name of the default core for embedded solr. */
   final val CORE_NAME = "theorydata"
+
   /** Solr config files that are created per default. */
   final val SOLR_CONF_FILES = Seq(
     "solr.xml",

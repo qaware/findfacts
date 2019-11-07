@@ -4,22 +4,34 @@ import java.net.URL
 
 import better.files.File
 import com.typesafe.scalalogging.Logger
-import de.qaware.common.solr._
-import de.qaware.dumpimporter.steps.pide.LoadPIDEMarkupStep
+import de.qaware.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
 import de.qaware.dumpimporter.steps.thyexport.LoadThyExportStep
 import de.qaware.dumpimporter.steps.{StepContext, WriteSolrStep}
 import scopt.{OptionParser, Read}
+
+/** Intermediate data to build the config.
+  *
+  * @param dump specified isabelle dump directories
+  * @param solr specified solr repositories to write to
+  */
+final case class ConfigBuilder(dump: Seq[File] = Seq.empty, solr: Seq[SolrRepository] = Seq.empty) {
+
+  /** Builds a config from this builder.
+    *
+    * @return built config
+    */
+  @SuppressWarnings(Array("TraversableHead")) // Justification: checked in parser
+  def buildConfig: Config = Config(dump.head, solr.head)
+}
 
 /** Configuration of the importer.
   *
   * @param dump isabelle dump directory
   * @param solr solr repository to write to
-  * @param isValid help flag for argument parsing
   */
-final case class Config(dump: File = File(""), solr: Option[SolrRepository] = None, isValid: Boolean = true)
+final case class Config(dump: File = File(""), solr: SolrRepository)
 
 /** Command-line interface app for importer. */
-@SuppressWarnings(Array("OptionGet")) // Justification: cli-options are checked in the [[checkConfig]] method
 object ImporterApp extends App {
 
   /** Parsing of zookeeper hosts, specified as 'host:port' strings */
@@ -32,52 +44,47 @@ object ImporterApp extends App {
   /** Parse files from better.files */
   implicit val betterFileRead: Read[File] = Read.reads(File(_))
 
-  private val addRepo: (Config, SolrRepository) => Config = (conf, repo) =>
-    if (conf.solr.isEmpty) conf.copy(solr = Some(repo)) else conf.copy(isValid = false)
-
-  private val builder = new OptionParser[Config]("solr-dump-importer") {
+  private val builder = new OptionParser[ConfigBuilder]("solr-dump-importer") {
     head("Imports theory data from isabelle dump into solr")
     arg[File]("<dump>")
       .required()
-      .action((file, conf) => conf.copy(dump = file))
+      .action((file, conf) => conf.copy(dump = conf.dump :+ file))
       .text("isabelle dump dir")
     opt[File]('l', "local-solr")
       .valueName("<dir>")
       .text("local solr home directory")
-      .action((dir, conf) => addRepo(conf, LocalSolr(dir)))
+      .action((dir, conf) => conf.copy(solr = conf.solr :+ LocalSolr(dir)))
     opt[URL]('e', "external-solr")
       .valueName("<url>")
       .text("external solr host")
-      .action((url, conf) => addRepo(conf, RemoteSolr(url)))
+      .action((url, conf) => conf.copy(solr = conf.solr :+ RemoteSolr(url)))
     opt[Seq[ZKHost]]('c', "cloud-solr")
       .valueName("<zk1>,<zk2>...")
       .text("solr cloud zookeeper hosts")
-      .action((hosts, conf) => addRepo(conf, CloudSolr(hosts)))
-    checkConfig(c =>
-      if (c.solr.isEmpty) {
-        failure("Must specify a solr connection")
-      } else if (!c.isValid) {
-        failure("Only one solr connection may be specified!")
-      } else {
-        success
-    })
+      .action((hosts, conf) => conf.copy(solr = conf.solr :+ CloudSolr(hosts)))
+    checkConfig {
+      case ConfigBuilder(Seq(_), Seq(_)) => success
+      case _ => failure("Must specify exactly one connection")
+    }
   }
 
   private val logger = Logger[ImporterApp.type]
 
-  builder.parse(args, Config()) match {
-    case Some(config) =>
+  // scalastyle:off
+  builder.parse(args, ConfigBuilder()) match {
+    case Some(confBuilder) =>
+      val config = confBuilder.buildConfig
       logger.info("Starting import...")
-      if (config.solr.get.getClass != classOf[LocalSolr]) {
+      if (config.solr.getClass != classOf[LocalSolr]) {
         // Check if non-embedded solr instance is available to fail early if it is not
-        config.solr.get.solrConnection().close()
+        config.solr.solrConnection().close()
         logger.info("Could successfully connect to solr at {}", config.solr)
       }
-      val context = StepContext.empty // scalastyle:ignore
+      val context = StepContext.empty
       val steps = Seq(
         new LoadThyExportStep(config),
         new WriteSolrStep(config)
-      ) // scalastyle:ignore
+      )
       steps.zipWithIndex.foreach({
         case (step, i) =>
           logger.info("Step {}/{}...", i + 1, steps.size)

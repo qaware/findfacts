@@ -1,20 +1,20 @@
 package de.qaware.dumpimporter.steps.pide
 
+import scala.language.postfixOps
+import scala.util.parsing.combinator.Parsers
+import scala.util.parsing.input.{NoPosition, Position, Reader}
+
 import com.typesafe.scalalogging.Logger
-import de.qaware.common.solr.dt.{ConstEntity, DocumentationEntity, DocumentationType}
+import de.qaware.common.solr.dt.ConstEntity
 import de.qaware.dumpimporter.Config
+import de.qaware.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.dumpimporter.dataaccess.treequery.QueryDSL._
 import de.qaware.dumpimporter.dataaccess.treequery.QueryNode
-import de.qaware.dumpimporter.dataaccess.{RepositoryFile, RepositoryReader}
 import de.qaware.dumpimporter.steps.pide.PIDEField._
 import de.qaware.dumpimporter.steps.pide.PIDENode.fromInner
 import de.qaware.dumpimporter.steps.pide.PIDEQuery._
 import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
-import de.qaware.yxml.{Text, YxmlParser}
-
-import scala.language.postfixOps
-import scala.util.parsing.combinator.Parsers
-import scala.util.parsing.input.{NoPosition, Position, Reader}
+import de.qaware.yxml.YxmlParser
 
 /** Importer step that loads theory data from PIDE config.
   *

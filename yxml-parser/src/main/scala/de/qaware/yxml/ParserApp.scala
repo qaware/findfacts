@@ -4,8 +4,14 @@ import better.files.File
 import com.typesafe.scalalogging.Logger
 import scopt.{OptionParser, Read}
 
+/** Application config.
+  *
+  * @param file input file to read
+  * @param out output file to write to, if any (otherwise write to logging out)
+  */
 final case class Config(file: File = File(""), out: Option[File] = None)
 
+/** Simple app to parse yxml files. */
 object ParserApp extends App {
 
   /** Parse files from better.files */
@@ -22,9 +28,13 @@ object ParserApp extends App {
       .text("output file")
       .action((file, conf) => conf.copy(out = Some(file)))
     checkConfig { c =>
-      if (!c.file.exists || !c.file.isRegularFile) failure("Must specify a valid input file")
-      else if (c.out.exists(_.isDirectory)) failure("Output must not be directory")
-      else success
+      if (!c.file.exists || !c.file.isRegularFile) {
+        failure("Must specify a valid input file")
+      } else if (c.out.exists(_.isDirectory)) {
+        failure("Output must not be directory")
+      } else {
+        success
+      }
     }
   }
 

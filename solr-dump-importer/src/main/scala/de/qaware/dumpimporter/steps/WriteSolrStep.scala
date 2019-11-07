@@ -6,7 +6,10 @@ import com.typesafe.scalalogging.Logger
 import de.qaware.dumpimporter.Config
 import de.qaware.scalautils.Using
 
-/** Step to write entities to solr. */
+/** Step to write entities to solr.
+  *
+  * @param config of the importer
+  */
 class WriteSolrStep(override val config: Config) extends ImportStep {
 
   /** HTTP status ok code */
@@ -16,7 +19,7 @@ class WriteSolrStep(override val config: Config) extends ImportStep {
 
   override def apply(context: StepContext): Unit = {
     logger.info(s"Writing ${context.facts.size + context.consts.size} entities to solr...")
-    Using.resource(config.solr.get.solrConnection()) { solr =>
+    Using.resource(config.solr.solrConnection()) { solr =>
       // Add all entities
       solr.addBeans(context.consts.iterator.asJava)
       solr.addBeans(context.facts.iterator.asJava)

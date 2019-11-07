@@ -1,10 +1,10 @@
 package de.qaware.dumpimporter.steps.pide
 
 import scala.language.implicitConversions
-import de.qaware.dumpimporter.dataaccess.treequery.{FilterQuery, Node}
-import de.qaware.yxml.{Inner, KVPair, Markup, Text, Yxml, YxmlAST}
-
 import scala.util.matching.Regex
+
+import de.qaware.dumpimporter.dataaccess.treequery.{FilterQuery, Node}
+import de.qaware.yxml.{Inner, Markup, Text, YxmlAST}
 
 case class PIDEField(name: String)
 object PIDEField extends Enumeration {

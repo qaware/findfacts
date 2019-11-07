@@ -7,9 +7,13 @@ import com.typesafe.scalalogging.Logger
 import de.qaware.common.solr.dt.{ConstEntity, FactEntity}
 import de.qaware.dumpimporter.Config
 import de.qaware.dumpimporter.dataaccess.RepositoryReader
-import de.qaware.dumpimporter.steps.thyexport.IsabelleEntities.{Axiom, Theory}
 import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
+import de.qaware.dumpimporter.steps.thyexport.IsabelleEntities.{Axiom, Theory}
 
+/** Import step to load a stable theory export.
+  *
+  * @param config of the importer
+  */
 class LoadThyExportStep(override val config: Config) extends ImportStep {
   private val logger = Logger[LoadThyExportStep]
 
@@ -38,7 +42,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
     }
   }
 
-  protected def extractConsts(thy: Theory, constAxioms: Seq[Axiom]): Seq[ConstEntity] = {
+  private def extractConsts(thy: Theory, constAxioms: Seq[Axiom]): Seq[ConstEntity] = {
     // Find related axioms, if any
     val axNameByConstName = thy.constdefs.groupBy(_.name).mapValues(_.map(_.axiomName))
     val constAxiomsByName = constAxioms.groupBy(_.entity.name)
@@ -47,7 +51,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
       val axioms = axNameByConstName.getOrElse(const.entity.name, Array.empty) flatMap { axName =>
         constAxiomsByName.getOrElse(axName, Seq.empty) match {
           case Seq(ax) => Some(ax)
-          case axs =>
+          case axs: Any =>
             logger.error(s"Expected exactly one axiom for name $axName, got: ${axs.mkString(",")}")
             None
         }
@@ -71,7 +75,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
     }
   } toSeq
 
-  protected def extractFacts(thy: Theory, axioms: Seq[Axiom]): Seq[FactEntity] = {
+  private def extractFacts(thy: Theory, axioms: Seq[Axiom]): Seq[FactEntity] = {
     (thy.thms map { thm =>
       FactEntity(thy.name, thm.entity.startPos, thm.entity.endPos, thm.entity.name, thm.prop.term.toString, Array())
     } toSeq) ++ (axioms map { ax =>

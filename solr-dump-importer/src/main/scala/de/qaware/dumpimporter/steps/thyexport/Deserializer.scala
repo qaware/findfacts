@@ -7,7 +7,7 @@ import scala.util.matching.Regex
 
 import de.qaware.dumpimporter.steps.thyexport.IsabelleEntities.Theory
 
-/* Deserializer for dump_stable data. */
+/** Deserializer for dump_stable data. */
 object Deserializer {
 
   /** Deserializes theory.
@@ -15,6 +15,7 @@ object Deserializer {
     * @param bytes to deserialize
     * @return deserialized theory
     */
+  @SuppressWarnings(Array("AsInstanceOf")) // Justification: Deserialization
   def deserialize(bytes: Array[Byte]): Try[Theory] = {
     val ois = new NameMappingObjectInputStream(
       "__wrapper(.*).EntityWrapper".r,

@@ -34,7 +34,7 @@ trait FinalNode[N <: Node[N], R] {
   * @tparam R result type
   */
 sealed trait QueryNode[N <: Node[N], R] extends FinalNode[N, R] {
-  protected val logger: Logger = Logger[QueryNode[N, R]]
+  private val logger: Logger = Logger[QueryNode[N, R]]
 
   override def in(forest: Seq[N]): R = {
     val resultForest = executeQuery(forest.map(ResultNode.fromTree))
@@ -125,6 +125,11 @@ sealed trait ChainNode[N <: Node[N], R] extends QueryNode[N, R] {
     */
   def next(of: Connective): Next[N, R] = Next(this)
 
+  /** Builds a node to find all on the right to a result.
+    *
+    * @param of connective for fluent DSL interface
+    * @return new [[AnyNext]]
+    */
   def anyNext(of: Connective): AnyNext[N, R] = AnyNext(this)
 
   /** Builds a node to find all left siblings of results.
@@ -134,6 +139,11 @@ sealed trait ChainNode[N <: Node[N], R] extends QueryNode[N, R] {
     */
   def previous(of: Connective): Prev[N, R] = Prev(this)
 
+  /** Builds a node to find all left to a result.
+    *
+    * @param of connective for fluent DSL interface
+    * @return new [[AnyPrev]]
+    */
   def anyPrevious(of: Connective): AnyPrev[N, R] = AnyPrev(this)
 
   /** Builds a node to find all that match the filter query.
@@ -143,6 +153,11 @@ sealed trait ChainNode[N <: Node[N], R] extends QueryNode[N, R] {
     */
   def thats(fq: FilterQuery[N]): Thats[N, R] = Thats(this, fq)
 
+  /** Builds a node to remove all that match the filter query from the search.
+    *
+    * @param fq to match all to remove
+    * @return new [[Without]]
+    */
   def without(fq: FilterQuery[N]): Without[N, R] = Without(this, fq)
 }
 
@@ -258,13 +273,19 @@ final case class Parent[N <: Node[N], R](downstream: QueryNode[N, R]) extends Up
   * @tparam R result type
   */
 sealed trait SiblingTransformationNode[N <: Node[N], R] extends UpstreamNode[N, R] {
-  protected def transformSiblings(siblings: Seq[ResultNode[N]]): Seq[ResultNode[N]]
+
+  /** Function to describe how to transform siblings.
+    *
+    * @param siblings to transform
+    * @return transformed siblings
+    */
+  protected def transformSiblings(siblings: IndexedSeq[ResultNode[N]]): Seq[ResultNode[N]]
   override def executeQuery(forest: Seq[ResultNode[N]]): Seq[ResultNode[N]] = {
-    downstream.executeQuery(transformSiblings(forest.map(transformRecursively)))
+    downstream.executeQuery(transformSiblings(forest.map(transformRecursively).toIndexedSeq))
   }
   override def transformRecursively(node: ResultNode[N]): ResultNode[N] = {
     // This does only work for children, so do it once more in [[executeQuery]]!
-    node.copy(children = transformSiblings(node.children.map(transformRecursively)))
+    node.copy(children = transformSiblings(node.children.map(transformRecursively).toIndexedSeq))
   }
 }
 
@@ -277,7 +298,7 @@ sealed trait SiblingTransformationNode[N <: Node[N], R] extends UpstreamNode[N, 
 final case class Next[N <: Node[N], R](downstream: QueryNode[N, R])
     extends SiblingTransformationNode[N, R]
     with ChainNode[N, R] {
-  protected override def transformSiblings(siblings: Seq[ResultNode[N]]): Seq[ResultNode[N]] = {
+  protected override def transformSiblings(siblings: IndexedSeq[ResultNode[N]]): Seq[ResultNode[N]] = {
     siblings.take(1).map(_.copy(selected = false)) ++ (siblings.drop(1).zip(siblings.dropRight(1)) map { cn =>
       cn._1.copy(selected = cn._2.selected)
     })
@@ -293,10 +314,10 @@ final case class Next[N <: Node[N], R](downstream: QueryNode[N, R])
 final case class AnyNext[N <: Node[N], R](downstream: QueryNode[N, R])
     extends SiblingTransformationNode[N, R]
     with ChainNode[N, R] {
-  override protected def transformSiblings(siblings: Seq[ResultNode[N]]): Seq[ResultNode[N]] = {
+  override protected def transformSiblings(siblings: IndexedSeq[ResultNode[N]]): Seq[ResultNode[N]] = {
     siblings.indexWhere(_.selected) match {
       case -1 => siblings
-      case firstIdx =>
+      case firstIdx: Any =>
         siblings.take(firstIdx) ++ (siblings(firstIdx).copy(selected = false) +: (siblings.drop(firstIdx + 1) map {
           _.copy(selected = true)
         }))
@@ -313,7 +334,7 @@ final case class AnyNext[N <: Node[N], R](downstream: QueryNode[N, R])
 final case class Prev[N <: Node[N], R](downstream: QueryNode[N, R])
     extends SiblingTransformationNode[N, R]
     with ChainNode[N, R] {
-  override protected def transformSiblings(siblings: Seq[ResultNode[N]]): Seq[ResultNode[N]] = {
+  override protected def transformSiblings(siblings: IndexedSeq[ResultNode[N]]): Seq[ResultNode[N]] = {
     (siblings.dropRight(1).zip(siblings.drop(1)) map { cn =>
       cn._1.copy(selected = cn._2.selected)
     }) ++ siblings.takeRight(1).map(_.copy(selected = false))
@@ -329,10 +350,10 @@ final case class Prev[N <: Node[N], R](downstream: QueryNode[N, R])
 final case class AnyPrev[N <: Node[N], R](downstream: QueryNode[N, R])
     extends SiblingTransformationNode[N, R]
     with ChainNode[N, R] {
-  override protected def transformSiblings(siblings: Seq[ResultNode[N]]): Seq[ResultNode[N]] = {
+  override protected def transformSiblings(siblings: IndexedSeq[ResultNode[N]]): Seq[ResultNode[N]] = {
     siblings.lastIndexWhere(_.selected) match {
       case -1 => siblings
-      case lastIdx =>
+      case lastIdx: Any =>
         ((siblings.take(lastIdx) map { _.copy(selected = true) }) :+ siblings(lastIdx).copy(selected = false)) ++ siblings
           .drop(lastIdx + 1)
     }
@@ -355,17 +376,19 @@ final case class Thats[N <: Node[N], R](downstream: QueryNode[N, R], fq: FilterQ
 }
 
 /** Query-node to filter out complete sub-trees where the root node was selected before and is selected by the filter query.
-*
- * @param downstream
- * @param fq
- * @tparam N type of nodes to query
- * @tparam R result type
- */
-final case class Without[N <: Node[N], R](downstream: QueryNode[N, R], fq: FilterQuery[N]) extends UpstreamNode[N, R] with ChainNode[N, R] {
+  *
+  * @param downstream query node pass filtered results into
+  * @param fq query to filter out nodes
+  * @tparam N type of nodes to query
+  * @tparam R result type
+  */
+final case class Without[N <: Node[N], R](downstream: QueryNode[N, R], fq: FilterQuery[N])
+    extends UpstreamNode[N, R]
+    with ChainNode[N, R] {
   override def transformRecursively(node: ResultNode[N]): ResultNode[N] = {
     if (node.selected && fq.matches(node.inner)) {
       node.copy(selected = false, children = Seq.empty)
-    } else{
+    } else {
       node.copy(children = node.children.map(transformRecursively))
     }
   }

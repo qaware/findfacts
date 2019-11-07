@@ -1,9 +1,9 @@
 package de.qaware.dumpimporter.steps
 
+import scala.collection.mutable
+
 import de.qaware.common.solr.dt.ConstEntity
 import org.scalatest.FunSuite
-
-import scala.collection.mutable
 
 case class TestSpecPosition(id: String, startLine: Int, endLine: Int) {
   def toFQNString: String = s"""de.qaware.dumpimporter.steps.TestSpecPosition("${id}", ${startLine}, ${endLine})"""

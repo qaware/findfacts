@@ -1,6 +1,6 @@
 package de.qaware.common.solr.dt
 
-import scala.annotation.meta.{beanGetter, beanSetter, field}
+import scala.annotation.meta.field
 
 import de.qaware.common.solr.dt.SolrSchema._
 import org.apache.solr.client.solrj.beans.Field
@@ -57,7 +57,7 @@ sealed abstract class Entity(
   * @param typeName name of the defined type
   * @param constructors ids of constructors this type has
   */
-final class TypeEntity(
+final case class TypeEntity(
     override val sourceFile: String,
     override val startPos: Int,
     override val endPos: Int,

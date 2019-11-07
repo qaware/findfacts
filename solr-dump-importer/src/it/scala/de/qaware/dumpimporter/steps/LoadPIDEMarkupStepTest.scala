@@ -1,11 +1,11 @@
 package de.qaware.dumpimporter.steps
 
-import better.files.Resource
-import org.scalatest.{FunSuite, Matchers, Suite}
-
 import scala.collection.{immutable, mutable}
 import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
+
+import better.files.Resource
+import org.scalatest.{FunSuite, Matchers, Suite}
 
 case class TestSpec(mapping: TestSpecPosition, code: String)
 

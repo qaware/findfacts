@@ -6,6 +6,7 @@ import scala.language.implicitConversions
 sealed trait Connective
 
 object QueryDSL {
+
   /** Connective 'of'. */
   case object of extends Connective // scalastyle:ignore
 

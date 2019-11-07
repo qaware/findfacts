@@ -14,7 +14,7 @@ trait YxmlParseError extends Throwable
   * @param line of parse error
   * @param column of parse error
   */
-case class Location(line: Int, column: Int) {
+final case class Location(line: Int, column: Int) {
   override def toString: String = s"$line:$column"
 }
 
@@ -23,7 +23,7 @@ case class Location(line: Int, column: Int) {
   * @param location error location
   * @param msg error message
   */
-case class YxmlLexerError(location: Location, msg: String) extends YxmlParseError
+final case class YxmlLexerError(location: Location, msg: String) extends YxmlParseError
 
 /** Positional (if possible) input reader for YXML tokens.
   *

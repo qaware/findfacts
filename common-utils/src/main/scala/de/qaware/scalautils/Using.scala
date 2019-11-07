@@ -14,8 +14,8 @@ package de.qaware.scalautils
  * additional information regarding copyright ownership.
  */
 
-import scala.util.control.{ControlThrowable, NonFatal}
 import scala.util.Try
+import scala.util.control.{ControlThrowable, NonFatal}
 
 /** A utility for performing automatic resource management. It can be used to perform an
   * operation using resources, after which it releases the resources in reverse order

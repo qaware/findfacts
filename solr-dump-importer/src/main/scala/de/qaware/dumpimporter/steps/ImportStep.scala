@@ -1,9 +1,9 @@
 package de.qaware.dumpimporter.steps
 
+import scala.collection.mutable
+
 import de.qaware.common.solr.dt.{ConstEntity, FactEntity}
 import de.qaware.dumpimporter.Config
-
-import scala.collection.mutable
 
 /** Step of the import process. */
 trait ImportStep {
@@ -18,7 +18,11 @@ trait ImportStep {
   def apply(context: StepContext): Unit
 }
 
-/** Context shared throughout the steps. */
+/** Context shared throughout the steps.
+  *
+  * @param consts intermediate constant entities
+  * @param facts intermediate fact entities
+  */
 final case class StepContext(
     consts: mutable.Set[ConstEntity] = mutable.Set.empty,
     facts: mutable.Set[FactEntity] = mutable.Set.empty)

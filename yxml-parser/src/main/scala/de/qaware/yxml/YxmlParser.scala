@@ -1,16 +1,16 @@
 package de.qaware.yxml
 
+import scala.language.postfixOps
 import scala.util.parsing.combinator.Parsers
+
 import com.typesafe.scalalogging.Logger
 
-import scala.language.postfixOps
-
 /** Parser error.
- *
- * @param location location of the error
- * @param msg      error message
- */
-case class YxmlParserError(location: Location, msg: String) extends YxmlParseError
+  *
+  * @param location location of the error
+  * @param msg      error message
+  */
+final case class YxmlParserError(location: Location, msg: String) extends YxmlParseError
 
 /** Parser for yxml token stream. */
 object YxmlTokenParser extends Parsers {
@@ -56,7 +56,7 @@ object YxmlTokenParser extends Parsers {
   @inline private def mkTokenString(in: Seq[TextToken]): String = in match {
     case Seq(t) => t.str
     case Seq(t1, t2) => t1.str + t2.str
-    case s => s.map(_.str).foldLeft(new StringBuilder)((sb, str) => sb.append(str)).toString()
+    case s: Any => s.map(_.str).foldLeft(new StringBuilder)((sb, str) => sb.append(str)).toString()
   }
 
   // Lift lexer definitions to use here
@@ -71,10 +71,10 @@ object YxmlTokenParser extends Parsers {
   private val logger = Logger[YxmlTokenParser.type]
 
   /** Parses tokens into yxml forest structure.
-   *
-   * @param tokens to parse
-   * @return yxml forest or parse error
-   */
+    *
+    * @param tokens to parse
+    * @return yxml forest or parse error
+    */
   def apply(tokens: Seq[YxmlToken]): Either[YxmlParserError, Yxml] = {
     val start = System.currentTimeMillis()
     val reader = new YXMLTokenReader(tokens)
@@ -94,10 +94,10 @@ object YxmlParser {
   private val logger = Logger[YxmlParser.type]
 
   /** Parses yxml string into forest.
-   *
-   * @param yxml string to parse
-   * @return yxml forest or parse error
-   */
+    *
+    * @param yxml string to parse
+    * @return yxml forest or parse error
+    */
   def apply(yxml: String): Either[YxmlParseError, Yxml] = {
     val start = System.currentTimeMillis()
     for {

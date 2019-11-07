@@ -1,10 +1,10 @@
 package de.qaware.dumpimporter.dataaccess
 
+import scala.language.postfixOps
 import scala.util.matching.Regex
+
 import better.files.File
 import com.typesafe.scalalogging.Logger
-
-import scala.language.postfixOps
 
 /** File in the repository.
   *
