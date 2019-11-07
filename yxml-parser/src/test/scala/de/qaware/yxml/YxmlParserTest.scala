@@ -13,9 +13,8 @@ class YxmlParserTest extends FunSuite with Matchers {
     }
   }
 
-  test("empty yxml") {
-    val ast = YxmlParser("")
-    ast should equal (Right(Yxml()))
+  test("fail on empty yxml") {
+    parseShouldErrOn("", 0, 0)
   }
 
   test("fail on empty name") {
@@ -62,8 +61,8 @@ class YxmlParserTest extends FunSuite with Matchers {
   }
 
   test("forest structure") {
-    val yxml = "\n\u0005\u0006root1\u0005\u0005\u0006\u0005\n\u0005\u0006root2\u0005\u0005\u0006\u0005\n"
-    YxmlParser(yxml) should equal(Right(Yxml(Seq(Text("\n"), Markup("root1"), Text("\n"), Markup("root2"), Text("\n")))))
+    val yxml = "\u0005\u0006root1\u0005\u0005\u0006\u0005\n\u0005\u0006root2\u0005\u0005\u0006\u0005\n"
+    YxmlParser(yxml) should equal(Right(Yxml(Seq(Markup("root1"), Text("\n"), Markup("root2"), Text("\n")))))
   }
 
   test("parse larger example") {

@@ -76,7 +76,6 @@ object ImporterApp extends App {
       val context = StepContext.empty // scalastyle:ignore
       val steps = Seq(
         new LoadThyExportStep(config),
-        new LoadPIDEMarkupStep(config),
         new WriteSolrStep(config)
       ) // scalastyle:ignore
       steps.zipWithIndex.foreach({

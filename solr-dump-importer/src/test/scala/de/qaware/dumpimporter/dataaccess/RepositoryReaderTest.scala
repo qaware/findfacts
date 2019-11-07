@@ -9,9 +9,9 @@ class RepositoryReaderTest extends FunSuite with Matchers {
 
   test("Get file") {
     val repoFiles = reader.readAll("testfile.*".r).toList
-    repoFiles.loneElement should equal(RepositoryFile("/testfile/testfile.txt", _))
+    repoFiles.loneElement should matchPattern { case RepositoryFile("/testfile/testfile.txt", _) => }
   }
   test("Filter") {
-    reader.readAll("[a-zA-Z0-9]*".r).toList should be(empty)
+    reader.readAll("[a-z0-9]*".r).toList should be(empty)
   }
 }

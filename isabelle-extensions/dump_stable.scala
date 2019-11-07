@@ -76,3 +76,33 @@ val getopts = Getopts("" + Library.prefix_lines("    ", Dump.show_aspects) + "\n
   "B:" -> (arg => base_sessions = base_sessions ::: List(arg)),
   "D:" -> (arg => select_dirs = select_dirs ::: List(Path.explode(arg))),
   "O:" -> (arg => output_dir = Path.explode(arg)),
+  "R" -> (_ => requirements = true),
+  "X:" -> (arg => exclude_session_groups = exclude_session_groups ::: List(arg)),
+  "a" -> (_ => all_sessions = true),
+  "b:" -> (arg => logic = arg),
+  "d:" -> (arg => dirs = dirs ::: List(Path.explode(arg))),
+  "g:" -> (arg => session_groups = session_groups ::: List(arg)),
+  "o:" -> (arg => options = options + arg),
+  "v" -> (_ => verbose = true),
+  "x:" -> (arg => exclude_sessions = exclude_sessions ::: List(arg)))
+
+val sessions = getopts(args)
+
+val progress = new Console_Progress(verbose = verbose)
+
+progress.interrupt_handler {
+  Dump.dump(options, logic,
+    aspects = aspects :+ serialize_theory_aspect,
+    progress = progress,
+    dirs = dirs,
+    select_dirs = select_dirs,
+    output_dir = output_dir,
+    selection = Sessions.Selection(
+      requirements = requirements,
+      all_sessions = all_sessions,
+      base_sessions = base_sessions,
+      exclude_session_groups = exclude_session_groups,
+      exclude_sessions = exclude_sessions,
+      session_groups = session_groups,
+      sessions = sessions))
+}
