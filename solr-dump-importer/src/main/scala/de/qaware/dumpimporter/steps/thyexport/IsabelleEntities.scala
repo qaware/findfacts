@@ -99,11 +99,8 @@ object IsabelleEntities {
   @SerialVersionUID(-6072692905282064541L)
   final case class Axiom(entity: Entity, prop: Prop)
 
-  @SerialVersionUID(1288665339737666662L)
-  final case class ThmId(serial: Long, theoryName: String)
-
-  @SerialVersionUID(-5164559171920544926L)
-  final case class Thm(entity: Entity, prop: Prop, deps: Array[String], proofBoxes: Array[ThmId], proof: Proof)
+  @SerialVersionUID(-893943103698877484L)
+  sealed case class Thm(entity: Entity, prop: Prop, deps: Array[String], proof: Proof)
 
   @SerialVersionUID(-3018807716739527586L)
   final case class Type(entity: Entity, args: Array[String])

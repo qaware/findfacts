@@ -4,7 +4,7 @@ begin
 (*SPEC:BEGIN:1*)
 fun fun_const :: "nat \<Rightarrow> 'a" where
   "fun_const 0 = undefined"
-| "fun_const (Suc n) = undefined"
+| "fun_const (Suc n) = fun_const n"
 (*SPEC:1:VERIFY
 entity("1").sourceFile should be ("Example.Example")
 entity("1").startPos should be (begin("1"))

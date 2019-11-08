@@ -57,9 +57,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         }
       }
 
-      if (axioms.isEmpty) {
-        logger.whenDebugEnabled(logger.debug(s"No constant definition for ${const.entity.name}"))
-      }
+      logger.whenDebugEnabled(if (axioms.isEmpty) { logger.debug(s"No constant definition for ${const.entity.name}") })
 
       // Enrich const data with axiom def
       Some(

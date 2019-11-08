@@ -36,8 +36,6 @@ object MappingSerializer
 
   def map_axiom(a: Export_Theory.Axiom) = Axiom(map_entity(a.entity), map_prop(a.prop))
 
-  def map_thm_id(ti: Export_Theory.Thm_Id) = ThmId(ti.serial, ti.theory_name)
-
   def map_term(t: Term.Term): Term = {
     t match {
       case Term.Const(name, typargs) => Constref(name, typargs.map(map_typ).toArray)
@@ -68,7 +66,6 @@ object MappingSerializer
     map_entity(t.entity),
     map_prop(t.prop),
     t.deps.toArray,
-    t.proof_boxes.map(map_thm_id).toArray,
     map_proof(t.proof)
   )
 
