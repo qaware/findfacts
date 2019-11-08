@@ -6,7 +6,7 @@ import better.files.File
 import com.typesafe.scalalogging.Logger
 import de.qaware.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
 import de.qaware.dumpimporter.steps.thyexport.LoadThyExportStep
-import de.qaware.dumpimporter.steps.{StepContext, WriteSolrStep}
+import de.qaware.dumpimporter.steps.{SanityCheckStep, StepContext, WriteSolrStep}
 import scopt.{OptionParser, Read}
 
 /** Intermediate data to build the config.
@@ -83,6 +83,7 @@ object ImporterApp extends App {
       val context = StepContext.empty
       val steps = Seq(
         new LoadThyExportStep(config),
+        new SanityCheckStep(config),
         new WriteSolrStep(config)
       )
       steps.zipWithIndex.foreach({

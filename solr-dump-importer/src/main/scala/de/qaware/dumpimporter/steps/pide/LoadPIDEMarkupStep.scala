@@ -101,9 +101,9 @@ object PIDEParser extends Parsers {
   // Application-view of entities
   def constant: Parser[ConstEntity] = ` `(defToken) ~ opt(` `(typeDef ?) <~ ` `(where)) ~ ` `(defBlock) ^^ {
     case defN ~ Some(Some(defT)) ~ defB =>
-      ConstEntity(null, defN.startPos, defB.endPos, defN.name, defT, Array(defB.code), Array())
+      ConstEntity(null, defN.startPos, defB.endPos, defN.name, defT, Array(defB.code), Array.empty)
     case defN ~ _ ~ defB =>
-      ConstEntity(null, defN.startPos, defB.endPos, defN.name, null, Array(defB.code), Array())
+      ConstEntity(null, defN.startPos, defB.endPos, defN.name, null, Array(defB.code), Array.empty)
   }
 
   case class Definition(name: String, id: String, startPos: Int)

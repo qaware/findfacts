@@ -62,13 +62,34 @@ final case class TypeEntity(
     override val startPos: Int,
     override val endPos: Int,
     @(Field @field)(NAME) typeName: String,
-    @(Field @field)(USES) constructors: Array[String]
-) extends Entity(sourceFile, startPos, endPos, EntityKind.Type) {
+    @(Field @field)(TERM) constructors: Array[String],
+    @(Field @field)(USES) uses: Array[String])
+    extends Entity(sourceFile, startPos, endPos, EntityKind.Type) {
+
+  registerKeyFields(Seq(sourceFile, startPos, endPos, kind))
+
   @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
   def this() {
-    this(null, -1, -1, null, null)
+    this(null, -1, -1, null, null, null)
   }
-  registerKeyFields(Seq(sourceFile, startPos, endPos, kind))
+
+  override def toString = s"TypeEntity($sourceFile, $startPos, $endPos, $typeName, ${constructors.deep}, ${uses.deep})"
+
+  override def equals(other: Any): Boolean = other match {
+    case that: TypeEntity =>
+      sourceFile == that.sourceFile &&
+        startPos == that.startPos &&
+        endPos == that.endPos &&
+        typeName == that.typeName &&
+        (constructors sameElements that.constructors) &&
+        (uses sameElements that.uses)
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(sourceFile, startPos, endPos, typeName, constructors.deep, uses.deep)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
 }
 
 /** Entity class for constants.
@@ -85,13 +106,34 @@ final case class ConstEntity(
     @(Field @field)(NAME) name: String,
     @(Field @field)(CONST_TYPE) constType: String,
     @(Field @field)(TERM) definitions: Array[String],
-    @(Field @field)(USES) uses: Array[String]
-) extends Entity(sourceFile, startPos, endPos, EntityKind.Constant) {
+    @(Field @field)(USES) uses: Array[String])
+    extends Entity(sourceFile, startPos, endPos, EntityKind.Constant) {
+
+  registerKeyFields(Seq(sourceFile, startPos, endPos, kind, name))
+
   @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
   def this() {
     this(null, -1, -1, null, null, null, null)
   }
-  registerKeyFields(Seq(sourceFile, startPos, endPos, kind, name))
+
+  override def toString = s"ConstEntity($sourceFile, $startPos, $endPos, $name, $constType, $definitions, ${uses.deep})"
+
+  override def equals(other: Any): Boolean = other match {
+    case that: ConstEntity =>
+      sourceFile == that.sourceFile &&
+        startPos == that.startPos &&
+        endPos == that.endPos &&
+        name == that.name &&
+        constType == that.constType &&
+        (definitions sameElements that.definitions) &&
+        (uses sameElements that.uses)
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(sourceFile, startPos, endPos, name, constType, definitions.deep, uses.deep)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
 }
 
 /** Entity class for proven lemmas and theories.
@@ -105,13 +147,32 @@ final case class FactEntity(
     override val endPos: Int,
     @(Field @field)(NAME) name: String,
     @(Field @field)(TERM) term: String,
-    @(Field @field)(USES) uses: Array[String]
-) extends Entity(sourceFile, startPos, endPos, EntityKind.Fact) {
+    @(Field @field)(USES) uses: Array[String])
+    extends Entity(sourceFile, startPos, endPos, EntityKind.Fact) {
+
+  registerKeyFields(Seq(sourceFile, startPos, endPos, kind, name))
   @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
   def this() {
     this(null, -1, -1, null, null, null)
   }
-  registerKeyFields(Seq(sourceFile, startPos, endPos, kind, name))
+
+  override def toString = s"FactEntity($sourceFile, $startPos, $endPos, $name, $term, ${uses.deep})"
+
+  override def equals(other: Any): Boolean = other match {
+    case that: FactEntity =>
+      sourceFile == that.sourceFile &&
+        startPos == that.startPos &&
+        endPos == that.endPos &&
+        name == that.name &&
+        term == that.term &&
+        (uses sameElements that.uses)
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(sourceFile, startPos, endPos, name, term, uses.deep)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
 }
 
 /** Entity class for documentation and comments.
@@ -126,9 +187,11 @@ final case class DocumentationEntity(
     @(Field @field)(TEXT) text: String,
     @(Field @field)(DOCTYPE) docType: String
 ) extends Entity(sourceFile, startPos, endPos, EntityKind.Documentation) {
+
+  registerKeyFields(Seq(sourceFile, startPos, endPos, kind))
+
   @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
   def this() {
     this(null, -1, -1, null, null)
   }
-  registerKeyFields(Seq(sourceFile, startPos, endPos, kind))
 }

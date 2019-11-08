@@ -3,7 +3,9 @@ package de.qaware.dumpimporter.steps.thyexport
 // scalastyle:off
 object IsabelleEntities {
   @SerialVersionUID(5381987416567122528L)
-  final case class Indexname(name: String, index: Int)
+  final case class Indexname(name: String, index: Int) {
+    override def toString: Class = s"${name}_$index"
+  }
 
   type Class = String
   type Sort = Array[Class]
@@ -11,7 +13,17 @@ object IsabelleEntities {
   sealed abstract class Typ
   @SerialVersionUID(1288274563903406362L)
   final case class TProd(name: String, args: Array[Typ]) extends Typ {
-    override def toString: String = s"$name(${args.mkString(",")})"
+    override def toString: String = {
+      name match {
+        case PureSyntax.FUN => s"(${args.mkString(" ⇒ ")})"
+        case _ =>
+          if (args.isEmpty) {
+            name
+          } else {
+            s"$name(${args.mkString(" ⇒ ")})"
+          }
+      }
+    }
   }
   @SerialVersionUID(4632215889499084620L)
   final case class TFree(name: String, sort: Sort) extends Typ {
@@ -27,37 +39,53 @@ object IsabelleEntities {
   final case class TVar(name: Indexname, sort: Sort) extends Typ {
     override def toString: String = {
       if (sort.isEmpty) {
-        s"${name.name}_${name.index}"
+        name.toString
       } else {
-        s"(${name.name}_${name.index}<:${sort.mkString("+")})"
+        s"(${name.toString}<:${sort.mkString("+")})"
       }
     }
   }
 
-  sealed abstract class Term
+  sealed abstract class Term {
+    def toString(vars: IndexedSeq[String]): String
+    override def toString: String = toString(IndexedSeq.empty)
+  }
   @SerialVersionUID(-4831700261800560597L)
   final case class Constref(name: String, typargs: Array[Typ]) extends Term {
-    override def toString: String = name
+    override def toString(vars: IndexedSeq[String]): String = s"<$name>"
   }
   @SerialVersionUID(3537669541329937639L)
   final case class Free(name: String, typ: Typ) extends Term {
-    override def toString: String = name
+    override def toString(vars: IndexedSeq[String]): String = s"'$name'"
   }
   @SerialVersionUID(1681230165060449254L)
   final case class Var(name: Indexname, typ: Typ) extends Term {
-    override def toString: String = name.toString
+    override def toString(vars: IndexedSeq[String]): String = s"'${name.toString}'"
   }
   @SerialVersionUID(-3254303285314576246L)
   final case class Bound(index: Int) extends Term {
-    override def toString: String = s"B($index)"
+    override def toString(vars: IndexedSeq[String]): String = vars(index)
   }
   @SerialVersionUID(2356134117982949924L)
   final case class Abs(name: String, typ: Typ, body: Term) extends Term {
-    override def toString: String = s"λ$name.$body"
+    def chainString(vars: IndexedSeq[String]): String = {
+      body match {
+        case b: Abs => s"$name ${b.chainString(name +: vars)}"
+        case _ => s"$name. ${body.toString(name +: vars)}"
+      }
+    }
+    override def toString(vars: IndexedSeq[String]): String = s"(λ ${chainString(vars)})"
   }
   @SerialVersionUID(-9129660572822677999L)
   final case class App(fun: Term, arg: Term) extends Term {
-    override def toString: String = s"$fun ($arg)"
+    override def toString(vars: IndexedSeq[String]): String = {
+      fun match {
+        case Constref(PureSyntax.EQ, _) => s"${arg.toString(vars)} ≡"
+        case Constref(PureSyntax.IMP, _) => s"${arg.toString(vars)} ⟹"
+        case Constref(PureSyntax.ALL, _) => s"(⋀ ${arg.toString(vars)})"
+        case _ => s"(${fun.toString(vars)} ${arg.toString(vars)})"
+      }
+    }
   }
 
   sealed abstract class Proof
@@ -123,4 +151,11 @@ object IsabelleEntities {
       types: Array[Type],
       constdefs: Array[Constdef],
       typedefs: Array[Typedef])
+}
+
+object PureSyntax {
+  final val EQ = "Pure.eq"
+  final val IMP = "Pure.imp"
+  final val ALL = "Pure.all"
+  final val FUN = "fun"
 }
