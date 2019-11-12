@@ -2,10 +2,10 @@ package de.qaware.dumpimporter.dataaccess
 
 import scala.language.implicitConversions
 
-import de.qaware.dumpimporter.dataaccess.treequery.{FilterQuery, Node}
-import de.qaware.dumpimporter.dataaccess.treequery.QueryDSL.{all => tAll, not => tNot, of => tOf, _}
-import org.scalatest.{FunSuite, Matchers}
+import de.qaware.dumpimporter.dataaccess.treequery.QueryDsl.{all => tAll, not => tNot, of => tOf, _}
+import de.qaware.dumpimporter.dataaccess.treequery.{FilterQuery, Node, QueryError}
 import org.scalatest.LoneElement.convertToCollectionLoneElementWrapper
+import org.scalatest.{FunSuite, Matchers}
 
 /** Simple test node with integer elements. */
 case class TestNode(i: Int, c: Seq[TestNode] = Seq()) extends Node[TestNode] {
@@ -26,12 +26,7 @@ class TreeQueryTest extends FunSuite with Matchers {
 
   // Running example
   val tree: Seq[TestNode] = Seq(
-    TestNode(0, Seq(
-      TestNode(1, Seq(
-        TestNode(3),
-        TestNode(4, Seq(
-          TestNode(5))))),
-      TestNode(2))),
+    TestNode(0, Seq(TestNode(1, Seq(TestNode(3), TestNode(4, Seq(TestNode(5))))), TestNode(2))),
     TestNode(6),
     TestNode(7))
 
@@ -43,7 +38,7 @@ class TreeQueryTest extends FunSuite with Matchers {
   }
 
   test("Query should find single") {
-    (single thats number(2) in tree).data should be(2)
+    single thats number(2) in tree should matchPattern { case Right(TestNode(2, _)) => }
   }
 
   test("Query result should be in-order") {
@@ -51,14 +46,12 @@ class TreeQueryTest extends FunSuite with Matchers {
     res.map(_.data) should be(Seq(0, 1, 3, 4, 5, 2, 6, 7))
   }
 
-  test("Querying single for multiple matches should produce IllegalArgumentException") {
-    assertThrows[IllegalArgumentException] {
-      single thats number(1, 2) in tree
-    }
+  test("Querying single for multiple matches should give Error") {
+    single thats number(1, 2) in tree should matchPattern { case Left(QueryError(_)) => }
   }
 
   test("Query thats on root level") {
-    shouldFind(tAll thats (tNot (number(0))) in tree, Seq(1, 2, 3, 4, 5, 6, 7))
+    shouldFind(tAll thats (tNot(number(0))) in tree, Seq(1, 2, 3, 4, 5, 6, 7))
   }
 
   test("Query and filter") {
@@ -66,7 +59,7 @@ class TreeQueryTest extends FunSuite with Matchers {
   }
 
   test("Query or filter") {
-    shouldFind(tAll thats(number(1) or number(2) or number(3)) in tree, Seq(1, 2, 3))
+    shouldFind(tAll thats (number(1) or number(2) or number(3)) in tree, Seq(1, 2, 3))
   }
 
   test("Query not filter") {
@@ -110,7 +103,9 @@ class TreeQueryTest extends FunSuite with Matchers {
 
   test("Combining queries") {
     shouldFind(tAll next tOf parent ofOne thats number(1, 3) in tree, Seq(2, 6))
-    (single first ofOne parent ofOne previous ofOne thats number(4) in tree).data should be (1)
+    (single first ofOne parent ofOne previous ofOne thats number(4) in tree) should matchPattern {
+      case Right(TestNode(1, _)) =>
+    }
     shouldFind(tAll next tOf next tOf previous tOf previous ofOne in tree, 7)
     val filter = (number(1, 2, 3, 4) and tNot(number(1, 2, 3, 4) without number(2, 3)))
     shouldFind(tAll first tOf root tOf parent tOf next tOf previous ofOne thats filter in tree, 0)

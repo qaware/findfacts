@@ -1,11 +1,10 @@
 package de.qaware.dumpimporter.dataaccess.treequery
 
-import scala.language.implicitConversions
-
 /** Connective for the query DSL. */
 sealed trait Connective
 
-object QueryDSL {
+/** Encapsulates query DSL types and constructors. */
+object QueryDsl {
 
   /** Connective 'of'. */
   case object of extends Connective // scalastyle:ignore
@@ -14,12 +13,12 @@ object QueryDSL {
   case object ofOne extends Connective // scalastyle:ignore
 
   /** Builds a query node to find a single element, for fluent DSL interface.
-    * Throws an exception if the query finds more than one result.
+    * Returns an error if the query finds more than one result.
     *
     * @tparam N type of the nodes to query
     * @return an initial query node
     */
-  def single[N <: Node[N]]: ChainNode[N, N] = Single()
+  def single[N <: Node[N]]: ChainNode[N, Either[QueryError, N]] = Single()
 
   /** Builds a query node to find all elements.
     *
@@ -34,9 +33,7 @@ object QueryDSL {
     * @tparam N type of the nodes
     * @return new filter matching the complement of fq
     */
-  def not[N <: Node[N]](fq: FilterQuery[N]): FilterQuery[N] = {
-    FilterQuery[N](!fq.matches(_))
-  }
+  def not[N <: Node[N]](fq: FilterQuery[N]): FilterQuery[N] = FilterQuery[N](!fq.matches(_))
 
   /** Directly filter by a function.
     *
@@ -44,9 +41,7 @@ object QueryDSL {
     * @tparam N type of the nodes
     * @return new filter wrapper object
     */
-  def property[N <: Node[N]](filter: N => Boolean): FilterQuery[N] = {
-    FilterQuery[N](filter)
-  }
+  def property[N <: Node[N]](filter: N => Boolean): FilterQuery[N] = FilterQuery[N](filter)
 }
 
 /** Generic immutable tree node.
@@ -77,7 +72,6 @@ object ResultNode {
     * @tparam N type of node to wrap
     * @return wrapped result node
     */
-  def fromTree[N <: Node[N]](tree: N): ResultNode[N] = {
+  def fromTree[N <: Node[N]](tree: N): ResultNode[N] =
     ResultNode(tree, tree.children.map(fromTree), selected = true)
-  }
 }

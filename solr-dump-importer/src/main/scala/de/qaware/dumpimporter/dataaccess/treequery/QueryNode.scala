@@ -1,8 +1,10 @@
 package de.qaware.dumpimporter.dataaccess.treequery
 
-import scala.util.{Failure, Success, Try}
-
-import com.typesafe.scalalogging.Logger
+/** Encapsulates an error in the execution of a query.
+  *
+  * @param msg error message
+  */
+final case class QueryError(msg: String) extends Throwable
 
 /** Trait for final query nodes, to allow only execution of the query after certain query constructions in the DSL.
   *
@@ -34,16 +36,9 @@ trait FinalNode[N <: Node[N], R] {
   * @tparam R result type
   */
 sealed trait QueryNode[N <: Node[N], R] extends FinalNode[N, R] {
-  private val logger: Logger = Logger[QueryNode[N, R]]
-
   override def in(forest: Seq[N]): R = {
     val resultForest = executeQuery(forest.map(ResultNode.fromTree))
-    convertResult(resultForest.flatMap(extractSelectedNodes)) match {
-      case Success(res) => res
-      case Failure(e) =>
-        logger.error("Could not convert result for forest: {}", forest)
-        throw e
-    }
+    convertResult(resultForest.flatMap(extractSelectedNodes))
   }
 
   /** Extracts selected nodes recursively out of the result node.
@@ -52,11 +47,10 @@ sealed trait QueryNode[N <: Node[N], R] extends FinalNode[N, R] {
     * @return sequence of selected nodes
     */
   def extractSelectedNodes(resultNode: ResultNode[N]): Seq[N] = {
-    if (resultNode.selected) {
+    if (resultNode.selected)
       resultNode.inner +: resultNode.children.flatMap(extractSelectedNodes)
-    } else {
+    else
       resultNode.children.flatMap(extractSelectedNodes)
-    }
   }
 
   /** Invokes recursive execution of the whole query, on a forest of result nodes.
@@ -80,7 +74,7 @@ sealed trait QueryNode[N <: Node[N], R] extends FinalNode[N, R] {
     * @param res result nodes to convert
     * @return attempt to convert the result
     */
-  def convertResult(res: Seq[N]): Try[R]
+  def convertResult(res: Seq[N]): R
 }
 
 /** Mixin trait for nodes that can be chained, for fluent DSL interface.
@@ -177,20 +171,20 @@ sealed trait UpstreamNode[N <: Node[N], R] extends QueryNode[N, R] {
     // First execute own transformations, then feed result into downstream
     downstream.executeQuery(forest.map(transformRecursively))
   }
-  override def convertResult(res: Seq[N]): Try[R] = downstream.convertResult(res)
+  override def convertResult(res: Seq[N]): R = downstream.convertResult(res)
 }
 
 // Implementors
-/** Query-node to get a single result. Throw [[IllegalArgumentException]] if result is no singleton.
+/** Query-node to get a single result. Returns [[QueryError]] if result is no singleton.
   *
   * @tparam N type of the nodes to query
   */
-final case class Single[N <: Node[N]]() extends QueryNode[N, N] with ChainNode[N, N] {
-  override def convertResult(res: Seq[N]): Try[N] = {
-    res match {
-      case Seq(e) => Success(e)
-      case _ => Failure(new IllegalArgumentException(s"Was not single: $res"))
-    }
+final case class Single[N <: Node[N]]()
+    extends QueryNode[N, Either[QueryError, N]]
+    with ChainNode[N, Either[QueryError, N]] {
+  override def convertResult(res: Seq[N]): Either[QueryError, N] = res match {
+    case Seq(e) => Right(e)
+    case _ => Left(QueryError(s"Was not single: $res"))
   }
 }
 
@@ -199,7 +193,7 @@ final case class Single[N <: Node[N]]() extends QueryNode[N, N] with ChainNode[N
   * @tparam N type of the nodes to query
   */
 final case class All[N <: Node[N]]() extends QueryNode[N, Seq[N]] with ChainNode[N, Seq[N]] {
-  override def convertResult(res: Seq[N]): Try[Seq[N]] = Success(res)
+  override def convertResult(res: Seq[N]): Seq[N] = identity(res)
 }
 
 /** Query-node to stop the recursive tree search after finding the first result.
@@ -213,9 +207,8 @@ final case class First[N <: Node[N], R](downstream: QueryNode[N, R]) extends Ups
     if (node.selected) {
       // Cut off all children
       node.copy(children = Seq.empty)
-    } else {
+    } else
       node.copy(children = node.children.map(transformRecursively))
-    }
   }
 }
 
@@ -230,14 +223,13 @@ final case class FirstInOrder[N <: Node[N], R](downstream: ChainNode[N, R], var 
     extends UpstreamNode[N, R]
     with ChainNode[N, R] {
   override def transformRecursively(node: ResultNode[N]): ResultNode[N] = {
-    if (stop) {
+    if (stop)
       node.copy(selected = false, children = Seq.empty)
-    } else if (node.selected) {
+    else if (node.selected) {
       stop = true
       node.copy(children = Seq.empty)
-    } else {
-      node.copy(children = node.children.map(transformRecursively))
-    }
+    } else
+      node.copy(children = node.children map transformRecursively)
   }
 }
 
@@ -250,7 +242,7 @@ final case class FirstInOrder[N <: Node[N], R](downstream: ChainNode[N, R], var 
 final case class Root[N <: Node[N], R](downstream: QueryNode[N, R]) extends UpstreamNode[N, R] with ChainNode[N, R] {
   override def executeQuery(forest: Seq[ResultNode[N]]): Seq[ResultNode[N]] = {
     // Cut off all non-root nodes
-    val thisRes = forest.map(n => n.copy(children = Seq.empty))
+    val thisRes = forest.map(_.copy(children = Seq.empty))
     super.executeQuery(thisRes)
   }
 }
@@ -318,9 +310,8 @@ final case class AnyNext[N <: Node[N], R](downstream: QueryNode[N, R])
     siblings.indexWhere(_.selected) match {
       case -1 => siblings
       case firstIdx: Any =>
-        siblings.take(firstIdx) ++ (siblings(firstIdx).copy(selected = false) +: (siblings.drop(firstIdx + 1) map {
-          _.copy(selected = true)
-        }))
+        siblings.take(firstIdx) ++ (siblings(firstIdx).copy(selected = false)
+          +: siblings.drop(firstIdx + 1).map(_.copy(selected = true)))
     }
   }
 }
@@ -335,9 +326,8 @@ final case class Prev[N <: Node[N], R](downstream: QueryNode[N, R])
     extends SiblingTransformationNode[N, R]
     with ChainNode[N, R] {
   override protected def transformSiblings(siblings: IndexedSeq[ResultNode[N]]): Seq[ResultNode[N]] = {
-    (siblings.dropRight(1).zip(siblings.drop(1)) map { cn =>
-      cn._1.copy(selected = cn._2.selected)
-    }) ++ siblings.takeRight(1).map(_.copy(selected = false))
+    (siblings.dropRight(1).zip(siblings.drop(1)).map(cn => cn._1.copy(selected = cn._2.selected))
+      ++ siblings.takeRight(1).map(_.copy(selected = false)))
   }
 }
 
@@ -354,8 +344,8 @@ final case class AnyPrev[N <: Node[N], R](downstream: QueryNode[N, R])
     siblings.lastIndexWhere(_.selected) match {
       case -1 => siblings
       case lastIdx: Any =>
-        ((siblings.take(lastIdx) map { _.copy(selected = true) }) :+ siblings(lastIdx).copy(selected = false)) ++ siblings
-          .drop(lastIdx + 1)
+        ((siblings.take(lastIdx).map(_.copy(selected = true)) :+ siblings(lastIdx).copy(selected = false))
+          ++ siblings.drop(lastIdx + 1))
     }
   }
 }
@@ -386,10 +376,9 @@ final case class Without[N <: Node[N], R](downstream: QueryNode[N, R], fq: Filte
     extends UpstreamNode[N, R]
     with ChainNode[N, R] {
   override def transformRecursively(node: ResultNode[N]): ResultNode[N] = {
-    if (node.selected && fq.matches(node.inner)) {
+    if (node.selected && fq.matches(node.inner))
       node.copy(selected = false, children = Seq.empty)
-    } else {
+    else
       node.copy(children = node.children.map(transformRecursively))
-    }
   }
 }

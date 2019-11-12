@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers, Suite}
 
 case class TestSpec(mapping: TestSpecPosition, code: String)
 
-class LoadPIDEMarkupStepTest extends FunSuite with Matchers {
+class LoadPideMarkupStepTest extends FunSuite with Matchers {
   private final val SPEC_BEGIN = "(*SPEC:BEGIN:"
 
   override lazy val nestedSuites: immutable.IndexedSeq[Suite] = {

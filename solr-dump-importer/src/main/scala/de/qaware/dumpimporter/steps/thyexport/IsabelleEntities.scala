@@ -4,7 +4,12 @@ package de.qaware.dumpimporter.steps.thyexport
 object IsabelleEntities {
   @SerialVersionUID(5381987416567122528L)
   final case class Indexname(name: String, index: Int) {
-    override def toString: Class = s"${name}_$index"
+    override def toString: String = {
+      if (!name.endsWith("[0-9]"))
+        if (index == 0) name else s"$name$index"
+      else
+        s"$name.$index"
+    }
   }
 
   type Class = String
@@ -13,36 +18,30 @@ object IsabelleEntities {
   sealed abstract class Typ
   @SerialVersionUID(1288274563903406362L)
   final case class TProd(name: String, args: Array[Typ]) extends Typ {
-    override def toString: String = {
-      name match {
-        case PureSyntax.FUN => s"(${args.mkString(" ⇒ ")})"
-        case _ =>
-          if (args.isEmpty) {
-            name
-          } else {
-            s"$name(${args.mkString(" ⇒ ")})"
-          }
-      }
+    override def toString: String = name match {
+      case PureSyntax.FUN => s"(${args.mkString(" ⇒ ")})"
+      case _ =>
+        args match {
+          case Array() => name
+          case Array(single) => s"$single $name"
+          case multiple: Any => s"(${multiple.mkString(" ⇒ ")}) $name"
+        }
     }
   }
   @SerialVersionUID(4632215889499084620L)
   final case class TFree(name: String, sort: Sort) extends Typ {
-    override def toString: String = {
-      if (sort.isEmpty) {
-        name
-      } else {
-        s"($name<:${sort.mkString("+")})"
-      }
+    override def toString: String = sort match {
+      case Array() => name
+      case Array(single) => s"($name::$single)"
+      case multiple: Any => s"($name::{${multiple.mkString(",")}})"
     }
   }
   @SerialVersionUID(-7154596930660649505L)
   final case class TVar(name: Indexname, sort: Sort) extends Typ {
-    override def toString: String = {
-      if (sort.isEmpty) {
-        name.toString
-      } else {
-        s"(${name.toString}<:${sort.mkString("+")})"
-      }
+    override def toString: String = sort match {
+      case Array() => name.toString
+      case Array(single) => s"(${name.toString}::$single)"
+      case multiple: Any => s"(${name.toString}::{${multiple.mkString(",")}})"
     }
   }
 
@@ -60,7 +59,7 @@ object IsabelleEntities {
   }
   @SerialVersionUID(1681230165060449254L)
   final case class Var(name: Indexname, typ: Typ) extends Term {
-    override def toString(vars: IndexedSeq[String]): String = s"'${name.toString}'"
+    override def toString(vars: IndexedSeq[String]): String = s"?${name.toString}"
   }
   @SerialVersionUID(-3254303285314576246L)
   final case class Bound(index: Int) extends Term {
@@ -68,23 +67,19 @@ object IsabelleEntities {
   }
   @SerialVersionUID(2356134117982949924L)
   final case class Abs(name: String, typ: Typ, body: Term) extends Term {
-    def chainString(vars: IndexedSeq[String]): String = {
-      body match {
-        case b: Abs => s"$name ${b.chainString(name +: vars)}"
-        case _ => s"$name. ${body.toString(name +: vars)}"
-      }
+    def chainString(vars: IndexedSeq[String]): String = body match {
+      case b: Abs => s"$name ${b.chainString(name +: vars)}"
+      case _ => s"$name. ${body.toString(name +: vars)}"
     }
     override def toString(vars: IndexedSeq[String]): String = s"(λ ${chainString(vars)})"
   }
   @SerialVersionUID(-9129660572822677999L)
   final case class App(fun: Term, arg: Term) extends Term {
-    override def toString(vars: IndexedSeq[String]): String = {
-      fun match {
-        case Constref(PureSyntax.EQ, _) => s"${arg.toString(vars)} ≡"
-        case Constref(PureSyntax.IMP, _) => s"${arg.toString(vars)} ⟹"
-        case Constref(PureSyntax.ALL, _) => s"(⋀ ${arg.toString(vars)})"
-        case _ => s"(${fun.toString(vars)} ${arg.toString(vars)})"
-      }
+    override def toString(vars: IndexedSeq[String]): String = fun match {
+      case Constref(PureSyntax.EQ, _) => s"${arg.toString(vars)} ≡"
+      case Constref(PureSyntax.IMP, _) => s"${arg.toString(vars)} ⟹"
+      case Constref(PureSyntax.ALL, _) => s"(⋀ ${arg.toString(vars)})"
+      case _ => s"(${fun.toString(vars)} ${arg.toString(vars)})"
     }
   }
 
@@ -128,7 +123,7 @@ object IsabelleEntities {
   final case class Axiom(entity: Entity, prop: Prop)
 
   @SerialVersionUID(-893943103698877484L)
-  sealed case class Thm(entity: Entity, prop: Prop, deps: Array[String], proof: Proof)
+  final case class Thm(entity: Entity, prop: Prop, deps: Array[String], proof: Proof)
 
   @SerialVersionUID(-3018807716739527586L)
   final case class Type(entity: Entity, args: Array[String])

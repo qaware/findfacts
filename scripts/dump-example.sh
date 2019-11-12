@@ -9,6 +9,6 @@ ISABELLE="$PROJECT_DIR/isabelle/bin/isabelle"
 ISABELLE_EXTENSIONS_DIR="$SCIPT_DIR/../isabelle-extensions"
 
 SCALA_OPTS="-J-Xmx2g -J-Xms2G"
-DUMP_OPTS="-O $PROJECT_DIR/dump/example/ -d $EXAMPLE_DIR IAS-Example"
+DUMP_OPTS="-A markup -O $PROJECT_DIR/dump/example/ -d $EXAMPLE_DIR IAS-Example"
 
 "$ISABELLE" scala $SCALA_OPTS "$ISABELLE_EXTENSIONS_DIR/dump_stable.scala" $DUMP_OPTS

@@ -1,6 +1,7 @@
 package de.qaware.dumpimporter.steps.thyexport
 
 import scala.language.postfixOps
+import scala.util.matching.Regex
 import scala.util.{Failure, Success}
 
 import com.typesafe.scalalogging.Logger
@@ -15,10 +16,14 @@ import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
   * @param config of the importer
   */
 class LoadThyExportStep(override val config: Config) extends ImportStep {
+
+  /** File pattern of serialized theories. */
+  final val SERIALIZED_FILE: Regex = ".*/theory/serialized_thy".r
+
   private val logger = Logger[LoadThyExportStep]
 
   override def apply(context: StepContext): Unit = {
-    val thyFiles = RepositoryReader(config.dump).readAll("(.*)theory/serialized_thy".r)
+    val thyFiles = RepositoryReader(config.dump).readAll(SERIALIZED_FILE)
     logger.info(s"Found ${thyFiles.size} serialized theories. Deserializing...")
 
     val theories = thyFiles flatMap { repoEntry =>
@@ -40,19 +45,19 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         thy.axioms.partition(ax => constAxNames.contains(ax.entity.name) || typeAxNames.contains(ax.entity.name))
       val (constAxioms, typeAxioms) = defAxioms.partition(ax => constAxNames.contains(ax.entity.name))
 
-      context.consts ++= extractConsts(thy, constAxioms)
-      context.types ++= extractTypes(thy, typeAxioms)
-      context.facts ++= extractFacts(thy.name, thy.thms, axioms)
+      extractConsts(thy, constAxioms, context)
+      extractTypes(thy, typeAxioms, context)
+      extractFacts(thy.name, thy.thms, axioms, context)
     }
     logger.info(s"Found ${context.consts.size} constants, ${context.types.size} types, ${context.facts.size} facts.")
   }
 
-  private def extractConsts(thy: Theory, constAxioms: Seq[Axiom]): Seq[ConstEntity] = {
+  private def extractConsts(thy: Theory, constAxioms: Seq[Axiom], context: StepContext): Unit = {
     // Find related axioms, if any
     val axNameByConstName = thy.constdefs.groupBy(_.name).mapValues(_.map(_.axiomName))
     val constAxiomsByName = constAxioms.groupBy(_.entity.name)
 
-    thy.consts map { const =>
+    thy.consts foreach { const =>
       val axioms = axNameByConstName.getOrElse(const.entity.name, Array.empty) flatMap { axName =>
         constAxiomsByName.getOrElse(axName, Seq.empty) match {
           case Seq(ax) => Some(ax)
@@ -65,7 +70,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
       logger.whenDebugEnabled(if (axioms.isEmpty) { logger.debug(s"No constant definition for ${const.entity.name}") })
 
       // Enrich const data with axiom def
-      ConstEntity(
+      val entity = ConstEntity(
         thy.name,
         const.entity.startPos,
         const.entity.endPos,
@@ -73,22 +78,31 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         const.typ.toString,
         axioms.map(_.prop.term.toString),
         Array.empty)
-    } toSeq
+
+      // Register entity and serials
+      context.addEntity(entity, Seq(const.entity.serial) ++ axioms.map(_.entity.serial))
+    }
   }
 
-  private def extractFacts(name: String, thms: Array[Thm], axioms: Seq[Axiom]): Seq[FactEntity] = {
-    (thms map { thm =>
-      FactEntity(name, thm.entity.startPos, thm.entity.endPos, thm.entity.name, thm.prop.term.toString, Array.empty)
-    } toSeq) ++ (axioms map { ax =>
-      FactEntity(name, ax.entity.startPos, ax.entity.endPos, ax.entity.name, ax.prop.term.toString, Array.empty)
-    })
+  private def extractFacts(name: String, thms: Array[Thm], axioms: Seq[Axiom], context: StepContext): Unit = {
+    thms foreach { thm =>
+      context.addEntity(
+        FactEntity(name, thm.entity.startPos, thm.entity.endPos, thm.entity.name, thm.prop.term.toString, Array.empty),
+        Seq(thm.entity.serial))
+    }
+
+    axioms foreach { ax =>
+      context.addEntity(
+        FactEntity(name, ax.entity.startPos, ax.entity.endPos, ax.entity.name, ax.prop.term.toString, Array.empty),
+        Seq(ax.entity.serial))
+    }
   }
 
-  private def extractTypes(thy: Theory, typeAxioms: Seq[Axiom]): Seq[TypeEntity] = {
+  private def extractTypes(thy: Theory, typeAxioms: Seq[Axiom], context: StepContext): Unit = {
     val typedefByTypeName = thy.typedefs.groupBy(_.name)
     val typeAxiomsByName = typeAxioms.groupBy(_.entity.name)
 
-    thy.types map { t =>
+    thy.types foreach { t =>
       val axioms = typedefByTypeName.getOrElse(t.entity.name, Array.empty) flatMap { td =>
         typeAxiomsByName.getOrElse(td.axiomName, Seq.empty) match {
           case Seq(ax) => Some(ax)
@@ -98,13 +112,16 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         }
       }
 
-      TypeEntity(
+      val typeEntity = TypeEntity(
         thy.name,
         t.entity.startPos,
         t.entity.endPos,
         t.entity.name,
         axioms.map(_.prop.term.toString),
         Array.empty)
-    } toSeq
+
+      // Register entity
+      context.addEntity(typeEntity, Seq(t.entity.serial) ++ axioms.map(_.entity.serial))
+    }
   }
 }
