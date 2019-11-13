@@ -29,14 +29,6 @@
  </check>
  <check level="warning" class="org.scalastyle.scalariform.ForBraceChecker" enabled="true"/>
  <check level="warning" class="org.scalastyle.scalariform.IfBraceChecker" enabled="true"/>
- <check level="warning" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="true">
-  <parameters>
-   <parameter name="groups">java,scala,others</parameter>
-   <parameter name="group.java">javax?\..+</parameter>
-   <parameter name="group.scala">scala\..+</parameter>
-   <parameter name="group.others">.+</parameter>
-  </parameters>
- </check>
  <check level="warning" class="org.scalastyle.scalariform.SpacesAfterPlusChecker" enabled="true"/>
  <check level="warning" class="org.scalastyle.file.WhitespaceEndOfLineChecker" enabled="true"/>
  <check level="warning" class="org.scalastyle.scalariform.SpacesBeforePlusChecker" enabled="true"/>
@@ -155,5 +147,13 @@
  <check level="warning" class="org.scalastyle.scalariform.XmlLiteralChecker" enabled="false"/>
  <check level="warning" class="org.scalastyle.file.NoNewLineAtEofChecker" enabled="false"/>
  <!-- Rules that have errors and do not work properly -->
+ <check level="warning" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="false">
+  <parameters>
+   <parameter name="groups">java,scala,others</parameter>
+   <parameter name="group.java">javax?\..+</parameter>
+   <parameter name="group.scala">scala\..+</parameter>
+   <parameter name="group.others">.+</parameter>
+  </parameters>
+ </check>
  <check level="warning" class="org.scalastyle.scalariform.MultipleStringLiteralsChecker" enabled="false"/>
 </scalastyle>

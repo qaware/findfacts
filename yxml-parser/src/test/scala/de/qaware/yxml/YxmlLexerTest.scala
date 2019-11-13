@@ -13,21 +13,21 @@ class YxmlLexerTest extends FunSuite with Matchers {
     YxmlLexer(yxml) should equal(
       Right(
         List(
-          X(),
-          TS("\t\r\n Some text 123 .,;+ "),
-          EQ(),
-          TS(" Space after "),
-          Y()
+          X,
+          new TS("\t\r\n Some text 123 .,;+ "),
+          EQ,
+          new TS(" Space after "),
+          Y
         )))
   }
 
   test("tokenize string with newline") {
-    YxmlLexer("\n\u0005") should equal(Right(List(TS("\n"), X())))
+    YxmlLexer("\n\u0005") should equal(Right(List(new TS("\n"), X)))
   }
 
   test("tokenize unicode string") {
     YxmlLexer("abc\uD83D\uDE00\uD83D\uDCA9\uD83D\uDC6E\uD83C\uDFFF\u200D\u0006") should equal(
-      Right(List(TS("abc\uD83D\uDE00\uD83D\uDCA9\uD83D\uDC6E\uD83C\uDFFF\u200D"), Y())))
+      Right(List(new TS("abc\uD83D\uDE00\uD83D\uDCA9\uD83D\uDC6E\uD83C\uDFFF\u200D"), Y)))
   }
 
   test("tokenize larger example") {

@@ -1,36 +1,37 @@
 package de.qaware.yxml
 
-import scala.util.parsing.input.Positional
-
 /** Base token trait. */
-sealed trait YxmlToken extends Positional
+sealed trait YxmlToken extends Any
 
 /** Token containing readable text. */
-sealed trait TextToken extends YxmlToken {
+sealed trait TextToken extends Any with YxmlToken {
 
   /** Contained text
     *
     * @return text as string
     */
   def str: String
+
+  override def toString: String = str
 }
 
 /** Arbitrary text, without control characters, tokens, and whitespace.
   *
   * @param str text string
   */
-final case class TS(override val str: String) extends TextToken
+final class TS(override val str: String) extends AnyVal with TextToken
+/** Companion object for value class to allow for pattern matching. */
+object TS {
+  def unapply(arg: TS): Option[String] = Some(arg.str) // scalastyle:ignore
+}
 
 /** Equal sign. */
-@SuppressWarnings(Array("EmptyCaseClass")) // Justification: Positional data stored in superclass
-final case class EQ() extends TextToken {
+case object EQ extends TextToken {
   override val str: String = "="
 }
 
 /** 'X' char, i.e. ascii char 5 */
-@SuppressWarnings(Array("EmptyCaseClass")) // Justification: Positional data stored in superclass
-final case class X() extends YxmlToken
+case object X extends YxmlToken
 
 /** 'Y' char, i.e. ascii char 6 */
-@SuppressWarnings(Array("EmptyCaseClass")) // Justification: Positional data stored in superclass
-final case class Y() extends YxmlToken
+case object Y extends YxmlToken

@@ -1,7 +1,16 @@
+import sbt.Tests.Setup
+
 ThisBuild / organization := "de.qaware"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.10"
 ThisBuild / scapegoatVersion := "1.3.8"
+
+ThisBuild / javaOptions += "-Xss256m"
+
+ThisBuild / Compile / run / fork := true
+
+// Parallel execution causes logging issues
+ThisBuild / Test / parallelExecution := false
 
 // Enable compiler optimizations
 ThisBuild / scalacOptions ++= Seq(
@@ -22,7 +31,8 @@ ThisBuild / libraryDependencies ++= Seq(
   scalatest % "test",
   "com.github.pathikrit" %% "better-files" % "3.8.0",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
-  "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.12.1" exclude ("org.slf4j", "slf4j-api"),
+  "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.12.1"
+    exclude ("org.slf4j", "slf4j-api"),
   "org.apache.logging.log4j" % "log4j-core" % "2.12.1"
 )
 
@@ -57,7 +67,8 @@ lazy val `common-solr` = project
 lazy val `yxml-parser` = project
   .settings(libraryDependencies ++= Seq(
     scopt,
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
+    "com.lihaoyi" %% "fastparse" % "2.1.3"
   ))
 
 lazy val `common-utils` = project

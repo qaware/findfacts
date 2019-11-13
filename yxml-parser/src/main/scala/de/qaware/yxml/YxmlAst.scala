@@ -1,9 +1,7 @@
 package de.qaware.yxml
 
-import scala.util.parsing.input.Positional
-
 /** Trait for pretty-printing of yxml asts. */
-trait YxmlAstFormat {
+trait YxmlAstFormat extends Any {
   override def toString: String = format(0)
 
   /** Format AST element with indentation.
@@ -12,27 +10,35 @@ trait YxmlAstFormat {
     * @return pretty-printed element
     */
   def format(indentLevel: Int): String
+
+  /** String literal for one indentation level. Is def instead of val to allow value classes.
+    *
+    * @return indentation literal
+    */
+  @SuppressWarnings(Array("MethodNames")) // Justification: Is def instead of val to allow value classes
+  final def Indent: String = "  " // scalastyle:ignore
 }
 
 /** Trait for the sum type of the yxml abstract syntax tree. */
-sealed trait YxmlAST extends Positional {
-
-  /** String literal for one indentation level. */
-  final val INDENT: String = "  "
-}
+sealed trait YxmlAst extends Any
 
 /** Single-node wrapper for yxml forest.
   *
   * @param elems inner elements of this tree
   */
-final case class Yxml(elems: Seq[Inner] = Seq.empty) extends YxmlAST with YxmlAstFormat {
+final class Yxml(val elems: Seq[Inner] = Seq.empty) extends AnyVal with YxmlAst with YxmlAstFormat {
   override def toString: String = format(0)
   override def format(indentLevel: Int): String =
     elems.map(_.format(indentLevel)).mkString("\n")
 }
 
+/** Companion object to pattern match value class. */
+object Yxml {
+  def unapply(arg: Yxml): Option[Seq[Inner]] = Some(arg.elems) // scalastyle:ignore
+}
+
 /** Union type for Markup and text. */
-sealed trait Inner extends YxmlAST with YxmlAstFormat
+sealed trait Inner extends Any with YxmlAst with YxmlAstFormat
 
 /** Markup element.
   *
@@ -40,32 +46,27 @@ sealed trait Inner extends YxmlAST with YxmlAstFormat
   * @param kvs key-value pairs
   * @param inner yxml forest
   */
-final case class Markup(tag: String, kvs: Seq[(String, String)] = Seq.empty, inner: Yxml = Yxml(Seq.empty))
-    extends YxmlAST
-    with Inner {
-
+final case class Markup(tag: String, kvs: Seq[(String, String)] = Seq.empty, inner: Yxml = new Yxml()) extends Inner {
   override def format(indentLevel: Int): String = {
     val kvsFmt = kvs.map(kv => s"${kv._1}=${kv._2}").mkString(" ")
     val innerFmt = inner.elems match {
       case Seq() => ""
       case Seq(Text(t)) => t
-      case _ => "\n" + inner.format(indentLevel + 1) + "\n" + INDENT.repeat(indentLevel)
+      case _ => "\n" + inner.format(indentLevel + 1) + "\n" + Indent.repeat(indentLevel)
     }
-    INDENT.repeat(indentLevel) + s"<$tag $kvsFmt $innerFmt>"
+    Indent.repeat(indentLevel) + s"<$tag $kvsFmt $innerFmt>"
   }
 }
-
-/** Single key-value pair
-  *
-  * @param key of the pair
-  * @param value of the pair
-  */
-final case class KVPair(key: String, value: String) extends YxmlAST
 
 /** Inner body text
   *
   * @param str representation of text
   */
-final case class Text(str: String) extends Inner {
+final class Text(val str: String) extends AnyVal with Inner {
   override def format(indentLevel: Int): String = "  ".repeat(indentLevel) + str
+}
+
+/** Companion object to pattern match value class. */
+object Text {
+  def unapply(arg: Text): Option[String] = Some(arg.str) // scalastyle:ignore
 }

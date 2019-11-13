@@ -3,7 +3,7 @@ package de.qaware.dumpimporter.dataaccess.treequery
 import scala.util.matching.Regex
 
 import de.qaware.dumpimporter.steps.pide.PideField
-import de.qaware.yxml.{Markup, Text, Yxml, YxmlAST}
+import de.qaware.yxml.{Markup, Text, Yxml, YxmlAst}
 
 /** Tree query node class and initial node constructors for yxml trees.  */
 object YxmlTreeQuery {
@@ -12,7 +12,7 @@ object YxmlTreeQuery {
     *
     * @param inner yxml AST
     */
-  implicit class YxmlNode(val inner: YxmlAST) extends Node[YxmlNode] {
+  implicit class YxmlNode(val inner: YxmlAst) extends Node[YxmlNode] {
     override val children: Seq[YxmlNode] = inner match {
       case Yxml(elems) => elems.map(new YxmlNode(_))
       case Markup(_, _, yxml) => yxml.elems.map(new YxmlNode(_))
