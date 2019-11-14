@@ -15,7 +15,9 @@ object IsabelleEntities {
   type Class = String
   type Sort = Array[Class]
 
-  sealed abstract class Typ
+  sealed abstract class Typ {
+    def referencedTypes: Set[String]
+  }
   @SerialVersionUID(1288274563903406362L)
   final case class TProd(name: String, args: Array[Typ]) extends Typ {
     override def toString: String = name match {
@@ -27,6 +29,8 @@ object IsabelleEntities {
           case multiple: Any => s"(${multiple.mkString(" ⇒ ")}) $name"
         }
     }
+
+    override def referencedTypes: Set[String] = (name +: args.flatMap(_.referencedTypes)).toSet
   }
   @SerialVersionUID(4632215889499084620L)
   final case class TFree(name: String, sort: Sort) extends Typ {
@@ -35,6 +39,8 @@ object IsabelleEntities {
       case Array(single) => s"($name::$single)"
       case multiple: Any => s"($name::{${multiple.mkString(",")}})"
     }
+
+    override def referencedTypes: Set[String] = sort.toSet
   }
   @SerialVersionUID(-7154596930660649505L)
   final case class TVar(name: Indexname, sort: Sort) extends Typ {
@@ -43,15 +49,20 @@ object IsabelleEntities {
       case Array(single) => s"(${name.toString}::$single)"
       case multiple: Any => s"(${name.toString}::{${multiple.mkString(",")}})"
     }
+
+    override def referencedTypes: Set[String] = sort.toSet
   }
 
   sealed abstract class Term {
     def toString(vars: IndexedSeq[String]): String
+    def referencedConsts: Set[String] = Set.empty
     override def toString: String = toString(IndexedSeq.empty)
   }
   @SerialVersionUID(-4831700261800560597L)
   final case class Constref(name: String, typargs: Array[Typ]) extends Term {
     override def toString(vars: IndexedSeq[String]): String = s"<$name>"
+
+    override def referencedConsts: Set[String] = Set(name)
   }
   @SerialVersionUID(3537669541329937639L)
   final case class Free(name: String, typ: Typ) extends Term {
@@ -72,6 +83,8 @@ object IsabelleEntities {
       case _ => s"$name. ${body.toString(name +: vars)}"
     }
     override def toString(vars: IndexedSeq[String]): String = s"(λ ${chainString(vars)})"
+
+    override def referencedConsts: Set[String] = body.referencedConsts
   }
   @SerialVersionUID(-9129660572822677999L)
   final case class App(fun: Term, arg: Term) extends Term {
@@ -81,6 +94,8 @@ object IsabelleEntities {
       case Constref(PureSyntax.ALL, _) => s"(⋀ ${arg.toString(vars)})"
       case _ => s"(${fun.toString(vars)} ${arg.toString(vars)})"
     }
+
+    override def referencedConsts: Set[String] = fun.referencedConsts ++ arg.referencedConsts
   }
 
   sealed abstract class Proof

@@ -2,7 +2,11 @@ package de.qaware.common.solr.dt
 
 import scala.annotation.meta.field
 
+import de.qaware.common.solr.dt.Entity.Id
+// scalastyle:off UnderscoreImportChecker
 import de.qaware.common.solr.dt.SolrSchema._
+// scalastyle:on UnderscoreImportChecker
+import de.qaware.scalautils.NullableArray.deep
 import org.apache.solr.client.solrj.beans.Field
 import org.apache.solr.update.processor.Lookup3Signature
 
@@ -14,10 +18,10 @@ import org.apache.solr.update.processor.Lookup3Signature
   * @param kind of this entity. String value for solr compability from [[EntityKind]] enum
   */
 sealed abstract class Entity(
-    @(Field @field)(SOURCE_FILE) val sourceFile: String,
-    @(Field @field)(START_POS) val startPos: Int,
-    @(Field @field)(END_POS) val endPos: Int,
-    @(Field @field)(KIND) val kind: String
+    @(Field @field)(SourceFile) val sourceFile: String,
+    @(Field @field)(StartPos) val startPos: Int,
+    @(Field @field)(EndPos) val endPos: Int,
+    @(Field @field)(Kind) val kind: String
 ) {
 
   /** Registers the key fields of this entity. Must be called in subclasses once.
@@ -36,8 +40,8 @@ sealed abstract class Entity(
     *
     * @return solr id of this entity
     */
-  @(Field @field)(ID)
-  lazy val id: String = {
+  @(Field @field)(Id)
+  lazy val id: Id = {
     val sig = new Lookup3Signature()
 
     keyFields.foreach { f =>
@@ -50,30 +54,42 @@ sealed abstract class Entity(
     bytes.map("%02x".format(_)).mkString
   }
 }
+object Entity {
+
+  /** Ids are stored as strings. */
+  type Id = String
+}
 
 // scalastyle:off
 /** Entity class for type definitions.
   *
   * @param typeName name of the defined type
   * @param constructors ids of constructors this type has
+  * @param source text of the type declaration
+  * @param uses id of types that this type definition uses
+  * @param related ids of theorems that stem from the same source
   */
+@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
 final case class TypeEntity(
     override val sourceFile: String,
     override val startPos: Int,
     override val endPos: Int,
-    @(Field @field)(NAME) typeName: String,
-    @(Field @field)(TERM) constructors: Array[String],
-    @(Field @field)(USES) uses: Array[String])
-    extends Entity(sourceFile, startPos, endPos, EntityKind.Type) {
+    @(Field @field)(Name) typeName: String,
+    @(Field @field)(Term) constructors: Array[String] = null,
+    @(Field @field)(TypeUses) uses: Array[Id] = null,
+    @(Field @field)(Related) related: Array[Id] = null,
+    @(Field @field)(Text) source: String = null
+) extends Entity(sourceFile, startPos, endPos, EntityKind.Type.toString) {
 
-  registerKeyFields(Seq(sourceFile, startPos, endPos, kind))
+  registerKeyFields(Seq(sourceFile, startPos, endPos, kind, typeName))
 
-  @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
   def this() {
-    this(null, -1, -1, null, null, null)
+    this(null, -1, -1, null)
   }
 
-  override def toString = s"TypeEntity($sourceFile, $startPos, $endPos, $typeName, ${constructors.deep}, ${uses.deep})"
+  override def toString: String =
+    s"TypeEntity($sourceFile, $startPos, $endPos, " +
+      s"$typeName, ${deep(constructors)}, ${deep(uses)}, ${deep(related)}, $source)"
 
   override def equals(other: Any): Boolean = other match {
     case that: TypeEntity =>
@@ -81,42 +97,53 @@ final case class TypeEntity(
         startPos == that.startPos &&
         endPos == that.endPos &&
         typeName == that.typeName &&
-        (constructors sameElements that.constructors) &&
-        (uses sameElements that.uses)
+        deep(constructors) == deep(that.constructors) &&
+        source == that.source &&
+        deep(uses) == deep(that.uses) &&
+        deep(related) == deep(that.related)
     case _ => false
   }
 
   override def hashCode(): Int = {
-    val state = Seq(sourceFile, startPos, endPos, typeName, constructors.deep, uses.deep)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    val state = Seq(sourceFile, startPos, endPos, typeName, deep(constructors), source, deep(uses), deep(related))
+    state.filter(_ != null).map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
 
 /** Entity class for constants.
   *
-  * @param name name of the constant
+  * @param name of the constant
   * @param constType functional type of the constant
+  * @param typeUses ids of types that the type of this constant uses
+  * @param source source code of the constant declaration
   * @param definitions definition(s) term in string representation
-  * @param uses ids of entities that the constant uses
+  * @param defUses ids of entities that the constant uses
+  * @param related ids of entities that stem from the same source
   */
+@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
 final case class ConstEntity(
     override val sourceFile: String,
     override val startPos: Int,
     override val endPos: Int,
-    @(Field @field)(NAME) name: String,
-    @(Field @field)(CONST_TYPE) constType: String,
-    @(Field @field)(TERM) definitions: Array[String],
-    @(Field @field)(USES) uses: Array[String])
-    extends Entity(sourceFile, startPos, endPos, EntityKind.Constant) {
+    @(Field @field)(Name) name: String,
+    @(Field @field)(ConstType) constType: String = null,
+    @(Field @field)(TypeUses) typeUses: Array[Id] = null,
+    @(Field @field)(Term) definitions: Array[String] = null,
+    @(Field @field)(Uses) defUses: Array[Id] = null,
+    @(Field @field)(Related) related: Array[Id] = null,
+    @(Field @field)(Text) source: String = null
+) extends Entity(sourceFile, startPos, endPos, EntityKind.Constant.toString) {
 
-  registerKeyFields(Seq(sourceFile, startPos, endPos, kind, name))
+  registerKeyFields(Seq(sourceFile, startPos, kind, name))
 
-  @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
   def this() {
-    this(null, -1, -1, null, null, null, null)
+    this(null, -1, -1, null)
   }
 
-  override def toString = s"ConstEntity($sourceFile, $startPos, $endPos, $name, $constType, $definitions, ${uses.deep})"
+  override def toString: String = {
+    s"ConstEntity($sourceFile, $startPos, $endPos, $name, $constType, ${deep(typeUses)}, " +
+      s"${deep(definitions)}, ${deep(defUses)}, ${deep(related)}, $source)"
+  }
 
   override def equals(other: Any): Boolean = other match {
     case that: ConstEntity =>
@@ -125,38 +152,59 @@ final case class ConstEntity(
         endPos == that.endPos &&
         name == that.name &&
         constType == that.constType &&
-        (definitions sameElements that.definitions) &&
-        (uses sameElements that.uses)
+        deep(typeUses) == deep(that.defUses) &&
+        source == that.source &&
+        deep(definitions) == deep(that.definitions) &&
+        deep(defUses) == deep(that.defUses) &&
+        deep(related) == deep(that.related)
     case _ => false
   }
 
   override def hashCode(): Int = {
-    val state = Seq(sourceFile, startPos, endPos, name, constType, definitions.deep, uses.deep)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    val state =
+      Seq(
+        sourceFile,
+        startPos,
+        endPos,
+        name,
+        constType,
+        deep(typeUses),
+        source,
+        deep(definitions),
+        deep(defUses),
+        deep(related))
+    state.filter(_ != null).map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
 
 /** Entity class for proven lemmas and theories.
   *
+  * @param name of this fact
   * @param term all terms of the fact as string representation
+  * @param source term of this fact
   * @param uses ids of entities that the fact uses
+  * @param related ids of entities that stem from the same source
   */
+@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
 final case class FactEntity(
     override val sourceFile: String,
     override val startPos: Int,
     override val endPos: Int,
-    @(Field @field)(NAME) name: String,
-    @(Field @field)(TERM) term: String,
-    @(Field @field)(USES) uses: Array[String])
-    extends Entity(sourceFile, startPos, endPos, EntityKind.Fact) {
+    @(Field @field)(Name) name: String,
+    @(Field @field)(Term) term: Array[String] = null,
+    @(Field @field)(Uses) uses: Array[Id] = null,
+    @(Field @field)(Related) related: Array[Id] = null,
+    @(Field @field)(Text) source: String = null
+) extends Entity(sourceFile, startPos, endPos, EntityKind.Fact.toString) {
 
-  registerKeyFields(Seq(sourceFile, startPos, endPos, kind, name))
-  @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
+  registerKeyFields(Seq(sourceFile, startPos, kind, name))
   def this() {
-    this(null, -1, -1, null, null, null)
+    this(null, -1, -1, null)
   }
 
-  override def toString = s"FactEntity($sourceFile, $startPos, $endPos, $name, $term, ${uses.deep})"
+  override def toString: String =
+    s"FactEntity($sourceFile, $startPos, " +
+      s"$endPos, $name, $term, ${deep(uses)}, ${deep(related)}, $source)"
 
   override def equals(other: Any): Boolean = other match {
     case that: FactEntity =>
@@ -165,13 +213,15 @@ final case class FactEntity(
         endPos == that.endPos &&
         name == that.name &&
         term == that.term &&
-        (uses sameElements that.uses)
+        source == that.source &&
+        deep(uses) == deep(that.uses) &&
+        deep(related) == deep(that.related)
     case _ => false
   }
 
   override def hashCode(): Int = {
-    val state = Seq(sourceFile, startPos, endPos, name, term, uses.deep)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    val state = Seq(sourceFile, startPos, endPos, name, term, source, deep(uses), deep(related))
+    state.filter(_ != null).map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
 
@@ -184,11 +234,11 @@ final case class DocumentationEntity(
     override val sourceFile: String,
     override val startPos: Int,
     override val endPos: Int,
-    @(Field @field)(TEXT) text: String,
-    @(Field @field)(DOCTYPE) docType: String
-) extends Entity(sourceFile, startPos, endPos, EntityKind.Documentation) {
+    @(Field @field)(Text) text: String,
+    @(Field @field)(DocType) docType: String
+) extends Entity(sourceFile, startPos, endPos, EntityKind.Documentation.toString) {
 
-  registerKeyFields(Seq(sourceFile, startPos, endPos, kind))
+  registerKeyFields(Seq(sourceFile, startPos, kind))
 
   @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
   def this() {

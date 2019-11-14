@@ -9,12 +9,25 @@ import de.qaware.common.solr.dt.DocumentationType
 import de.qaware.dumpimporter.dataaccess.treequery.QueryDsl.{all, ofOne, single}
 import de.qaware.dumpimporter.dataaccess.treequery.YxmlTreeQuery.{YxmlNode, body, key, keyValue, tag}
 import de.qaware.dumpimporter.dataaccess.treequery.{QueryDsl, QueryError, QueryNode}
+// scalastyle:off UnderscoreImportChecker
 import de.qaware.dumpimporter.steps.pide.PideField._
+// scalastyle:on UnderscoreImportChecker
 import de.qaware.yxml.Yxml
 
+/** Trait for simple errors. */
 trait PideParseError extends Throwable {
+
+  /** Error message.
+    *
+    * @return error message
+    */
   def msg: String
 }
+
+/** Error while lexing strings.
+  *
+  * @param msg error message
+  */
 final case class PideLexError(override val msg: String) extends PideParseError
 
 /** Reader for ymxl nodes.
@@ -22,6 +35,7 @@ final case class PideLexError(override val msg: String) extends PideParseError
   * @param nodes to read from
   */
 class YxmlNodeReader(nodes: List[YxmlNode]) extends Reader[YxmlNode] {
+  @SuppressWarnings(Array("TraversableHead")) // Justification: External reader interface is unsafe
   override def first: YxmlNode = nodes.head
   override def rest: Reader[YxmlNode] = new YxmlNodeReader(nodes.tail)
   override def pos: Position = NoPosition

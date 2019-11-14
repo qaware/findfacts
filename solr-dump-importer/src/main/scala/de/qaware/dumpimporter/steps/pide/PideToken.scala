@@ -5,7 +5,10 @@ import de.qaware.common.solr.dt.DocumentationType
 /** Trait for Pide tokens. */
 sealed trait PideToken {
 
-  /** String data. */
+  /** String data.
+    *
+    * @return data string
+    */
   def data: String
 }
 
@@ -46,11 +49,11 @@ final case class StringToken(override val data: String) extends PideToken
   */
 final case class WhitespaceToken(override val data: String) extends PideToken
 
-/* Token for unknown constructs. As this parser only extracts a subset of PIDE,
- * many tokens could not be parsed otherwise.
- *
- * @param data string
- */
+/** Token for unknown constructs. As this parser only extracts a subset of PIDE,
+  * many tokens could not be parsed otherwise.
+  *
+  * @param data string
+  */
 final case class UnknownToken(override val data: String) extends PideToken
 
 /** Pide definition token.

@@ -1,6 +1,8 @@
 package de.qaware.dumpimporter.steps.pide
 
+/** Text tokens of the Pide markup. */
 object PideField extends Enumeration {
+  // scalastyle:off scaladoc
   final val Accepted = Value("accepted")
   final val Timing = Value("timing")
   final val Running = Value("running")
@@ -24,4 +26,5 @@ object PideField extends Enumeration {
   final val DefDelimiter = Value("|")
   final val TypeDelimiter = Value("::")
   final val NameDelimiter = Value(":")
+  // scalastyle:on scaladoc
 }

@@ -1,9 +1,8 @@
 <?xml version="1.0" ?>
 <enumsConfig>
-    <enum name="entityKind">
+    <enum name="EntityKind">
         <value>Type</value>
         <value>Constant</value>
-        <value>Axiom</value>
         <value>Fact</value>
         <value>Documentation</value>
     </enum>

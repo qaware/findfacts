@@ -157,6 +157,7 @@ object Using {
       resources = new Resource(resource) :: resources
     }
 
+    @SuppressWarnings(Array("scala:S1144"))
     private def manage[A](op: Manager => A): A = {
       var toThrow: Throwable = null
       try {

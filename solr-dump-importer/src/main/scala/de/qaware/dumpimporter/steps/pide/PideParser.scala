@@ -30,7 +30,7 @@ protected final class PideTokenReader(tokens: List[PideToken], startOffset: Int 
   *
   * @param msg error message
   */
-case class PideParserError(override val msg: String) extends PideParseError
+final case class PideParserError(override val msg: String) extends PideParseError
 
 /** Parser for Pide structure (outer syntax). */
 object PideParser extends Parsers {
@@ -39,7 +39,8 @@ object PideParser extends Parsers {
   // scalastyle:off scaladoc
   /** Top-level parser for comments */
   protected def comments: Parser[List[PosToken]] = {
-    (rep(ws | defToken | stringToken | defDelimToken | typDelimToken | whereToken | forToken | nameDelimToken) ~> comment) *
+    (rep(ws | defToken | stringToken | defDelimToken | typDelimToken | whereToken | forToken | nameDelimToken)
+      ~> comment) *
   }
 
   /** Top-level parser for definition code of (most) constants. */
@@ -55,11 +56,12 @@ object PideParser extends Parsers {
   protected def typDef: Parser[PosToken] = typDelim ~> string
 
   /** Parses for-clauses. */
+  @SuppressWarnings(Array("TraversableLast")) // Justification: parser rules ensure there is at least one element
   protected def forDef: Parser[PosToken] = (comment *) ~> (ws ?) ~> forToken ~> (entityDef +) ^^ { es =>
     PosToken(Code(es.map(_.token.data).mkString(",")), es.last.endOffset)
   }
 
-  /** Parses wherer delimiter */
+  /** Parses where delimiter */
   protected def whereDelim: Parser[PosToken] = (comment *) ~> (ws ?) ~> whereToken
 
   /** Parses delimiter between lines of definitions. */
@@ -69,6 +71,7 @@ object PideParser extends Parsers {
   protected def defLine: Parser[PosToken] = opt(name) ~> string
 
   /** Parses blocks of definition */
+  @SuppressWarnings(Array("TraversableLast")) // Justification: parser rules ensure there is at least one element
   protected def defBlock: Parser[PosToken] = rep1sep(defLine, defDelim) ^^ { ds =>
     PosToken(Code(ds.map(_.token.data).mkString(" | ")), ds.last.endOffset)
   }
@@ -115,7 +118,7 @@ object PideParser extends Parsers {
   /** Parses all comments.
     *
     * @param tokens all tokens of source file
-    * @return
+    * @return parsed comment tokens with offsets stored as [[PosToken]]s
     */
   def comments(tokens: List[PideToken]): Either[PideParseError, List[PosToken]] = parse(tokens, comments)
 }

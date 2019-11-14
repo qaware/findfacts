@@ -10,13 +10,11 @@ trait YxmlAstFormat extends Any {
     * @return pretty-printed element
     */
   def format(indentLevel: Int): String
+}
+object YxmlAstFormat {
 
-  /** String literal for one indentation level. Is def instead of val to allow value classes.
-    *
-    * @return indentation literal
-    */
-  @SuppressWarnings(Array("MethodNames")) // Justification: Is def instead of val to allow value classes
-  final def Indent: String = "  " // scalastyle:ignore
+  /** String literal for one indentation level. */
+  final val Indent: String = "  "
 }
 
 /** Trait for the sum type of the yxml abstract syntax tree. */
@@ -52,9 +50,9 @@ final case class Markup(tag: String, kvs: Seq[(String, String)] = Seq.empty, inn
     val innerFmt = inner.elems match {
       case Seq() => ""
       case Seq(Text(t)) => t
-      case _ => "\n" + inner.format(indentLevel + 1) + "\n" + Indent.repeat(indentLevel)
+      case _ => "\n" + inner.format(indentLevel + 1) + "\n" + YxmlAstFormat.Indent.repeat(indentLevel)
     }
-    Indent.repeat(indentLevel) + s"<$tag $kvsFmt $innerFmt>"
+    YxmlAstFormat.Indent.repeat(indentLevel) + s"<$tag $kvsFmt $innerFmt>"
   }
 }
 

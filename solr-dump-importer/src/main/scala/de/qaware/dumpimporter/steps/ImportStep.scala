@@ -2,7 +2,7 @@ package de.qaware.dumpimporter.steps
 
 import scala.collection.mutable
 
-import better.files.File
+import de.qaware.common.solr.dt.Entity.Id
 import de.qaware.common.solr.dt.{ConstEntity, DocumentationEntity, Entity, FactEntity, TypeEntity}
 import de.qaware.dumpimporter.Config
 
@@ -14,24 +14,22 @@ trait ImportStep {
 
   /** Applies the step, mutating the context.
     *
-    * @param context that is mutated in the step
+    * @param ctx context that is mutated in the step
     */
-  def apply(context: StepContext): Unit
+  def apply(ctx: StepContext): Unit
 }
-
-final case class Statistics(timings: Map[File, Int])
 
 /** Case class to hold mutable context shared throughout the steps.
   *
-  * @param serialsByEntity serial id for each entity, consistent for a single run
+  * @param serialsById serial id for each entity, consistent for a single run
   * @param consts intermediate constant entities
   * @param types intermediate type entities
   * @param facts intermediate fact entities
   * @param doc intermediate documentation entities
   */
 final case class StepContext(
-    serialsByEntity: mutable.MultiMap[Entity, Long] = new mutable.HashMap[Entity, mutable.Set[Long]]
-    with mutable.MultiMap[Entity, Long],
+    serialsById: mutable.MultiMap[Id, Long] = new mutable.HashMap[Id, mutable.Set[Long]]
+      with mutable.MultiMap[Id, Long],
     consts: mutable.Set[ConstEntity] = mutable.Set.empty,
     types: mutable.Set[TypeEntity] = mutable.Set.empty,
     facts: mutable.Set[FactEntity] = mutable.Set.empty,
@@ -57,7 +55,7 @@ final case class StepContext(
     * @param serials of corresponding isabelle entities
     */
   def addEntity(entity: Entity, serials: Seq[Long]): Unit = {
-    serials.map(serialsByEntity.addBinding(entity, _))
+    serials.map(serialsById.addBinding(entity.id, _))
     addToSet(entity)
   }
 
@@ -67,12 +65,22 @@ final case class StepContext(
     * @param entity updated
     */
   def updateEntity(old: Entity, entity: Entity): Unit = {
-    val serials = serialsByEntity(old)
-    serialsByEntity.remove(old)
-    serialsByEntity.put(entity, serials)
+    // Id has to remain stable!
+    if (old.id != entity.id) {
+      throw new IllegalArgumentException("Id must not change when updating entities!")
+    }
+    val serials = serialsById(old.id)
+    serialsById.remove(old.id)
+    serialsById.put(entity.id, serials)
     removeFromSet(old)
     addToSet(entity)
   }
+
+  /** Gives a set of all entities.
+    *
+    * @return a set of all entities
+    */
+  def allEntities: mutable.Set[Entity] = consts ++ facts ++ types ++ doc
 }
 object StepContext {
 

@@ -22,7 +22,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
 
   private val logger = Logger[LoadThyExportStep]
 
-  override def apply(context: StepContext): Unit = {
+  override def apply(ctx: StepContext): Unit = {
     val thyFiles = RepositoryReader(config.dump).readAll(SERIALIZED_FILE)
     logger.info(s"Found ${thyFiles.size} serialized theories. Deserializing...")
 
@@ -45,13 +45,36 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         thy.axioms.partition(ax => constAxNames.contains(ax.entity.name) || typeAxNames.contains(ax.entity.name))
       val (constAxioms, typeAxioms) = defAxioms.partition(ax => constAxNames.contains(ax.entity.name))
 
-      extractConsts(thy, constAxioms, context)
-      extractTypes(thy, typeAxioms, context)
-      extractFacts(thy.name, thy.thms, axioms, context)
+      extractConsts(thy, constAxioms, ctx)
+      extractTypes(thy, typeAxioms, ctx)
+      extractFacts(thy.name, thy.thms, axioms, ctx)
     }
-    logger.info(s"Found ${context.consts.size} constants, ${context.types.size} types, ${context.facts.size} facts.")
+
+    // Enrich data by grouping by position
+    val entitiesByPos = (ctx.consts ++ ctx.facts ++ ctx.types).groupBy(e => (e.sourceFile, e.startPos, e.endPos))
+
+    // Find related facts and constants, i.e. entities that spring from the same source positions
+    (entitiesByPos.keySet) foreach { key =>
+      val entities = entitiesByPos(key)
+      val allIds = entities.map(_.id)
+
+      // Add every ID at this position except self.id to entities
+      entities foreach {
+        case entity: ConstEntity => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
+        case entity: FactEntity => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
+        case entity: TypeEntity => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
+      }
+    }
+
+    logger.info(s"Found ${ctx.consts.size} constants, ${ctx.types.size} types, ${ctx.facts.size} facts.")
   }
 
+  /** Extracts constants from theory.
+    *
+    * @param thy to extract constants from
+    * @param constAxioms of constant definitions, pre-computed
+    * @param context to write constants to
+    */
   private def extractConsts(thy: Theory, constAxioms: Seq[Axiom], context: StepContext): Unit = {
     // Find related axioms, if any
     val axNameByConstName = thy.constdefs.groupBy(_.name).mapValues(_.map(_.axiomName))
@@ -76,28 +99,59 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         const.entity.endPos,
         const.entity.name,
         const.typ.toString,
+        const.typ.referencedTypes.toArray,
         axioms.map(_.prop.term.toString),
-        Array.empty)
+        axioms.flatMap(_.prop.term.referencedConsts),
+      )
 
       // Register entity and serials
       context.addEntity(entity, Seq(const.entity.serial) ++ axioms.map(_.entity.serial))
     }
   }
 
+  /** Extracts facts from theory.
+    *
+    * @param name of the theory
+    * @param thms to extract facts from
+    * @param axioms that do not belong to const/thm definition
+    * @param context to write fact entities into
+    */
   private def extractFacts(name: String, thms: Array[Thm], axioms: Seq[Axiom], context: StepContext): Unit = {
     thms foreach { thm =>
       context.addEntity(
-        FactEntity(name, thm.entity.startPos, thm.entity.endPos, thm.entity.name, thm.prop.term.toString, Array.empty),
-        Seq(thm.entity.serial))
+        FactEntity(
+          name,
+          thm.entity.startPos,
+          thm.entity.endPos,
+          thm.entity.name,
+          Array(thm.prop.term.toString),
+          thm.prop.term.referencedConsts.toArray
+        ),
+        Seq(thm.entity.serial)
+      )
     }
 
     axioms foreach { ax =>
       context.addEntity(
-        FactEntity(name, ax.entity.startPos, ax.entity.endPos, ax.entity.name, ax.prop.term.toString, Array.empty),
-        Seq(ax.entity.serial))
+        FactEntity(
+          name,
+          ax.entity.startPos,
+          ax.entity.endPos,
+          ax.entity.name,
+          Array(ax.prop.term.toString),
+          ax.prop.term.referencedConsts.toArray
+        ),
+        Seq(ax.entity.serial)
+      )
     }
   }
 
+  /** Extracts types from theory.
+    *
+    * @param thy to extract from
+    * @param typeAxioms of type definitions, pre-computed
+    * @param context to write type entities into
+    */
   private def extractTypes(thy: Theory, typeAxioms: Seq[Axiom], context: StepContext): Unit = {
     val typedefByTypeName = thy.typedefs.groupBy(_.name)
     val typeAxiomsByName = typeAxioms.groupBy(_.entity.name)
@@ -118,7 +172,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         t.entity.endPos,
         t.entity.name,
         axioms.map(_.prop.term.toString),
-        Array.empty)
+      )
 
       // Register entity
       context.addEntity(typeEntity, Seq(t.entity.serial) ++ axioms.map(_.entity.serial))

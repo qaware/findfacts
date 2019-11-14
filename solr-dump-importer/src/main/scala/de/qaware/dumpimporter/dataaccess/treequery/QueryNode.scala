@@ -365,7 +365,8 @@ final case class Thats[N <: Node[N], R](downstream: QueryNode[N, R], fq: FilterQ
   }
 }
 
-/** Query-node to filter out complete sub-trees where the root node was selected before and is selected by the filter query.
+/** Query-node to filter out complete sub-trees where the root node was selected before
+  * and is selected by the filter query.
   *
   * @param downstream query node pass filtered results into
   * @param fq query to filter out nodes

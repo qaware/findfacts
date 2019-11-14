@@ -325,6 +325,9 @@
          postOptimize - fired after every optimize command
       -->
 
+    <lst name="defaults">
+      <str name="update.chain">count-multiples</str>
+    </lst>
   </updateHandler>
 
   <!-- IndexReaderFactory
@@ -684,10 +687,10 @@
       <str name="echoParams">explicit</str>
       <int name="rows">10</int>
       <!-- Default search field
-         <str name="df">text</str> 
+         <str name="df">text</str>
         -->
       <!-- Change from JSON to XML format (the default prior to Solr 7.0)
-         <str name="wt">xml</str> 
+         <str name="wt">xml</str>
         -->
     </lst>
     <!-- In addition to defaults, "appends" params can be specified
@@ -773,6 +776,7 @@
                   startup="lazy"
                   class="solr.extraction.ExtractingRequestHandler" >
     <lst name="defaults">
+      <str name="update.chain">count-multiples</str>
       <str name="xpath">/xhtml:html/xhtml:body/descendant:node()</str>
       <str name="capture">content</str>
       <str name="fmap.meta">attr_meta_</str>
@@ -1078,6 +1082,7 @@
    </updateRequestProcessorChain>-->
 
 
+
   <!-- Language identification
 
        This example update chain identifies the language of the incoming
@@ -1117,6 +1122,31 @@
       <processor class="solr.RunUpdateProcessorFactory" />
     </updateRequestProcessorChain>
   -->
+
+  <updateRequestProcessorChain name="count-multiples">
+    <processor class="solr.CloneFieldUpdateProcessorFactory">
+      <str name="source">term</str>
+      <str name="dest">term_count</str>
+    </processor>
+    <processor class="solr.CloneFieldUpdateProcessorFactory">
+      <str name="source">uses</str>
+      <str name="dest">uses_count</str>
+    </processor>
+    <processor class="solr.CountFieldValuesUpdateProcessorFactory">
+      <str name="fieldName">term_count</str>
+    </processor>
+    <processor class="solr.CountFieldValuesUpdateProcessorFactory">
+      <str name="fieldName">uses_count</str>
+    </processor>
+    <processor class="solr.DefaultValueUpdateProcessorFactory">
+      <str name="fieldName">term_count</str>
+      <int name="value">0</int>
+    </processor>
+    <processor class="solr.DefaultValueUpdateProcessorFactory">
+      <str name="fieldName">uses_count</str>
+      <int name="value">0</int>
+    </processor>
+  </updateRequestProcessorChain>
 
   <!-- Response Writers
 
