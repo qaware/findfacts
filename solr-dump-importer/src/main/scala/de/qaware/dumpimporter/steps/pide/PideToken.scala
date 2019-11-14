@@ -3,7 +3,7 @@ package de.qaware.dumpimporter.steps.pide
 import de.qaware.common.solr.dt.DocumentationType
 
 /** Trait for Pide tokens. */
-sealed trait PideToken extends Any {
+sealed trait PideToken {
 
   /** String data. */
   def data: String
@@ -29,24 +29,29 @@ case object WhereToken extends PideToken {
   override val data: String = PideField.Where.toString
 }
 
+/** Pide 'for' token. */
+case object ForToken extends PideToken {
+  override val data: String = PideField.For.toString
+}
+
 /** Pide string token.
   *
   * @param data string
   */
-final class StringToken(override val data: String) extends AnyVal with PideToken
+final case class StringToken(override val data: String) extends PideToken
 
 /** Pide whitespace token.
   *
   * @param data string
   */
-final class WhitespaceToken(override val data: String) extends AnyVal with PideToken
+final case class WhitespaceToken(override val data: String) extends PideToken
 
 /* Token for unknown constructs. As this parser only extracts a subset of PIDE,
  * many tokens could not be parsed otherwise.
  *
  * @param data string
  */
-final class UnknownToken(override val data: String) extends AnyVal with PideToken
+final case class UnknownToken(override val data: String) extends PideToken
 
 /** Pide definition token.
   *
@@ -66,4 +71,4 @@ final case class CommentToken(override val data: String, docType: DocumentationT
   *
   * @param data string
   */
-final class Code(override val data: String) extends AnyVal with PideToken
+final case class Code(override val data: String) extends PideToken

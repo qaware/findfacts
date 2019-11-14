@@ -17,13 +17,14 @@ class WriteSolrStep(override val config: Config) extends ImportStep {
 
   private val logger = Logger[WriteSolrStep]
 
-  override def apply(context: StepContext): Unit = {
-    logger.info(s"Writing ${context.facts.size + context.types.size + context.consts.size} entities to solr...")
+  override def apply(ctx: StepContext): Unit = {
+    logger.info(s"Writing ${ctx.facts.size + ctx.types.size + ctx.consts.size + ctx.doc.size} entities to solr...")
     Using.resource(config.solr.solrConnection()) { solr =>
       // Add all entities
-      solr.addBeans(context.consts.iterator.asJava)
-      solr.addBeans(context.facts.iterator.asJava)
-      solr.addBeans(context.types.iterator.asJava)
+      solr.addBeans(ctx.consts.iterator.asJava)
+      solr.addBeans(ctx.facts.iterator.asJava)
+      solr.addBeans(ctx.types.iterator.asJava)
+      solr.addBeans(ctx.doc.iterator.asJava)
       // Commit, wait for response and check if it is ok
       val res = solr.commit()
 

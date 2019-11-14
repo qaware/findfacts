@@ -19,6 +19,7 @@ object PideField extends Enumeration {
   final val Kind = Value("kind")
   final val Keyword = Value("keyword")
   final val Constant = Value("constant")
+  final val For = Value("for")
 
   final val DefDelimiter = Value("|")
   final val TypeDelimiter = Value("::")

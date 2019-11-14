@@ -2,7 +2,8 @@ package de.qaware.dumpimporter.steps
 
 import scala.collection.mutable
 
-import de.qaware.common.solr.dt.{ConstEntity, Entity, FactEntity, TypeEntity}
+import better.files.File
+import de.qaware.common.solr.dt.{ConstEntity, DocumentationEntity, Entity, FactEntity, TypeEntity}
 import de.qaware.dumpimporter.Config
 
 /** Step of the import process. */
@@ -18,19 +19,23 @@ trait ImportStep {
   def apply(context: StepContext): Unit
 }
 
+final case class Statistics(timings: Map[File, Int])
+
 /** Case class to hold mutable context shared throughout the steps.
   *
   * @param serialsByEntity serial id for each entity, consistent for a single run
   * @param consts intermediate constant entities
   * @param types intermediate type entities
   * @param facts intermediate fact entities
+  * @param doc intermediate documentation entities
   */
 final case class StepContext(
     serialsByEntity: mutable.MultiMap[Entity, Long] = new mutable.HashMap[Entity, mutable.Set[Long]]
     with mutable.MultiMap[Entity, Long],
     consts: mutable.Set[ConstEntity] = mutable.Set.empty,
     types: mutable.Set[TypeEntity] = mutable.Set.empty,
-    facts: mutable.Set[FactEntity] = mutable.Set.empty) {
+    facts: mutable.Set[FactEntity] = mutable.Set.empty,
+    doc: mutable.Set[DocumentationEntity] = mutable.Set.empty) {
 
   private def addToSet(entity: Entity) = entity match {
     case e: ConstEntity => consts.add(e)

@@ -9,11 +9,13 @@ import de.qaware.common.solr.dt.DocumentationType
 import de.qaware.dumpimporter.dataaccess.treequery.QueryDsl.{all, ofOne, single}
 import de.qaware.dumpimporter.dataaccess.treequery.YxmlTreeQuery.{YxmlNode, body, key, keyValue, tag}
 import de.qaware.dumpimporter.dataaccess.treequery.{QueryDsl, QueryError, QueryNode}
-import de.qaware.dumpimporter.steps.pide.PideField._ // scalastyle:ignore
+import de.qaware.dumpimporter.steps.pide.PideField._
 import de.qaware.yxml.Yxml
 
-trait PideParseError extends Throwable
-final case class PideLexError(msg: String) extends PideParseError
+trait PideParseError extends Throwable {
+  def msg: String
+}
+final case class PideLexError(override val msg: String) extends PideParseError
 
 /** Reader for ymxl nodes.
   *
@@ -51,33 +53,48 @@ object PideLexer extends Parsers {
     (all thats body without (tag(XmlBody) or tag(Delete)) in node).map(_.getBody).mkString(" ")
   }
 
-  protected def delimiterQuery(delim: PideField.Value): QueryNode[YxmlNode, Either[QueryError, YxmlNode]] = {
+  private def delimiterQuery(delim: PideField.Value): QueryNode[YxmlNode, Either[QueryError, YxmlNode]] = {
     single root ofOne thats tag(Delimiter) parent ofOne thats tag(NoCompletion) parent ofOne thats body(delim.toString)
   }
 
-  // Parsing rules
+  private def keywordQuery(keyword: PideField.Value): QueryNode[YxmlNode, Either[QueryError, YxmlNode]] = {
+    single root ofOne thats (tag(Keyword2) and keyValue(Kind, Keyword.toString)) parent ofOne thats body(
+      keyword.toString)
+  }
 
+  // Parsing rules
+  // scalastyle:off scaladoc
+  /** Parses '::' pide token. */
   protected def typeDelimiter: Parser[TypeDelimToken.type] =
     nodeMatches(delimiterQuery(TypeDelimiter)) ^^ (_ => TypeDelimToken)
 
+  /** Parses '|' pide token. */
   protected def defDelimiter: Parser[DefDelimToken.type] =
     nodeMatches(delimiterQuery(DefDelimiter)) ^^ (_ => DefDelimToken)
 
+  /** Parses ':' pide token. */
   protected def nameDelimiter: Parser[NameDelimToken.type] =
     nodeMatches(delimiterQuery(NameDelimiter)) ^^ (_ => NameDelimToken)
 
-  protected def where: Parser[WhereToken.type] = {
-    val query = (single root ofOne thats (tag(Keyword2) and keyValue(Kind, Keyword.toString))
-      parent ofOne thats body(Where.toString))
-    nodeMatches(query) ^^ (_ => WhereToken)
+  /** Parses 'where' pide keyword. */
+  protected def whereKeyword: Parser[WhereToken.type] = {
+    nodeMatches(keywordQuery(Where)) ^^ (_ => WhereToken)
   }
 
+  /** Parses 'for' pide keyword. */
+  protected def forKeyword: Parser[ForToken.type] = {
+    nodeMatches(keywordQuery(For)) ^^ (_ => ForToken)
+  }
+
+  /** Parses pide string token with inner syntax content. */
   protected def string: Parser[StringToken] =
     nodeMatches(single root ofOne thats tag(String)) ^^ (x => new StringToken(extractBody(x)))
 
+  /** Parses whitespace pide token. */
   protected def ws: Parser[WhitespaceToken] =
     nodeMatches(single root ofOne thats body("\\s+".r)) ^^ (x => new WhitespaceToken(x.getBody))
 
+  /** Parses pide entity def token. */
   protected def entityDef: Parser[DefToken] = {
     // Entity defs are structured as follows: <Global ref ><Local ref/></Global ref>
     nodeMatches(single root ofOne thats (tag(Entity) and key(Def)) parent ofOne thats (tag(Entity) and key(Def))) ^^ {
@@ -91,6 +108,7 @@ object PideLexer extends Parsers {
     }
   }
 
+  /** Pares pide comment token. */
   protected def comment: Parser[CommentToken] = nodeMatches(single root ofOne thats tag(Comment)) ^^ { commentTree =>
     (single thats tag(Cartouche) in commentTree) match {
       case Left(_) => CommentToken(extractBody(commentTree), DocumentationType.Meta)
@@ -98,6 +116,7 @@ object PideLexer extends Parsers {
     }
   }
 
+  /** Parses any yxml subtree. */
   protected def any: Parser[UnknownToken] = Parser { input =>
     if (input.atEnd) {
       Failure("Empty input", input)
@@ -105,13 +124,14 @@ object PideLexer extends Parsers {
       Success(new UnknownToken(extractBody(input.first)), input.rest)
     }
   }
+  // scalastyle:on scaladoc
 
   /** Parses all types of tokens.
     *
     * @return token list
     */
   def tokens: Parser[List[PideToken]] =
-    phrase(rep((typeDelimiter | defDelimiter | nameDelimiter | where | string | ws | entityDef | comment) | any))
+    phrase(rep((typeDelimiter | defDelimiter | nameDelimiter | whereKeyword | string | ws | entityDef | comment) | any))
 
   /** Applies parser on given yxml.
     *

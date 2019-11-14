@@ -3,6 +3,7 @@ package de.qaware.dumpimporter.steps.pide
 import scala.language.postfixOps
 
 import com.typesafe.scalalogging.Logger
+import de.qaware.common.solr.dt.DocumentationEntity
 import de.qaware.dumpimporter.Config
 import de.qaware.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.dumpimporter.steps.{ImportStep, StepContext}
@@ -39,7 +40,9 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
 
           PideLexer(yxml) match {
             case Left(error) => logger.error(s"Could not lex pide tokens in $sourceTheory: $error")
-            case Right(pideTokens) => updateConst(ctx, pideTokens, sourceTheory)
+            case Right(pideTokens) =>
+              updateConst(ctx, pideTokens, sourceTheory)
+              findComments(ctx, pideTokens, sourceTheory)
           }
       }
     }
@@ -55,7 +58,10 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
             val defBegin = tokens.indexOf(defToken) + 1
             PideParser.constantDef(tokens.drop(defBegin)) match {
               case Left(error) =>
-                logger.error(s"Could not parse definition for serial $s starting at token $defBegin: $error")
+                val context = tokens.drop(defBegin - 3).filter(_.getClass != classOf[WhitespaceToken]).take(10)
+                logger.error(s"Could not parse definition for sid $s, at token $defBegin: ${error.msg}")
+                logger.error(s"    Error location: '${context.map(_.data).mkString(" ")}'")
+                logger.whenDebugEnabled { logger.debug(s"    Tokens: ${context.map(_.toString).mkString(" ")}") }
               case Right(res) =>
                 ctx.updateEntity(
                   const,
@@ -64,6 +70,18 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
           case defs => logger.error(s"Found multiple definitions: $defs")
         }
       }
+    }
+  }
+
+  protected def findComments(ctx: StepContext, tokens: List[PideToken], file: String): Unit = {
+    PideParser.comments(tokens) match {
+      case Left(error) => logger.error(s"Could not parse comments for file $file: $error")
+      case Right(results) =>
+        val commentEntities = results collect {
+          case PosToken(CommentToken(data, commentType), offset) =>
+            DocumentationEntity(file, offset - data.length, offset, data, commentType)
+        }
+        ctx.doc ++= commentEntities
     }
   }
 }
