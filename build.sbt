@@ -1,17 +1,13 @@
-import sbt.Tests.Setup
-
+// Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.10"
-ThisBuild / scapegoatVersion := "1.3.8"
-
+// Stack size causes issues when parsing large file using recursive-descent parser.
 ThisBuild / javaOptions += "-Xss256m"
-
+// Forking is required for javaOptions to have an effect
 ThisBuild / Compile / run / fork := true
-
 // Parallel execution causes logging issues
 ThisBuild / Test / parallelExecution := false
-
 // Enable compiler optimizations
 ThisBuild / scalacOptions ++= Seq(
   "-deprecation",
@@ -19,28 +15,45 @@ ThisBuild / scalacOptions ++= Seq(
   "-opt:l:inline",
   "-opt-inline-from:l:method,inline"
 )
-
-// Project-wide dependency management
-// Resolvers
+// Missing resolvers for restlet stuff
 ThisBuild / resolvers += "Restlet" at "https://maven.restlet.com/"
-// Named dependencies
-val scalatest = "org.scalatest" %% "scalatest" % "3.0.8"
-val scopt = "com.github.scopt" %% "scopt" % "3.7.1"
-// Add all project-wide dependencies
+// Settings for sonarqube integration
+ThisBuild / scapegoatVersion := "1.3.8"
+ThisBuild / scapegoatIgnoredFiles += ".*/Using.scala"
+ThisBuild / coverageExcludedFiles := "*.*/Using.scala"
+lazy val sonarSettings = Seq(
+  sonarProperties ++= Map(
+    "sonar.projectName" -> "Isabelle AFP Search",
+    "sonar.projectKey" -> "de.qaware.isabelle-afp-search:root",
+    "sonar.modules" -> "solr-dump-importer,yxml-parser,common-solr,common-utils",
+    "sonar.junit.reportPaths" -> "target/test-reports",
+    "sonar.scala.coverage.reportPaths" -> "target/scala-2.12/scoverage-report/scoverage.xml",
+    "sonar.scala.scapegoat.reportPaths" -> "target/scala-2.12/scapegoat-report/scapegoat-scalastyle.xml",
+    "sonar.scala.scalastyle.reportPaths" -> "target/scalastyle-result.xml"
+  ))
+
+// Project-wide dependencies
 ThisBuild / libraryDependencies ++= Seq(
   scalatest % "test",
   "com.github.pathikrit" %% "better-files" % "3.8.0",
+  "com.beachape" %% "enumeratum" % "1.5.13",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
   "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.12.1"
     exclude ("org.slf4j", "slf4j-api"),
   "org.apache.logging.log4j" % "log4j-core" % "2.12.1"
 )
+// Named dependencies
+val scalatest = "org.scalatest" %% "scalatest" % "3.0.8"
+val scopt = "com.github.scopt" %% "scopt" % "3.7.1"
 
+
+// Project structure: root project for common settings and to aggregate tasks
 lazy val root = (project in file("."))
   .settings(sonarSettings)
   .aggregate(`solr-dump-importer`, `common-solr`, `common-utils`, `yxml-parser`)
   .settings(aggregate in sonarScan := false)
 
+// Importer for isabelle dumps
 lazy val `solr-dump-importer` = project
   .configs(IntegrationTest)
   .settings(
@@ -54,6 +67,7 @@ lazy val `solr-dump-importer` = project
   )
   .dependsOn(`common-solr`, `yxml-parser`, `common-utils`)
 
+// Common solr entities and data access
 lazy val `common-solr` = project
   .settings(
     libraryDependencies += "org.apache.solr" % "solr-core" % "8.2.0"
@@ -64,6 +78,7 @@ lazy val `common-solr` = project
   )
   .dependsOn(`common-utils`)
 
+// Parser for yxml
 lazy val `yxml-parser` = project
   .settings(libraryDependencies ++= Seq(
     scopt,
@@ -71,19 +86,5 @@ lazy val `yxml-parser` = project
     "com.lihaoyi" %% "fastparse" % "2.1.3"
   ))
 
+// Common utility
 lazy val `common-utils` = project
-
-// Settings for sonarqube integration
-ThisBuild / coverageExcludedFiles := "*.*/Using.scala"
-ThisBuild / scapegoatIgnoredFiles += ".*/Using.scala"
-
-lazy val sonarSettings = Seq(
-  sonarProperties ++= Map(
-    "sonar.projectName" -> "Isabelle AFP Search",
-    "sonar.projectKey" -> "de.qaware.isabelle-afp-search:root",
-    "sonar.modules" -> "solr-dump-importer,yxml-parser,common-solr,common-utils",
-    "sonar.junit.reportPaths" -> "target/test-reports",
-    "sonar.scala.coverage.reportPaths" -> "target/scala-2.12/scoverage-report/scoverage.xml",
-    "sonar.scala.scapegoat.reportPaths" -> "target/scala-2.12/scapegoat-report/scapegoat-scalastyle.xml",
-    "sonar.scala.scalastyle.reportPaths" -> "target/scalastyle-result.xml"
-  ))
