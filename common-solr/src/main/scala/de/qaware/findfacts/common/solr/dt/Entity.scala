@@ -83,7 +83,7 @@ sealed abstract class TheoryEntity(
   *
   * @param uses id of types that this type definition uses
   */
-@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
+@SuppressWarnings(Array("NullParameter", "NullAssignment")) // Justification: Mapped to solr document
 final case class TypeEntity(
     override val sourceFile: String,
     override val startPos: Int,
@@ -134,7 +134,7 @@ final case class TypeEntity(
   * @param defUses ids of entities that the constant uses
   * @param related ids of entities that stem from the same source
   */
-@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
+@SuppressWarnings(Array("NullParameter", "NullAssignment")) // Justification: Mapped to solr document
 final case class ConstEntity(
     override val sourceFile: String,
     override val startPos: Int,
@@ -199,7 +199,7 @@ final case class ConstEntity(
   * @param uses ids of entities that the fact uses
   * @param related ids of entities that stem from the same source
   */
-@SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
+@SuppressWarnings(Array("NullParameter", "NullAssignment")) // Justification: Mapped to solr document
 final case class FactEntity(
     override val sourceFile: String,
     override val startPos: Int,
@@ -243,6 +243,7 @@ final case class FactEntity(
   * @param text text of the documentation
   * @param docType type of the documentation entry
   */
+@SuppressWarnings(Array("NullParameter", "NullAssignment")) // Justification: Mapped to solr document
 final case class DocEntity(
     override val sourceFile: String,
     override val startPos: Int,
@@ -253,7 +254,6 @@ final case class DocEntity(
 
   registerKeyFields(Seq(sourceFile, startPos, kind))
 
-  @SuppressWarnings(Array("NullParameter")) // Justification: Entity classes are mapped into solr document
   def this() {
     this(null, -1, -1, null, null)
   }

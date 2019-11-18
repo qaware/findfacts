@@ -2,6 +2,10 @@ package de.qaware.findfacts.dumpimporter.pure
 
 import enumeratum.{Enum, EnumEntry}
 
+/** PureSyntax enum element class.
+  *
+  * @param name of the element
+  */
 sealed abstract class SyntaxElement(val name: String) extends EnumEntry
 
 /** Elements of the isabelle pure language  */
@@ -9,7 +13,7 @@ case object PureSyntax extends Enum[SyntaxElement] {
   /** Set of all values. */
   final val values = findValues
 
-  // scalastye:off scaladoc Justification: Explained in isabelle_implementation manual
+  // scalastyle:off scaladoc Justification: Explained in isabelle_implementation manual
   /** Pure keywords */
   case object Prop extends SyntaxElement("prop")
   case object Fun extends SyntaxElement("fun")

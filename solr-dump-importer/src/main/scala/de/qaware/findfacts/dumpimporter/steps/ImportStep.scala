@@ -35,10 +35,6 @@ final class StepContext(
     _facts: mutable.Set[FactEntity] = mutable.Set.empty,
     _docs: mutable.Set[DocEntity] = mutable.Set.empty) {
 
-  /*private def setMapping[T <: Entity](implicit ev: T): mutable.Set[T] = ev match {
-    case ev : ConstEntity => consts
-  }*/
-
   private def addToSet(entity: Entity): Unit = entity match {
     case e: ConstEntity => _consts.add(e)
     case t: TypeEntity => _types.add(t)
@@ -73,29 +69,52 @@ final class StepContext(
     if (old.id != entity.id) {
       throw new IllegalArgumentException("Id must not change when updating entities!")
     }
+
+    // Update serial mapping
     val serials = _serialsById.remove(old.id).getOrElse(mutable.Set.empty)
     _serialsById.put(entity.id, serials)
     removeFromSet(old)
     addToSet(entity)
   }
 
+  /** Accessor for immutable view on consts.
+    *
+    * @return immutable consts set
+    */
   def consts: Set[ConstEntity] = _consts.to[Set]
 
+  /** Accessor for immutable view on types.
+    *
+    * @return immutable types set
+    */
   def types: Set[TypeEntity] = _types.to[Set]
 
+  /** Accessor for immutable view on facts.
+    *
+    * @return immutable facts set
+    */
   def facts: Set[FactEntity] = _facts.to[Set]
 
+  /** Accessor for immutable view on docs.
+  *
+   * @return immutable docs set
+   */
   def docs: Set[DocEntity] = _docs.to[Set]
 
+  /** Accessor to look up isabelle an immutable view of serials belonging to an entity.
+  *
+   * @param id unique id of the entity to look up
+   * @return immutable set of ids
+   */
   def serialsById(id: Id): Set[Long] = _serialsById.getOrElse(id, mutable.Set.empty).to[Set]
 
-  /** Gives a set of all semantic theory entities.
+  /** Gives an immutable set of all semantic theory entities.
     *
     * @return a set of all semantic theory entities
     */
   def theoryEntities: Set[TheoryEntity] = consts ++ types ++ facts
 
-  /** Gives a set of all entities.
+  /** Gives an immutable set of all entities.
     *
     * @return a set of all entities
     */

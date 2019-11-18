@@ -4,6 +4,10 @@ import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.pure.PureSyntax
 
+/** Step to translate element names to unique ids.
+  *
+  * @param config parameter
+  */
 class TranslateNameStep(override val config: Config) extends ImportStep {
   private val logger = Logger[TranslateNameStep]
 

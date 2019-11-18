@@ -101,7 +101,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         const.typ.toString,
         const.typ.referencedTypes.toArray,
         axioms.map(_.prop.term.toString),
-        axioms.flatMap(_.prop.term.referencedConsts),
+        axioms.flatMap(_.prop.term.referencedConsts)
       )
 
       // Register entity and serials
