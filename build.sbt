@@ -1,6 +1,6 @@
 import sbt.Tests.Setup
 
-ThisBuild / organization := "de.qaware"
+ThisBuild / organization := "de.qaware.findfacts"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.10"
 ThisBuild / scapegoatVersion := "1.3.8"

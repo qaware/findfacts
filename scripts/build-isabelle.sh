@@ -1,4 +1,10 @@
 #!/bin/bash
-isabelle/bin/isabelle components -I
-isabelle/bin/isabelle components -a
-isabelle/bin/isabelle jedit -b -l HOL
+
+SCIPT_DIR="${0%/*}"
+ISABELLE="$SCIPT_DIR/../isabelle/bin/isabelle"
+
+"$ISABELLE" components -I
+"$ISABELLE" components -a
+"$ISABELLE" jedit -bf
+"$ISABELLE" ocaml_setup
+"$ISABELLE" ghc_setup
