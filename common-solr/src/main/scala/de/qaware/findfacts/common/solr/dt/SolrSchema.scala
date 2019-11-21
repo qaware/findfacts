@@ -13,11 +13,12 @@ object SolrSchema {
   final val Kind = "kind"
   final val Name = "name"
   final val ConstType = "const_type"
-  final val Term = "term"
-  final val Text = "text"
+  final val Prop = "prop"
+  final val SourceText = "source_text"
   final val DocType = "doc_type"
   final val Uses = "uses"
   final val TypeUses = "type_uses"
+  final val ProofUses = "proof_uses"
   final val Related = "related"
   // scalastyle:on scaladoc
 }

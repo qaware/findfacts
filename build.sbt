@@ -2,10 +2,6 @@
 ThisBuild / organization := "de.qaware.findfacts"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.10"
-// Stack size causes issues when parsing large file using recursive-descent parser.
-ThisBuild / javaOptions += "-Xss256m"
-// Forking is required for javaOptions to have an effect
-ThisBuild / Compile / run / fork := true
 // Parallel execution causes logging issues
 ThisBuild / Test / parallelExecution := false
 // Enable compiler optimizations
@@ -57,6 +53,8 @@ lazy val root = (project in file("."))
 lazy val `solr-dump-importer` = project
   .configs(IntegrationTest)
   .settings(
+    fork in run := true,
+    javaOptions ++= Seq("-Xmx24G", "-Xss512m"),
     inConfig(IntegrationTest)(Defaults.testSettings),
     Defaults.itSettings,
     libraryDependencies ++= Seq(

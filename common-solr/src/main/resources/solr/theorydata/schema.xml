@@ -9,12 +9,13 @@
         <field name="name" type="string" multiValued="false"/>
         <field name="const_type" type="string" multiValued="false"/>
         <field name="doc_type" type="string" multiValued="false"/>
-        <field name="term" type="text_general" stored="false" uninvertible="false" multiValued="true"/>
-        <field name="text" type="text_general" stored="false" uninvertible="false" multiValued="false"/>
+        <field name="prop" type="text_general" stored="false" uninvertible="false" multiValued="true"/>
+        <field name="source_text" type="text_general" stored="false" uninvertible="false" multiValued="false"/>
         <field name="uses" type="string" uninvertible="false" multiValued="true"/>
         <field name="type_uses" type="string" uninvertible="false" multiValued="true"/>
+        <field name="proof_uses" type="string" uninvertible="false" multiValued="true"/>
         <field name="related" type="string" uninvertible="false" multiValued="true"/>
-        <field name="_version_" type="plong" indexed="false" stored="false" multiValued="false" />
+        <field name="_version_" type="plong" indexed="false" stored="false" multiValued="false"/>
     </fields>
 
     <uniqueKey>id</uniqueKey>
@@ -22,7 +23,7 @@
     <types>
         <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
         <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
-        <fieldType name="pint" class="solr.IntPointField" docValues="true" />
+        <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
         <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
         <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
             <analyzer type="index">

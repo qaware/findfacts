@@ -8,6 +8,7 @@ object PideField extends Enumeration {
   final val Running = Value("running")
   final val Finished = Value("finished")
   final val XmlBody = Value("xml_body")
+  final val XmlElem = Value("xml_elem")
   final val String = Value("string")
   final val NoCompletion = Value("no_completion")
   final val Delimiter = Value("delimiter")

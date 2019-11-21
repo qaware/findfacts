@@ -1,6 +1,6 @@
 package de.qaware.findfacts.dumpimporter.steps.pide
 
-import scala.language.implicitConversions
+import scala.language.{implicitConversions, postfixOps}
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
@@ -113,7 +113,10 @@ object PideLexer extends Parsers {
     // Entity defs are structured as follows: <Global ref ><Local ref/></Global ref>
     nodeMatches(single root ofOne thats (tag(Entity) and key(Def)) parent ofOne thats (tag(Entity) and key(Def))) ^^ {
       parent =>
-        single thats (tag(Entity) and key(Def)) parent ofOne thats body() in parent match {
+        (single thats (tag(Entity) and key(Def)) parent ofOne thats body() in parent).left map { _ =>
+          // body can be wrapped in XmlBody tag
+          single thats (tag(Entity) and key(Def)) parent ofOne thats tag(XmlElem) parent ofOne thats body() in parent
+        } joinLeft match {
           case Left(error) =>
             logger.error(s"Could not find local definition: $error")
             throw new IllegalStateException("Could not extract entity")

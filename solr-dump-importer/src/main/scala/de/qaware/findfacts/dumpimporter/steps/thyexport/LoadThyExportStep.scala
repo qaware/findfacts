@@ -10,6 +10,7 @@ import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.findfacts.dumpimporter.steps.thyexport.IsabelleEntities.{Axiom, Theory, Thm}
 import de.qaware.findfacts.dumpimporter.steps.{ImportStep, StepContext}
+import de.qaware.findfacts.scalautils.ProgressLogger.withProgress
 
 /** Import step to load a stable theory export.
   *
@@ -26,7 +27,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
     val thyFiles = RepositoryReader(config.dump).readAll(SERIALIZED_FILE)
     logger.info(s"Found ${thyFiles.size} serialized theories. Deserializing...")
 
-    val theories = thyFiles flatMap { repoEntry =>
+    val theories = withProgress(thyFiles) flatMap { repoEntry =>
       Deserializer.deserialize(repoEntry.file.byteArray) match {
         case Failure(ex) =>
           logger.error(s"Could not deserialize $repoEntry:", ex)
@@ -34,10 +35,12 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         case Success(value) =>
           Some(value)
       }
-    }
+    } toIterable
+
     logger.info(s"Successfully deserialized ${theories.size} theories")
 
-    theories foreach { thy =>
+    logger.info("Extracting theory content...")
+    withProgress(theories) foreach { thy =>
       // Partition axioms in constant definition axioms and "normal" axioms
       val constAxNames = thy.constdefs.map(_.axiomName).toSet
       val typeAxNames = thy.typedefs.map(_.axiomName).toSet
@@ -49,12 +52,14 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
       extractTypes(thy, typeAxioms, ctx)
       extractFacts(thy.name, thy.thms, axioms, ctx)
     }
+    logger.info(s"Found ${ctx.consts.size} constants, ${ctx.types.size} types, ${ctx.facts.size} facts.")
 
+    logger.info("Enriching theories...")
     // Enrich data by grouping by position
     val entitiesByPos = (ctx.consts ++ ctx.facts ++ ctx.types).groupBy(e => (e.sourceFile, e.startPos, e.endPos))
 
     // Find related facts and constants, i.e. entities that spring from the same source positions
-    (entitiesByPos.keySet) foreach { key =>
+    (withProgress(entitiesByPos.keySet)) foreach { key =>
       val entities = entitiesByPos(key)
       val allIds = entities.map(_.id)
 
@@ -65,8 +70,6 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         case entity: TypeEntity => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
       }
     }
-
-    logger.info(s"Found ${ctx.consts.size} constants, ${ctx.types.size} types, ${ctx.facts.size} facts.")
   }
 
   /** Extracts constants from theory.
@@ -125,7 +128,8 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
           thm.entity.endPos,
           thm.entity.name,
           Array(thm.prop.term.toString),
-          thm.prop.term.referencedConsts.toArray
+          thm.prop.term.referencedConsts.toArray,
+          thm.deps
         ),
         Seq(thm.entity.serial)
       )
@@ -139,7 +143,8 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
           ax.entity.endPos,
           ax.entity.name,
           Array(ax.prop.term.toString),
-          ax.prop.term.referencedConsts.toArray
+          ax.prop.term.referencedConsts.toArray,
+          Array.empty
         ),
         Seq(ax.entity.serial)
       )

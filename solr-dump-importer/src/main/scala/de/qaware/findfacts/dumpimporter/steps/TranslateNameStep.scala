@@ -1,8 +1,13 @@
 package de.qaware.findfacts.dumpimporter.steps
 
+import scala.collection.mutable
+
 import com.typesafe.scalalogging.Logger
+import de.qaware.findfacts.common.solr.dt.Entity.Id
+import de.qaware.findfacts.common.solr.dt.TheoryEntity
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.pure.PureSyntax
+import de.qaware.findfacts.scalautils.ProgressLogger.withProgress
 
 /** Step to translate element names to unique ids.
   *
@@ -12,52 +17,65 @@ class TranslateNameStep(override val config: Config) extends ImportStep {
   private val logger = Logger[TranslateNameStep]
 
   override def apply(ctx: StepContext): Unit = {
-    logger.info("Translating names...")
+    logger.info("Translating names - building cache...")
+
+    // Store names that cannot be found in order not to pollute the log
+    val missingNames = mutable.Set.empty[String]
 
     // Map names to IDs once
-    val constIdByName = ctx.consts.groupBy(_.name).mapValues(_.toSeq).mapValues {
-      case Seq(value) => value.id
-      case elems: Any => throw new IllegalStateException(s"Constant names are not unique: $elems")
-    }
-    val typeIdByName = ctx.types.groupBy(_.name).mapValues(_.toSeq).mapValues {
-      case Seq(value) => value.id
-      case elems: Any => throw new IllegalStateException(s"Type names are not unique: $elems")
-    }
+    val constIdByName = groupByName(ctx.consts, missingNames)
+    val typeIdByName = groupByName(ctx.types, missingNames)
+    val factIdByName = groupByName(ctx.facts, missingNames)
 
-    // Logs entities for which IDs cannot be found
-    def getOrLog(typ: String, map: Map[String, String], name: String) = {
-      if (PureSyntax.values.exists(_.name == name)) {
-        // Pure names are already resolved in representation
-        None
-      } else {
-        val id = map.get(name)
-        if (id.isEmpty) {
-          logger.warn(s"Could not find $typ entity for name: $name")
-        }
-        id
-      }
-    }
-
-    logger.info("Translating names used by constants...")
+    logger.info(s"Translating names used by ${ctx.consts.size} constants...")
     // Update elements
-    ctx.consts foreach { const =>
-      val defUses = const.defUses.distinct.flatMap(getOrLog("const", constIdByName, _))
-      val typeUses = const.typeUses.distinct.flatMap(getOrLog("type", typeIdByName, _))
+    withProgress(ctx.consts) foreach { const =>
+      val defUses = const.defUses.distinct.flatMap(getOrLog("const", constIdByName, missingNames, _))
+      val typeUses = const.typeUses.distinct.flatMap(getOrLog("type", typeIdByName, missingNames, _))
       ctx.updateEntity(const, const.copy(typeUses = typeUses, defUses = defUses))
     }
 
-    logger.info("Translating names used by types...")
-    ctx.types foreach { typ =>
-      val uses = typ.uses.flatMap(getOrLog("type", constIdByName, _))
+    logger.info(s"Translating names used by ${ctx.types.size} types...")
+    withProgress(ctx.types) foreach { typ =>
+      val uses = typ.uses.flatMap(getOrLog("type", constIdByName, missingNames, _))
       ctx.updateEntity(typ, typ.copy(uses = uses))
     }
 
-    logger.info("Translating names used by facts...")
-    ctx.facts foreach { fact =>
-      val uses = fact.uses.flatMap(getOrLog("const", constIdByName, _))
-      ctx.updateEntity(fact, fact.copy(uses = uses))
+    logger.info(s"Translating names used by ${ctx.facts.size} facts...")
+    withProgress(ctx.facts) foreach { fact =>
+      val uses = fact.uses.flatMap(getOrLog("const", constIdByName, missingNames, _))
+      val proofUses = fact.proofUses.flatMap(getOrLog("fact", factIdByName, missingNames, _))
+      ctx.updateEntity(fact, fact.copy(uses = uses, proofUses = proofUses))
     }
 
     logger.info("Finished translating names.")
+  }
+
+  private def groupByName[T <: TheoryEntity](entities: Set[T], missing: mutable.Set[String]): Map[String, Id] = {
+    entities.groupBy(_.name) filter {
+      case (name, vs) =>
+        if (vs.map(_.id).size == 1) {
+          true
+        } else {
+          logger.error(s"Found non-unique $name in ${vs.map(_.sourceFile).mkString(", ")}")
+          missing += name
+          false
+        }
+    } mapValues (_.toSeq.head.id)
+  }
+
+  /* Logs entities for which IDs cannot be found */
+  private def getOrLog(typ: String, map: Map[String, String], missing: mutable.Set[String], name: String) = {
+    if (missing.contains(name) || PureSyntax.values.exists(_.name == name)) {
+      // Pure names are already resolved in representation, missing shouldn't be logged again
+      None
+    } else {
+      val id = map.get(name)
+      if (id.isEmpty) {
+        logger.warn(s"Could not find $typ entity for name: $name")
+        missing += name
+      }
+      id
+    }
   }
 }

@@ -1125,21 +1125,21 @@
 
   <updateRequestProcessorChain name="count-multiples">
     <processor class="solr.CloneFieldUpdateProcessorFactory">
-      <str name="source">term</str>
-      <str name="dest">term_count</str>
+      <str name="source">prop</str>
+      <str name="dest">prop_count</str>
     </processor>
     <processor class="solr.CloneFieldUpdateProcessorFactory">
       <str name="source">uses</str>
       <str name="dest">uses_count</str>
     </processor>
     <processor class="solr.CountFieldValuesUpdateProcessorFactory">
-      <str name="fieldName">term_count</str>
+      <str name="fieldName">prop_count</str>
     </processor>
     <processor class="solr.CountFieldValuesUpdateProcessorFactory">
       <str name="fieldName">uses_count</str>
     </processor>
     <processor class="solr.DefaultValueUpdateProcessorFactory">
-      <str name="fieldName">term_count</str>
+      <str name="fieldName">prop_count</str>
       <int name="value">0</int>
     </processor>
     <processor class="solr.DefaultValueUpdateProcessorFactory">

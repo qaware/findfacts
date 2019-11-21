@@ -64,9 +64,9 @@ object Entity {
 /** Sum type for semantic theory entities.
   *
   * @param name of the entity
-  * @param terms semantic representation of the entity
+  * @param props semantic representation of the entity
   * @param related ids of entities defined at the same position
-  * @param source text of entity
+  * @param sourceText of entity
   */
 sealed abstract class TheoryEntity(
     override val sourceFile: String,
@@ -74,9 +74,9 @@ sealed abstract class TheoryEntity(
     override val endPos: Int,
     override val kind: String,
     @(Field @field)(Name) val name: String,
-    @(Field @field)(Term) val terms: Array[String],
+    @(Field @field)(Prop) val props: Array[String],
     @(Field @field)(Related) val related: Array[Id],
-    @(Field @field)(Text) val source: String)
+    @(Field @field)(SourceText) val sourceText: String)
     extends Entity(sourceFile, startPos, endPos, kind)
 
 /** Entity class for type definitions.
@@ -89,11 +89,11 @@ final case class TypeEntity(
     override val startPos: Int,
     override val endPos: Int,
     override val name: String,
-    override val terms: Array[String] = null,
+    override val props: Array[String] = null,
     @(Field @field)(TypeUses) uses: Array[Id] = null,
     override val related: Array[Id] = null,
-    override val source: String = null
-) extends TheoryEntity(sourceFile, startPos, endPos, EntityKind.Type.toString, name, terms, related, source) {
+    override val sourceText: String = null
+) extends TheoryEntity(sourceFile, startPos, endPos, EntityKind.Type.toString, name, props, related, sourceText) {
 
   registerKeyFields(Seq(sourceFile, startPos, kind, name))
 
@@ -103,7 +103,7 @@ final case class TypeEntity(
 
   override def toString: String =
     s"TypeEntity($sourceFile, $startPos, $endPos, " +
-      s"$name, ${deep(terms)}, ${deep(uses)}, ${deep(related)}, $source)"
+      s"$name, ${deep(props)}, ${deep(uses)}, ${deep(related)}, $sourceText)"
 
   override def equals(other: Any): Boolean = other match {
     case that: TypeEntity =>
@@ -111,15 +111,15 @@ final case class TypeEntity(
         startPos == that.startPos &&
         endPos == that.endPos &&
         name == that.name &&
-        deep(terms) == deep(that.terms) &&
-        source == that.source &&
+        deep(props) == deep(that.props) &&
+        sourceText == that.sourceText &&
         deep(uses) == deep(that.uses) &&
         deep(related) == deep(that.related)
     case _ => false
   }
 
   override def hashCode(): Int = {
-    val state = Seq(sourceFile, startPos, endPos, name, deep(terms), source, deep(uses), deep(related))
+    val state = Seq(sourceFile, startPos, endPos, name, deep(props), sourceText, deep(uses), deep(related))
     state.filter(_ != null).map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
@@ -129,8 +129,8 @@ final case class TypeEntity(
   * @param name of the constant
   * @param constType functional type of the constant
   * @param typeUses ids of types that the type of this constant uses
-  * @param source source code of the constant declaration
-  * @param terms definition(s) term in string representation
+  * @param sourceText source code of the constant declaration
+  * @param props definition(s) term in string representation
   * @param defUses ids of entities that the constant uses
   * @param related ids of entities that stem from the same source
   */
@@ -142,11 +142,11 @@ final case class ConstEntity(
     override val name: String,
     @(Field @field)(ConstType) constType: String = null,
     @(Field @field)(TypeUses) typeUses: Array[Id] = null,
-    override val terms: Array[String] = null,
+    override val props: Array[String] = null,
     @(Field @field)(Uses) defUses: Array[Id] = null,
     override val related: Array[Id] = null,
-    override val source: String = null
-) extends TheoryEntity(sourceFile, startPos, endPos, EntityKind.Constant.toString, name, terms, related, source) {
+    override val sourceText: String = null
+) extends TheoryEntity(sourceFile, startPos, endPos, EntityKind.Constant.toString, name, props, related, sourceText) {
 
   registerKeyFields(Seq(sourceFile, startPos, kind, name))
 
@@ -156,7 +156,7 @@ final case class ConstEntity(
 
   override def toString: String = {
     s"ConstEntity($sourceFile, $startPos, $endPos, $name, $constType, ${deep(typeUses)}, " +
-      s"${deep(terms)}, ${deep(defUses)}, ${deep(related)}, $source)"
+      s"${deep(props)}, ${deep(defUses)}, ${deep(related)}, $sourceText)"
   }
 
   override def equals(other: Any): Boolean = other match {
@@ -167,8 +167,8 @@ final case class ConstEntity(
         name == that.name &&
         constType == that.constType &&
         deep(typeUses) == deep(that.defUses) &&
-        source == that.source &&
-        deep(terms) == deep(that.terms) &&
+        sourceText == that.sourceText &&
+        deep(props) == deep(that.props) &&
         deep(defUses) == deep(that.defUses) &&
         deep(related) == deep(that.related)
     case _ => false
@@ -183,8 +183,8 @@ final case class ConstEntity(
         name,
         constType,
         deep(typeUses),
-        source,
-        deep(terms),
+        sourceText,
+        deep(props),
         deep(defUses),
         deep(related))
     state.filter(_ != null).map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
@@ -194,8 +194,8 @@ final case class ConstEntity(
 /** Entity class for proven lemmas and theories.
   *
   * @param name of this fact
-  * @param terms all terms of the fact as string representation
-  * @param source term of this fact
+  * @param props all terms of the fact as string representation
+  * @param sourceText term of this fact
   * @param uses ids of entities that the fact uses
   * @param related ids of entities that stem from the same source
   */
@@ -205,11 +205,12 @@ final case class FactEntity(
     override val startPos: Int,
     override val endPos: Int,
     override val name: String,
-    override val terms: Array[String] = null,
+    override val props: Array[String] = null,
     @(Field @field)(Uses) uses: Array[Id] = null,
+    @(Field @field)(ProofUses) proofUses: Array[Id] = null,
     override val related: Array[Id] = null,
-    override val source: String = null
-) extends TheoryEntity(sourceFile, startPos, endPos, EntityKind.Fact.toString, name, terms, related, source) {
+    override val sourceText: String = null
+) extends TheoryEntity(sourceFile, startPos, endPos, EntityKind.Fact.toString, name, props, related, sourceText) {
 
   registerKeyFields(Seq(sourceFile, startPos, kind, name))
   def this() {
@@ -217,7 +218,8 @@ final case class FactEntity(
   }
 
   override def toString: String =
-    s"FactEntity($sourceFile, $startPos, $endPos, $name, ${deep(terms)}, ${deep(uses)}, ${deep(related)}, $source)"
+    s"FactEntity($sourceFile, $startPos, $endPos, $name, ${deep(props)}, " +
+      s"${deep(uses)}, ${deep(proofUses)}, ${deep(related)}, $sourceText)"
 
   override def equals(other: Any): Boolean = other match {
     case that: FactEntity =>
@@ -225,15 +227,16 @@ final case class FactEntity(
         startPos == that.startPos &&
         endPos == that.endPos &&
         name == that.name &&
-        deep(terms) == deep(that.terms) &&
-        source == that.source &&
+        deep(props) == deep(that.props) &&
+        sourceText == that.sourceText &&
         deep(uses) == deep(that.uses) &&
+        deep(proofUses) == deep(that.proofUses) &&
         deep(related) == deep(that.related)
     case _ => false
   }
 
   override def hashCode(): Int = {
-    val state = Seq(sourceFile, startPos, endPos, name, terms, source, deep(uses), deep(related))
+    val state = Seq(sourceFile, startPos, endPos, name, props, sourceText, deep(uses), deep(proofUses), deep(related))
     state.filter(_ != null).map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
@@ -248,7 +251,7 @@ final case class DocEntity(
     override val sourceFile: String,
     override val startPos: Int,
     override val endPos: Int,
-    @(Field @field)(Text) text: String,
+    @(Field @field)(SourceText) text: String,
     @(Field @field)(DocType) docType: String
 ) extends Entity(sourceFile, startPos, endPos, EntityKind.Documentation.toString) {
 

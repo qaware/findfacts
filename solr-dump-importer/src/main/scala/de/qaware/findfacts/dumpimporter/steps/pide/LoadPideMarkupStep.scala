@@ -4,10 +4,11 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.solr.dt.DocEntity
+import de.qaware.findfacts.common.solr.dt.{ConstEntity, DocEntity, TheoryEntity}
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.findfacts.dumpimporter.steps.{ImportStep, StepContext}
+import de.qaware.findfacts.scalautils.ProgressLogger.withProgress
 import de.qaware.findfacts.yxml.YxmlParser
 
 /** Importer step that loads theory data from PIDE config.
@@ -27,7 +28,10 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
 
     val allSources = ctx.allEntities.map(_.sourceFile).to[mutable.Set]
 
-    markupFiles foreach { file =>
+    // Calculate this view only once
+    val consts = ctx.consts
+
+    withProgress(markupFiles) foreach { file =>
       val sourceTheory = file.relativeName.drop(1).dropRight(MarkupFileName.length + 1)
       allSources -= sourceTheory
       val start = System.currentTimeMillis()
@@ -44,7 +48,7 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
             case Left(error) => logger.error(s"Could not lex pide tokens in $sourceTheory: $error")
             case Right(pideTokens) =>
               // Find constant source text
-              updateConst(ctx, pideTokens, sourceTheory)
+              updateConst(ctx, consts, pideTokens, sourceTheory)
               // Find comments in markup
               findComments(ctx, pideTokens, sourceTheory)
           }
@@ -56,28 +60,61 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
     }
   }
 
-  private def updateConst(ctx: StepContext, tokens: List[PideToken], file: String): Unit = {
-    ctx.consts.filter(_.sourceFile == file) foreach { const =>
-      val serials = ctx.serialsById(const.id)
-      serials foreach { s =>
-        tokens collect { case dt @ DefToken(_, serial) if serial == s => dt } match {
-          case List() => logger.whenDebugEnabled { logger.debug(s"Did not find entity for serial $s") }
-          case List(defToken) =>
-            val defBegin = tokens.indexOf(defToken) + 1
-            PideParser.constantDef(tokens.drop(defBegin)) match {
-              case Left(error) =>
-                // scalastyle:off magic.number
-                val context = tokens.drop(defBegin - 3).filter(_.getClass != classOf[WhitespaceToken]).take(10)
-                // scalastyle:on magic.number
-                logger.warn(s"Could not parse definition for sid $s, at token $defBegin: ${error.msg}")
-                logger.warn(s"    Error location: '${context.map(_.data).mkString(" ")}'")
-                logger.whenDebugEnabled { logger.debug(s"    Tokens: ${context.map(_.toString).mkString(" ")}") }
-              case Right(res) =>
-                ctx.updateEntity(const, const.copy(source = res.token.data, endPos = const.endPos + res.endOffset))
-            }
-          case defs: Any => logger.error(s"Found multiple definitions: $defs")
+  private def updateConst(ctx: StepContext, consts: Set[ConstEntity], tokens: List[PideToken], file: String): Unit = {
+    consts.filter(_.sourceFile == file) foreach { const =>
+      findDefStart(tokens, const, ctx) map { defBegin =>
+        PideParser.constantDef(tokens.drop(defBegin)) match {
+          case Left(error) => logErrorContext(tokens, defBegin, error)
+          case Right(res) =>
+            ctx.updateEntity(const, const.copy(sourceText = res.token.data, endPos = const.endPos + res.endOffset))
         }
       }
+    }
+  }
+
+  private def updateThms(ctx: StepContext, tokens: List[PideToken], file: String): Unit = {
+    ctx.facts.filter(_.sourceFile == file) foreach { thm =>
+      findDefStart(tokens, thm, ctx) map { defBegin =>
+        PideParser.thmDef(tokens.drop(defBegin)) match {
+          case Left(error) => logErrorContext(tokens, defBegin, error)
+          case Right(res) =>
+            ctx.updateEntity(thm, thm.copy(sourceText = res.token.data, endPos = thm.endPos + res.endOffset))
+        }
+      }
+    }
+  }
+
+  private def logErrorContext(tokens: List[PideToken], defStart: Int, error: PideParseError): Unit = {
+    // scalastyle:off magic.number
+    val context = tokens.drop(defStart - 3).filter(_.getClass != classOf[WhitespaceToken]).take(10)
+    // scalastyle:on magic.number
+    logger.whenDebugEnabled {
+      logger.debug(s"Could not parse definition for at token $defStart: ${error.msg}")
+      logger.debug(s"    Error location: '${context.map(_.data).mkString(" ")}'")
+      logger.debug(s"    Tokens: ${context.map(_.toString).mkString(" ")}")
+    }
+  }
+
+  private def findDefStart(tokens: List[PideToken], entity: TheoryEntity, ctx: StepContext): Option[Int] = {
+    val serials = ctx.serialsById(entity.id)
+    serials flatMap { s =>
+      tokens collect { case dt @ DefToken(_, serial) if serial == s => dt } match {
+        case List() =>
+          logger.whenDebugEnabled { logger.debug(s"Did not find entity for serial $s") }
+          None
+        case List(defToken) => Some(tokens.indexOf(defToken) + 1)
+        case defs: Any =>
+          logger.error(s"Found multiple definitions: $defs")
+          None
+      }
+    } toSeq match {
+      case Seq(start) => Some(start)
+      case Seq() =>
+        logger.whenDebugEnabled { logger.debug(s"Did not find definition for ${entity.kind} ${entity.name}") }
+        None
+      case defs: Any =>
+        logger.error(s"Found multiple definitions for entity $entity: $defs")
+        None
     }
   }
 

@@ -4,7 +4,7 @@ package de.qaware.findfacts.dumpimporter.dataaccess.treequery
   *
   * @param msg error message
   */
-final case class QueryError(msg: String) extends Throwable
+final case class QueryError(msg: String) extends Exception(msg)
 
 /** Trait for final query nodes, to allow only execution of the query after certain query constructions in the DSL.
   *

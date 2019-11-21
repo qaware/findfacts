@@ -43,6 +43,9 @@ object PideParser extends Parsers {
       ~> comment) *
   }
 
+  /** Top-level parser for (simple) theorem defs. */
+  protected def thmDef: Parser[PosToken] = (name ?) ~> string
+
   /** Top-level parser for definition code of (most) constants. */
   protected def constantDef: Parser[PosToken] = (typDef ?) ~> (forDef ?) ~> (whereDelim ?) ~> defBlock
 
@@ -68,7 +71,7 @@ object PideParser extends Parsers {
   protected def defDelim: Parser[PosToken] = (comment *) ~> (ws ?) ~> defDelimToken
 
   /** Parses single definition lines. */
-  protected def defLine: Parser[PosToken] = opt(name) ~> string
+  protected def defLine: Parser[PosToken] = (name ?) ~> string
 
   /** Parses blocks of definition */
   @SuppressWarnings(Array("TraversableLast")) // Justification: parser rules ensure there is at least one element
@@ -114,6 +117,13 @@ object PideParser extends Parsers {
     * @return token containing source code and length of definition, or error if unsuccessful
     */
   def constantDef(tokens: List[PideToken]): Either[PideParseError, PosToken] = parse(tokens, constantDef)
+
+  /** Parses proposition text for a theorem.
+    *
+    * @param tokens list of tokens starting after the definition of the thm.
+    * @return token containing source code an length of definition, or error if unsuccessful
+    */
+  def thmDef(tokens: List[PideToken]): Either[PideParseError, PosToken] = parse(tokens, thmDef)
 
   /** Parses all comments.
     *
