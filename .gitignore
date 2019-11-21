@@ -2,6 +2,7 @@
 *.log
 *.iml
 .idea/
+.idea_modules/
 out/
 build/
 target/
@@ -11,3 +12,4 @@ target/
 \#*\#
 *.thy~
 /afp
+elm-stuff/

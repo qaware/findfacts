@@ -1,0 +1,22 @@
+{
+    "type": "package",
+    "name": "qaware/isabelle-afp-search",
+    "summary": "Webapp ui.",
+    "license": "MIT",
+    "version": "1.0.0",
+    "elm-version": "0.19.0 <= v < 0.20.0",
+    "exposed-modules": [],
+    "source-directories" : [
+        "webapp/elm/src"
+    ],
+    "dependencies": {
+        "elm/browser": "1.0.0 <= v < 2.0.0",
+        "elm/core": "1.0.0 <= v < 2.0.0",
+        "elm/html": "1.0.0 <= v < 2.0.0",
+        "elm/http": "2.0.0 <= v < 3.0.0",
+        "elm/json": "1.0.0 <= v < 2.0.0",
+        "elm/url": "1.0.0 <= v < 2.0.0",
+        "rundis/elm-bootstrap": "5.0.0 <= v < 6.0.0"
+    },
+    "test-dependencies": {}
+}

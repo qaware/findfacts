@@ -9,7 +9,7 @@ ISABELLE_EXTENSIONS_DIR="$PROJECT_DIR/isabelle-extensions"
 
 # Parameters
 DUMP_DIR="$PROJECT_DIR/dump/all"
-SCALA_OPTS="-J-Xmx8g -J-Xms4G"
+SCALA_OPTS="-J-Xmx8g -J-Xms4G -J-Xss512M"
 EXCLUDES=("HOL-Proofs-ex")
 
 # Get afp

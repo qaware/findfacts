@@ -50,7 +50,7 @@ val scopt = "com.github.scopt" %% "scopt" % "3.7.1"
 // Project structure: root project for common settings and to aggregate tasks
 lazy val root = (project in file("."))
   .settings(sonarSettings)
-  .aggregate(`solr-dump-importer`, `common-solr`, `common-utils`, `yxml-parser`)
+  .aggregate(`solr-dump-importer`, `common-solr`, `common-utils`, `yxml-parser`, `webapp`)
   .settings(aggregate in sonarScan := false)
 
 // Importer for isabelle dumps
@@ -88,3 +88,29 @@ lazy val `yxml-parser` = project
 
 // Common utility
 lazy val `common-utils` = project
+
+// Full-stack play web application, with elm ui
+lazy val `webapp` = project
+  .settings(
+    // Add elm sources to assets
+    unmanagedSourceDirectories in Assets += baseDirectory.value / "elm/src",
+    // Build elm compiler (npm module) before elmMake, and configure SbtElm to use built elm compiler.
+    (Assets / ElmKeys.elmMake) := (Assets / ElmKeys.elmMake).dependsOn(elm / Compile / npmInstallDependencies).value,
+    ElmKeys.elmExecutable in ElmKeys.elmMake in Assets := (baseDirectory.value /
+      "elm/target/scala-2.12/scalajs-bundler/main/node_modules/.bin/elm").getAbsolutePath + " make",
+    libraryDependencies ++= Seq(
+      guice exclude ("org.slf4j", "slf4j-api"),
+      "org.scalatestplus.play" %% "scalatestplus-play" % "4.0.3" % Test exclude ("org.slf4j", "slf4j-api"),
+    ),
+  )
+  .enablePlugins(PlayScala)
+  .dependsOn(`common-solr`)
+
+// ScalaJS project to wrap elm npm dependencies.
+// Can't be part of 'webapp' as PlayScala and ScalaJSBundler are incompatible.
+lazy val elm = (project in file("webapp/elm"))
+  .settings(npmDevDependencies in Compile ++= Seq(
+    "elm" -> "^0.19",
+    "elm-format" -> "^0.8"
+  ))
+  .enablePlugins(ScalaJSBundlerPlugin)
