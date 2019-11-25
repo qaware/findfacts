@@ -90,6 +90,8 @@ lazy val `common-utils` = project
 // Full-stack play web application, with elm ui
 lazy val `webapp` = project
   .settings(
+    // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
+    javaOptions in Runtime += "-Dlog4j.configurationFile=webapp/conf/log4j2.properties",
     // Add elm sources to assets
     unmanagedSourceDirectories in Assets += baseDirectory.value / "elm/src",
     // Build elm compiler (npm module) before elmMake, and configure SbtElm to use built elm compiler.
@@ -99,9 +101,14 @@ lazy val `webapp` = project
     libraryDependencies ++= Seq(
       guice exclude ("org.slf4j", "slf4j-api"),
       "org.scalatestplus.play" %% "scalatestplus-play" % "4.0.3" % Test exclude ("org.slf4j", "slf4j-api"),
+      "io.swagger" %% "swagger-play2" % "1.7.1"
+        exclude("com.google.guava", "guava")
+        exclude("com.typesafe.play", "play-logback_2.12"),
+      "org.webjars" % "swagger-ui" % "3.24.3"
     ),
   )
   .enablePlugins(PlayScala)
+  .disablePlugins(PlayLogback)
   .dependsOn(`common-solr`)
 
 // ScalaJS project to wrap elm npm dependencies.

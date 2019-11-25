@@ -1,13 +1,20 @@
-# Routes
-# This file defines all application routes (Higher priority routes first)
-# https://www.playframework.com/documentation/latest/ScalaRouting
-# ~~~~
-
-# Delivers application
+### Application
+# Delivers app
 GET     /                              de.qaware.findfacts.webapp.controllers.HomeController.index
 
-# RESTful interface
-# Resolves detailed information about this entity
+### Swagger-ui
+# Redirect to swagger doc index
+GET     /docs                          de.qaware.findfacts.webapp.controllers.HomeController.redirectDocs
+# Deliver swagger-ui assets
+GET     /docs/*file                    controllers.Assets.at(path:String="/public/lib/swagger-ui", file:String)
+# Deliver generated swagger.json
+GET     /swagger.json                  controllers.ApiHelpController.getResources
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file                  controllers.Assets.versioned(file)
+
+### RESTful interface
+# Retrieves detailed information about a single entity
 GET     /v1/entities/:id               de.qaware.findfacts.webapp.controllers.QueryController.entity(id: String)
 # Searches by a complete query
 POST    /v1/search                     de.qaware.findfacts.webapp.controllers.QueryController.search
@@ -15,5 +22,3 @@ POST    /v1/search                     de.qaware.findfacts.webapp.controllers.Qu
 GET     /v1/search/:query              de.qaware.findfacts.webapp.controllers.QueryController.searchEncoded(query)
 # Bookmark a query
 POST    /v1/bookmark                   de.qaware.findfacts.webapp.controllers.QueryController.encode
-# Map static resources from the /public folder to the /assets URL path
-GET     /assets/*file                  controllers.Assets.versioned(file)
