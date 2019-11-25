@@ -14,7 +14,7 @@ build:
       - "/root/.sbt"
       - "/root/.m2"
   script:
-    - apt-get update && apt-get install -y npm
+    - curl -sL https://deb.nodesource.com/setup_13.x | bash - && apt-get install -y nodejs
     - ./sbt clean scalastyle coverage test coverageReport coverageOff
     - ./sbt scapegoat || true
     - ./sbt sonarScan -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_TOKEN
