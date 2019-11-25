@@ -5,6 +5,7 @@ jobs:
       - image: circleci/openjdk:11
     steps:
       - run: |
+          sudo dpkg --configure -a
           sudo apt-get update || sudo apt-get update
           sudo apt-get install -y npm
       - checkout
