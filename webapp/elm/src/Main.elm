@@ -18,7 +18,7 @@ import Http exposing (expectJson, jsonBody)
 import Json.Decode as D
 import Json.Encode as E
 import Url exposing (Url)
-import Url.Parser as UrlParser exposing (Parser, s, top)
+import Url.Parser as UrlParser
 
 
 
@@ -202,11 +202,11 @@ urlUpdate url model =
             )
 
 
-routeParser : Parser (Page -> a) a
+routeParser : UrlParser.Parser (Page -> a) a
 routeParser =
     UrlParser.oneOf
-        [ UrlParser.map Home top
-        , UrlParser.map Syntax (s "syntax")
+        [ UrlParser.map Home UrlParser.top
+        , UrlParser.map Syntax (UrlParser.s "syntax")
         ]
 
 

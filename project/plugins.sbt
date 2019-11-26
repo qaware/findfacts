@@ -1,6 +1,4 @@
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.7.3")
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.29")
-addSbtPlugin("ch.epfl.scala" % "sbt-web-scalajs-bundler" % "0.15.0-0.6")
 addSbtPlugin("io.finstack" % "sbt-elm" % "0.2.0")
 // Tools
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.10.0-RC1")

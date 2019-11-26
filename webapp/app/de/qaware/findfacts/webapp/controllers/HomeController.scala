@@ -1,7 +1,6 @@
 package de.qaware.findfacts.webapp.controllers
 
 import com.google.inject.{Inject, Singleton}
-import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.webapp.views
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, Request}
 
@@ -11,11 +10,8 @@ import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponent
   */
 @Singleton class HomeController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
 
-  val logger = Logger[HomeController]
-
   /** Deliver application. */
   def index(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
-    logger.info("hello")
     Ok(views.html.index())
   }
 

@@ -14,7 +14,10 @@ build:
       - "/root/.sbt"
       - "/root/.m2"
   script:
-    - curl -sL https://deb.nodesource.com/setup_13.x | bash - && apt-get install -y nodejs
+    - curl -L -o elm.gz https://github.com/elm/compiler/releases/download/0.19.1/binary-for-linux-64-bit.gz
+    - gunzip elm.gz
+    - chmod +x elm
+    - mv elm /usr/local/bin/
     - ./sbt clean scalastyle coverage test coverageReport coverageOff
     - ./sbt scapegoat || true
     - ./sbt sonarScan -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_TOKEN
