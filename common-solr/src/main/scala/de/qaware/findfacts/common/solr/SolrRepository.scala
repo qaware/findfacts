@@ -3,14 +3,14 @@ package de.qaware.findfacts.common.solr
 import java.net.URL
 import java.nio.file.{Files, StandardCopyOption}
 
-import scala.collection.JavaConverters._
-
 import better.files.{File, Resource}
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.scalautils.Using
 import org.apache.solr.client.solrj.SolrClient
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
 import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}
+
+import scala.collection.JavaConverters._
 
 /** Repository to provide connections to different types of solr instances. */
 sealed trait SolrRepository {
@@ -35,17 +35,17 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
   final val SOLR_CONF_FILES = Seq(
     "solr.xml",
     "theorydata/schema.xml",
-    "theorydata/enumsConfig.xml",
+    "theorydata/enumsconfig.xml",
     "theorydata/core.properties",
     "theorydata/conf/solrconfig.xml"
   )
 
   private val logger = Logger[LocalSolr]
 
-  require(solrHome.isDirectory, "Solr home does not exist")
-  require(solrHome.isWriteable, "No write access to solr home directory")
+  require(solrHome.isDirectory, s"Solr home $solrHome does not exist")
+  require(solrHome.isWriteable, s"No write access to solr home directory $solrHome")
 
-  private lazy val client = {
+  override def solrConnection(): SolrClient = {
     logger.info("Starting up embedded solr server...")
     // Unpack solr resources
     SOLR_CONF_FILES.map(res =>
@@ -59,12 +59,10 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
         logger.info("Writing solr config file {}", file)
         file.createDirectoryIfNotExists()
         Files.copy(stream, file.path, StandardCopyOption.REPLACE_EXISTING)
-    })
+      })
 
     new EmbeddedSolrServer(solrHome.path, CORE_NAME)
   }
-
-  override def solrConnection(): SolrClient = client
 }
 
 /** Remote http solr client.

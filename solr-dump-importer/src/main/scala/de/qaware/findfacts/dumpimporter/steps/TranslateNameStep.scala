@@ -1,13 +1,13 @@
 package de.qaware.findfacts.dumpimporter.steps
 
-import scala.collection.mutable
-
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.solr.dt.Entity.Id
-import de.qaware.findfacts.common.solr.dt.TheoryEntity
+import de.qaware.findfacts.common.solr.Record.Id
+import de.qaware.findfacts.common.solr.TheoryRecord
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.pure.PureSyntax
 import de.qaware.findfacts.scalautils.ProgressLogger.withProgress
+
+import scala.collection.mutable
 
 /** Step to translate element names to unique ids.
   *
@@ -30,9 +30,9 @@ class TranslateNameStep(override val config: Config) extends ImportStep {
     logger.info(s"Translating names used by ${ctx.consts.size} constants...")
     // Update elements
     withProgress(ctx.consts) foreach { const =>
-      val defUses = const.defUses.distinct.flatMap(getOrLog("const", constIdByName, missingNames, _))
+      val defUses = const.propositionUses.distinct.flatMap(getOrLog("const", constIdByName, missingNames, _))
       val typeUses = const.typeUses.distinct.flatMap(getOrLog("type", typeIdByName, missingNames, _))
-      ctx.updateEntity(const, const.copy(typeUses = typeUses, defUses = defUses))
+      ctx.updateEntity(const, const.copy(typeUses = typeUses, propositionUses = defUses))
     }
 
     logger.info(s"Translating names used by ${ctx.types.size} types...")
@@ -51,7 +51,7 @@ class TranslateNameStep(override val config: Config) extends ImportStep {
     logger.info("Finished translating names.")
   }
 
-  private def groupByName[T <: TheoryEntity](entities: Set[T], missing: mutable.Set[String]): Map[String, Id] = {
+  private def groupByName[T <: TheoryRecord](entities: Set[T], missing: mutable.Set[String]): Map[String, Id] = {
     entities.groupBy(_.name) filter {
       case (name, vs) =>
         if (vs.map(_.id).size == 1) {

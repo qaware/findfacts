@@ -1,15 +1,15 @@
 package de.qaware.findfacts.dumpimporter.steps.pide
 
-import scala.language.{implicitConversions, postfixOps}
-import scala.util.parsing.combinator.Parsers
-import scala.util.parsing.input.{NoPosition, Position, Reader}
-
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.solr.dt.DocumentationType
+import de.qaware.findfacts.common.dt.DocKind
 import de.qaware.findfacts.dumpimporter.dataaccess.treequery.QueryDsl.{all, ofOne, single}
 import de.qaware.findfacts.dumpimporter.dataaccess.treequery.YxmlTreeQuery.{YxmlNode, body, key, keyValue, tag}
 import de.qaware.findfacts.dumpimporter.dataaccess.treequery.{QueryDsl, QueryError, QueryNode}
 import de.qaware.findfacts.yxml.Yxml
+
+import scala.language.{implicitConversions, postfixOps}
+import scala.util.parsing.combinator.Parsers
+import scala.util.parsing.input.{NoPosition, Position, Reader}
 // scalastyle:off underscore.import
 import de.qaware.findfacts.dumpimporter.steps.pide.PideField._
 // scalastyle:on underscore.import
@@ -128,8 +128,8 @@ object PideLexer extends Parsers {
   /** Pares pide comment token. */
   protected def comment: Parser[CommentToken] = nodeMatches(single root ofOne thats tag(Comment)) ^^ { commentTree =>
     (single thats tag(Cartouche) in commentTree) match {
-      case Left(_) => CommentToken(extractBody(commentTree), DocumentationType.Meta)
-      case Right(_) => CommentToken(extractBody(commentTree), DocumentationType.Inline)
+      case Left(_) => CommentToken(extractBody(commentTree), DocKind.Meta)
+      case Right(_) => CommentToken(extractBody(commentTree), DocKind.Inline)
     }
   }
 

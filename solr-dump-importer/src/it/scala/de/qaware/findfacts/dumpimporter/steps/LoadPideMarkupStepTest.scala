@@ -1,14 +1,15 @@
 package de.qaware.findfacts.dumpimporter.steps
 
+import better.files.Resource
+import org.scalatest.{DoNotDiscover, FunSuite, Matchers, Suite}
+
 import scala.collection.{immutable, mutable}
 import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
 
-import better.files.Resource
-import org.scalatest.{FunSuite, Matchers, Suite}
-
 case class TestSpec(mapping: TestSpecPosition, code: String)
 
+@DoNotDiscover
 class LoadPideMarkupStepTest extends FunSuite with Matchers {
   private final val SPEC_BEGIN = "(*SPEC:BEGIN:"
 

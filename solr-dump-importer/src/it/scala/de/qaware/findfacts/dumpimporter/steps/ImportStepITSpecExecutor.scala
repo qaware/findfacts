@@ -1,6 +1,6 @@
 package de.qaware.findfacts.dumpimporter.steps
 
-import de.qaware.findfacts.common.solr.dt.ConstEntity
+import de.qaware.findfacts.common.solr.ConstRecord
 import org.scalatest.FunSuite
 
 case class TestSpecPosition(id: String, startLine: Int, endLine: Int) {
@@ -8,7 +8,7 @@ case class TestSpecPosition(id: String, startLine: Int, endLine: Int) {
 }
 
 case class TestSpecContext(
-    entityById: Map[String, ConstEntity],
+    entityById: Map[String, ConstRecord],
     startLineById: Map[String, Int],
     endLineById: Map[String, Int])
 
@@ -23,7 +23,7 @@ class ImportStepITSpecExecutor(
     step(context)
 
     val entityByPos = context.consts.groupBy { const =>
-      (const.startPos, const.endPos)
+      (const.startPosition, const.endPosition)
     }
 
     val entityById = (specPositions map { pos =>

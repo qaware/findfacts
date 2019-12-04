@@ -1,6 +1,6 @@
 package de.qaware.findfacts.dumpimporter.steps.pide
 
-import de.qaware.findfacts.common.solr.dt.DocumentationType
+import de.qaware.findfacts.common.dt.DocKind
 
 /** Trait for Pide tokens. */
 sealed trait PideToken {
@@ -68,7 +68,7 @@ final case class DefToken(override val data: String, serial: Long) extends PideT
   * @param data string
   * @param docType type of the comment, i.e. inline or meta here
   */
-final case class CommentToken(override val data: String, docType: DocumentationType.Value) extends PideToken
+final case class CommentToken(override val data: String, docType: DocKind.Value) extends PideToken
 
 /** Generic token for code, used in the parser. This token is NOT lexed!
   *

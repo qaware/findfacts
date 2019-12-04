@@ -1,15 +1,15 @@
 package de.qaware.findfacts.dumpimporter.steps.pide
 
-import scala.collection.mutable
-import scala.language.postfixOps
-
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.solr.dt.{ConstEntity, DocEntity, TheoryEntity}
+import de.qaware.findfacts.common.solr.{ConstRecord, DocRecord, TheoryRecord}
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.findfacts.dumpimporter.steps.{ImportStep, StepContext}
 import de.qaware.findfacts.scalautils.ProgressLogger.withProgress
 import de.qaware.findfacts.yxml.YxmlParser
+
+import scala.collection.mutable
+import scala.language.postfixOps
 
 /** Importer step that loads theory data from PIDE config.
   *
@@ -60,13 +60,15 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
     }
   }
 
-  private def updateConst(ctx: StepContext, consts: Set[ConstEntity], tokens: List[PideToken], file: String): Unit = {
+  private def updateConst(ctx: StepContext, consts: Set[ConstRecord], tokens: List[PideToken], file: String): Unit = {
     consts.filter(_.sourceFile == file) foreach { const =>
       findDefStart(tokens, const, ctx) map { defBegin =>
         PideParser.constantDef(tokens.drop(defBegin)) match {
           case Left(error) => logErrorContext(tokens, defBegin, error)
           case Right(res) =>
-            ctx.updateEntity(const, const.copy(sourceText = res.token.data, endPos = const.endPos + res.endOffset))
+            ctx.updateEntity(
+              const,
+              const.copy(sourceText = res.token.data, endPosition = const.endPosition + res.endOffset))
         }
       }
     }
@@ -78,7 +80,7 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
         PideParser.thmDef(tokens.drop(defBegin)) match {
           case Left(error) => logErrorContext(tokens, defBegin, error)
           case Right(res) =>
-            ctx.updateEntity(thm, thm.copy(sourceText = res.token.data, endPos = thm.endPos + res.endOffset))
+            ctx.updateEntity(thm, thm.copy(sourceText = res.token.data, endPosition = thm.endPosition + res.endOffset))
         }
       }
     }
@@ -95,7 +97,7 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
     }
   }
 
-  private def findDefStart(tokens: List[PideToken], entity: TheoryEntity, ctx: StepContext): Option[Int] = {
+  private def findDefStart(tokens: List[PideToken], entity: TheoryRecord, ctx: StepContext): Option[Int] = {
     val serials = ctx.serialsById(entity.id)
     serials flatMap { s =>
       tokens collect { case dt @ DefToken(_, serial) if serial == s => dt } match {
@@ -124,7 +126,7 @@ class LoadPideMarkupStep(override val config: Config) extends ImportStep {
       case Right(results) =>
         results foreach {
           case PosToken(CommentToken(data, commentType), offset) =>
-            ctx.addEntity(DocEntity(theory, offset - data.length, offset, data, commentType.toString))
+            ctx.addEntity(DocRecord(theory, offset - data.length, offset, data, commentType.toString))
           case _ =>
         }
     }

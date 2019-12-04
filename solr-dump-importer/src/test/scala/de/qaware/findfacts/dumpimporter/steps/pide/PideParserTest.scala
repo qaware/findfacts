@@ -1,6 +1,6 @@
 package de.qaware.findfacts.dumpimporter.steps.pide
 
-import de.qaware.findfacts.common.solr.dt.DocumentationType
+import de.qaware.findfacts.common.dt.DocKind
 import org.scalatest.{FunSuite, Matchers}
 
 class PideParserTest extends FunSuite with Matchers {
@@ -14,7 +14,7 @@ class PideParserTest extends FunSuite with Matchers {
       NameDelimToken,
       StringToken("'definition text'"))
 
-      PideParser.constantDef(tokens) should equal(Right(PosToken(Code("'definition text'"), 35)))
+    PideParser.constantDef(tokens) should equal(Right(PosToken(Code("'definition text'"), 35)))
   }
 
   test("multi-term definition") {
@@ -33,19 +33,19 @@ class PideParserTest extends FunSuite with Matchers {
   test("definition with comments and whitespace") {
     val tokens = List(
       WhitespaceToken(" "),
-      CommentToken("comment 1", DocumentationType.Meta),
-      CommentToken("comment 2", DocumentationType.Meta),
+      CommentToken("comment 1", DocKind.Meta),
+      CommentToken("comment 2", DocKind.Meta),
       WhitespaceToken(" "),
       WhereToken,
       WhitespaceToken(" "),
-      CommentToken("comment 3", DocumentationType.Meta),
+      CommentToken("comment 3", DocKind.Meta),
       StringToken("'def'")
     )
 
     PideParser.constantDef(tokens) should equal(Right(PosToken(Code("'def'"), 40)))
   }
 
-  test ("definition with for") {
+  test("definition with for") {
     val tokens = List(
       ForToken,
       DefToken("A", 1),

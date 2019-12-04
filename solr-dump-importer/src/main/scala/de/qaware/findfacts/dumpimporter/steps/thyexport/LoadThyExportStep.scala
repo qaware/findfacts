@@ -1,16 +1,16 @@
 package de.qaware.findfacts.dumpimporter.steps.thyexport
 
-import scala.language.postfixOps
-import scala.util.matching.Regex
-import scala.util.{Failure, Success}
-
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.solr.dt.{ConstEntity, FactEntity, TypeEntity}
+import de.qaware.findfacts.common.solr.{ConstRecord, FactRecord, TypeRecord}
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.findfacts.dumpimporter.steps.thyexport.IsabelleEntities.{Axiom, Theory, Thm}
 import de.qaware.findfacts.dumpimporter.steps.{ImportStep, StepContext}
 import de.qaware.findfacts.scalautils.ProgressLogger.withProgress
+
+import scala.language.postfixOps
+import scala.util.matching.Regex
+import scala.util.{Failure, Success}
 
 /** Import step to load a stable theory export.
   *
@@ -56,7 +56,8 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
 
     logger.info("Enriching theories...")
     // Enrich data by grouping by position
-    val entitiesByPos = (ctx.consts ++ ctx.facts ++ ctx.types).groupBy(e => (e.sourceFile, e.startPos, e.endPos))
+    val entitiesByPos =
+      (ctx.consts ++ ctx.facts ++ ctx.types).groupBy(e => (e.sourceFile, e.startPosition, e.endPosition))
 
     // Find related facts and constants, i.e. entities that spring from the same source positions
     (withProgress(entitiesByPos.keySet)) foreach { key =>
@@ -65,9 +66,9 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
 
       // Add every ID at this position except self.id to entities
       entities foreach {
-        case entity: ConstEntity => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
-        case entity: FactEntity => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
-        case entity: TypeEntity => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
+        case entity: ConstRecord => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
+        case entity: FactRecord => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
+        case entity: TypeRecord => ctx.updateEntity(entity, entity.copy(related = (allIds - entity.id).toArray))
       }
     }
   }
@@ -96,14 +97,14 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
       logger.whenDebugEnabled(if (axioms.isEmpty) { logger.debug(s"No constant definition for ${const.entity.name}") })
 
       // Enrich const data with axiom def
-      val entity = ConstEntity(
+      val entity = ConstRecord(
         thy.name,
         const.entity.startPos,
         const.entity.endPos,
         const.entity.name,
         const.typ.toString,
         const.typ.referencedTypes.toArray,
-        axioms.map(_.prop.term.toString),
+        axioms.map(_.prop.term.toString).mkString(" | "),
         axioms.flatMap(_.prop.term.referencedConsts)
       )
 
@@ -122,12 +123,12 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
   private def extractFacts(name: String, thms: Array[Thm], axioms: Seq[Axiom], context: StepContext): Unit = {
     thms foreach { thm =>
       context.addEntity(
-        FactEntity(
+        FactRecord(
           name,
           thm.entity.startPos,
           thm.entity.endPos,
           thm.entity.name,
-          Array(thm.prop.term.toString),
+          thm.prop.term.toString,
           thm.prop.term.referencedConsts.toArray,
           thm.deps
         ),
@@ -137,12 +138,12 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
 
     axioms foreach { ax =>
       context.addEntity(
-        FactEntity(
+        FactRecord(
           name,
           ax.entity.startPos,
           ax.entity.endPos,
           ax.entity.name,
-          Array(ax.prop.term.toString),
+          ax.prop.term.toString,
           ax.prop.term.referencedConsts.toArray,
           Array.empty
         ),
@@ -171,12 +172,12 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
         }
       }
 
-      val typeEntity = TypeEntity(
+      val typeEntity = TypeRecord(
         thy.name,
         t.entity.startPos,
         t.entity.endPos,
         t.entity.name,
-        axioms.map(_.prop.term.toString),
+        axioms.map(_.prop.term.toString).mkString(" | "),
         axioms.flatMap(_.prop.term.referencedConsts)
       )
 

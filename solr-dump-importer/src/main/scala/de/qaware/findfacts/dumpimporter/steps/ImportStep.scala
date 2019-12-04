@@ -1,10 +1,10 @@
 package de.qaware.findfacts.dumpimporter.steps
 
-import scala.collection.mutable
-
-import de.qaware.findfacts.common.solr.dt.Entity.Id
-import de.qaware.findfacts.common.solr.dt.{ConstEntity, DocEntity, Entity, FactEntity, TheoryEntity, TypeEntity}
+import de.qaware.findfacts.common.solr.Record.Id
+import de.qaware.findfacts.common.solr.{ConstRecord, DocRecord, FactRecord, Record, TheoryRecord, TypeRecord}
 import de.qaware.findfacts.dumpimporter.Config
+
+import scala.collection.mutable
 
 /** Step of the import process. */
 trait ImportStep {
@@ -30,23 +30,23 @@ trait ImportStep {
 final class StepContext(
     _serialsById: mutable.MultiMap[Id, Long] = new mutable.HashMap[Id, mutable.Set[Long]]
     with mutable.MultiMap[Id, Long],
-    _consts: mutable.Set[ConstEntity] = mutable.Set.empty,
-    _types: mutable.Set[TypeEntity] = mutable.Set.empty,
-    _facts: mutable.Set[FactEntity] = mutable.Set.empty,
-    _docs: mutable.Set[DocEntity] = mutable.Set.empty) {
+    _consts: mutable.Set[ConstRecord] = mutable.Set.empty,
+    _types: mutable.Set[TypeRecord] = mutable.Set.empty,
+    _facts: mutable.Set[FactRecord] = mutable.Set.empty,
+    _docs: mutable.Set[DocRecord] = mutable.Set.empty) {
 
-  private def addToSet(entity: Entity): Unit = entity match {
-    case e: ConstEntity => _consts.add(e)
-    case t: TypeEntity => _types.add(t)
-    case f: FactEntity => _facts.add(f)
-    case d: DocEntity => _docs.add(d)
+  private def addToSet(entity: Record): Unit = entity match {
+    case e: ConstRecord => _consts.add(e)
+    case t: TypeRecord => _types.add(t)
+    case f: FactRecord => _facts.add(f)
+    case d: DocRecord => _docs.add(d)
   }
 
-  private def removeFromSet(entity: Entity): Unit = entity match {
-    case e: ConstEntity => _consts.remove(e)
-    case t: TypeEntity => _types.remove(t)
-    case f: FactEntity => _facts.remove(f)
-    case d: DocEntity => _docs.remove(d)
+  private def removeFromSet(entity: Record): Unit = entity match {
+    case e: ConstRecord => _consts.remove(e)
+    case t: TypeRecord => _types.remove(t)
+    case f: FactRecord => _facts.remove(f)
+    case d: DocRecord => _docs.remove(d)
   }
 
   /** Adds an entity and all its isabelle serials to the context.
@@ -54,7 +54,7 @@ final class StepContext(
     * @param entity to add
     * @param serials of corresponding isabelle entities
     */
-  def addEntity(entity: Entity, serials: Seq[Long] = Seq.empty): Unit = {
+  def addEntity(entity: Record, serials: Seq[Long] = Seq.empty): Unit = {
     serials.map(_serialsById.addBinding(entity.id, _))
     addToSet(entity)
   }
@@ -64,7 +64,7 @@ final class StepContext(
     * @param old entity object
     * @param entity updated
     */
-  def updateEntity(old: Entity, entity: Entity): Unit = {
+  def updateEntity(old: Record, entity: Record): Unit = {
     // Id has to remain stable!
     if (old.id != entity.id) {
       throw new IllegalArgumentException("Id must not change when updating entities!")
@@ -81,44 +81,44 @@ final class StepContext(
     *
     * @return immutable consts set
     */
-  def consts: Set[ConstEntity] = _consts.to[Set]
+  def consts: Set[ConstRecord] = _consts.to[Set]
 
   /** Accessor for immutable view on types.
     *
     * @return immutable types set
     */
-  def types: Set[TypeEntity] = _types.to[Set]
+  def types: Set[TypeRecord] = _types.to[Set]
 
   /** Accessor for immutable view on facts.
     *
     * @return immutable facts set
     */
-  def facts: Set[FactEntity] = _facts.to[Set]
+  def facts: Set[FactRecord] = _facts.to[Set]
 
   /** Accessor for immutable view on docs.
-  *
-   * @return immutable docs set
-   */
-  def docs: Set[DocEntity] = _docs.to[Set]
+    *
+    * @return immutable docs set
+    */
+  def docs: Set[DocRecord] = _docs.to[Set]
 
   /** Accessor to look up isabelle an immutable view of serials belonging to an entity.
-  *
-   * @param id unique id of the entity to look up
-   * @return immutable set of ids
-   */
+    *
+    * @param id unique id of the entity to look up
+    * @return immutable set of ids
+    */
   def serialsById(id: Id): Set[Long] = _serialsById.getOrElse(id, mutable.Set.empty).to[Set]
 
   /** Gives an immutable set of all semantic theory entities.
     *
     * @return a set of all semantic theory entities
     */
-  def theoryEntities: Set[TheoryEntity] = consts ++ types ++ facts
+  def theoryEntities: Set[TheoryRecord] = consts ++ types ++ facts
 
   /** Gives an immutable set of all entities.
     *
     * @return a set of all entities
     */
-  def allEntities: Set[Entity] = consts ++ facts ++ types ++ docs
+  def allEntities: Set[Record] = consts ++ facts ++ types ++ docs
 }
 object StepContext {
 
