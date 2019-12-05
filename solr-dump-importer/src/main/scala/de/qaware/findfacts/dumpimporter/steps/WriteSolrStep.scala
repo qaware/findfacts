@@ -4,7 +4,7 @@ import scala.collection.JavaConverters._
 
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.dumpimporter.Config
-import de.qaware.findfacts.scalautils.Using
+import de.qaware.findfacts.scala.Using
 
 /** Step to write entities to solr.
   *

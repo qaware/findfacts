@@ -1,5 +1,7 @@
 package de.qaware.findfacts.core
 
+import scala.util.Try
+
 /** Query service interface. */
 trait QueryService {
 
@@ -8,5 +10,5 @@ trait QueryService {
     * @param query to execute
     * @return query result
     */
-  def getResults(query: Query): Either[Throwable, query.Result]
+  def getResults(query: Query): Try[query.Result]
 }

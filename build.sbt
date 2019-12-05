@@ -116,6 +116,7 @@ lazy val core = project
 // Common data types
 lazy val `common-dt` = project
   .settings(libraryDependencies += shapeless)
+  .dependsOn(`common-utils`)
 
 // Common utility
 lazy val `common-utils` = project

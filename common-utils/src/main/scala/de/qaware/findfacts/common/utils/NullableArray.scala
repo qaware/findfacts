@@ -1,4 +1,4 @@
-package de.qaware.findfacts.scalautils
+package de.qaware.findfacts.common.utils
 
 /** Handle java arrays that can be null */
 object NullableArray {

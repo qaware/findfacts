@@ -6,7 +6,6 @@ import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.findfacts.dumpimporter.steps.thyexport.IsabelleEntities.{Axiom, Theory, Thm}
 import de.qaware.findfacts.dumpimporter.steps.{ImportStep, StepContext}
-import de.qaware.findfacts.scalautils.ProgressLogger.withProgress
 
 import scala.language.postfixOps
 import scala.util.matching.Regex

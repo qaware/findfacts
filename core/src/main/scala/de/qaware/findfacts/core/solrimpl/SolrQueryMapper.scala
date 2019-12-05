@@ -3,11 +3,30 @@ package de.qaware.findfacts.core.solrimpl
 import de.qaware.findfacts.common.dt.EtField
 import de.qaware.findfacts.common.solr.SolrSchema
 import de.qaware.findfacts.core.solrimpl.SolrQuery.BiConnective
-import de.qaware.findfacts.core.{AbstractFQ, AllInResult, AnyInResult, FacetQuery, Filter, FilterComplement, FilterIntersection, FilterQuery, FilterTerm, FilterUnion, Id, InRange, Number, Query, StringExpression}
-import de.qaware.findfacts.scalautils.EitherUtils
-import org.apache.solr.client.solrj
-
+import de.qaware.findfacts.core.{
+  AbstractFQ,
+  AllInResult,
+  AnyInResult,
+  FacetQuery,
+  Filter,
+  FilterComplement,
+  FilterIntersection,
+  FilterQuery,
+  FilterTerm,
+  FilterUnion,
+  Id,
+  InRange,
+  Number,
+  Query,
+  StringExpression
+}
+// scalastyle:off
+import de.qaware.findfacts.common.utils.TryUtils._
+// scalastyle:on
 import scala.language.postfixOps
+import scala.util.Try
+
+import org.apache.solr.client.solrj
 
 /** Solr-specific query constants. */
 object SolrQuery {
@@ -55,14 +74,13 @@ class SolrFilterTermMapper {
       fq: AbstractFQ,
       field: EtField,
       connective: BiConnective) = {
-    queryService.getResults(FilterQuery(fq)) match {
-      case Left(err) => Left(err)
-      case Right(Vector()) =>
+    queryService.getResults(FilterQuery(fq)) map {
+      case Vector() =>
         connective match {
-          case SolrQuery.And => Right(s"${SolrSchema.getFieldName(field)}:${SolrQuery.All}")
-          case SolrQuery.Or => Right(s"${SolrQuery.Not}${SolrSchema.getFieldName(field)}:${SolrQuery.All}")
+          case SolrQuery.And => s"${SolrSchema.getFieldName(field)}:${SolrQuery.All}"
+          case SolrQuery.Or => s"${SolrQuery.Not}${SolrSchema.getFieldName(field)}:${SolrQuery.All}"
         }
-      case Right(elems) => Right(s"${SolrSchema.getFieldName(field)}:(${elems.map(_.id).mkString(connective.str)})")
+      case elems => s"${SolrSchema.getFieldName(field)}:(${elems.map(_.id).mkString(connective.str)})"
     }
   }
 
@@ -72,11 +90,11 @@ class SolrFilterTermMapper {
     * @param filter term
     * @return query string or exception if rescursive call failed
     */
-  def buildFilterQuery(queryService: SolrQueryService, filter: FilterTerm): Either[Throwable, String] = filter match {
-    case Id(inner) => Right(inner)
-    case Number(inner) => Right(inner.toString)
-    case StringExpression(inner) => Right(inner)
-    case InRange(from, to) => Right(s"[$from TO $to]")
+  def buildFilterQuery(queryService: SolrQueryService, filter: FilterTerm): Try[String] = filter match {
+    case Id(inner) => Try(inner)
+    case Number(inner) => Try(inner.toString)
+    case StringExpression(inner) => Try(inner)
+    case InRange(from, to) => Try(s"[$from TO $to]")
     case AnyInResult(fq, field) => buildInnerQuery(queryService, fq, field, SolrQuery.Or)
     case AllInResult(fq, field) => buildInnerQuery(queryService, fq, field, SolrQuery.And)
   }
@@ -94,20 +112,30 @@ class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
     * @param filter query
     * @return query strings that can be cached individually
     */
-  def buildFilter(queryService: SolrQueryService, filter: AbstractFQ): Either[Throwable, Seq[String]] = filter match {
+  def buildFilter(queryService: SolrQueryService, filter: AbstractFQ): Try[Seq[String]] = filter match {
+    // format: off
     case Filter(fieldTerms) =>
-      EitherUtils.sequence(fieldTerms.mapValues(termMapper.buildFilterQuery(queryService, _)) map {
-        case (field, term) => term.right.map(t => s"${SolrSchema.getFieldName(field)}:$t")
-      } toSeq)
-    // TODO utilize filter caches better by breaking fqs into largest re-used chunks
+      for {
+        (field, filter) <- fieldTerms.toSeq
+      } yield for {
+        solrFilters <- termMapper.buildFilterQuery(queryService, filter)
+      } yield s"${SolrSchema.getFieldName(field)}:$solrFilters"
+    // TODO utilize filter caches better by breaking fqs into proper chunks
     case FilterIntersection(f1, f2, fn @ _*) =>
-      EitherUtils.sequence((f1 +: f2 +: fn).map(buildFilter(queryService, _))).map(_.flatten)
+      for {
+        filter <- f1 +: f2 +: fn
+      } yield for {
+        solrFilters <- buildFilter(queryService, filter)
+      } yield solrFilters
     case FilterUnion(f1, f2, fn @ _*) =>
-      EitherUtils
-        .sequence((f1 +: f2 +: fn).map(buildFilter(queryService, _)))
-        .map(_.mkString(SolrQuery.Or.str))
-        .map(s => Seq(s"($s)"))
+      val disjunctFilters: Try[Seq[String]] = for {
+        filter <- f1 +: f2 +: fn
+      } yield for {
+        filterQuery <- buildFilter(queryService, filter).map(_.mkString(SolrQuery.And.str))
+      } yield filterQuery
+      disjunctFilters.map(fs => Seq(fs.mkString(SolrQuery.Or.str)))
     case FilterComplement(filter) => buildFilter(queryService, filter).map(f => Seq(s"(${SolrQuery.Not}$f)"))
+    // format: on
   }
 }
 
@@ -123,9 +151,9 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
     * @param query to map
     * @return solrquery representation that can be fed to a solrJ client
     */
-  def buildQuery(queryService: SolrQueryService, query: Query): Either[Throwable, solrj.SolrQuery] = query match {
+  def buildQuery(queryService: SolrQueryService, query: Query): Try[solrj.SolrQuery] = query match {
     case FacetQuery(filter, field) =>
-      filterMapper.buildFilter(queryService, filter).right map { fqs =>
+      filterMapper.buildFilter(queryService, filter) map { fqs =>
         new solrj.SolrQuery()
           .setQuery(SolrQuery.QueryAll)
           .setFilterQueries(fqs: _*)
@@ -135,7 +163,7 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
           .setRows(0)
       }
     case FilterQuery(filter) =>
-      filterMapper.buildFilter(queryService, filter).right map { fqs =>
+      filterMapper.buildFilter(queryService, filter) map { fqs =>
         new solrj.SolrQuery()
           .setQuery(SolrQuery.QueryAll)
           .setFilterQueries(fqs: _*)

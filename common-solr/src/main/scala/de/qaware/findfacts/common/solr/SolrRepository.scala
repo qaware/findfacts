@@ -3,14 +3,14 @@ package de.qaware.findfacts.common.solr
 import java.net.URL
 import java.nio.file.{Files, StandardCopyOption}
 
+import scala.collection.JavaConverters._
+
 import better.files.{File, Resource}
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.scalautils.Using
+import de.qaware.findfacts.scala.Using
 import org.apache.solr.client.solrj.SolrClient
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
 import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}
-
-import scala.collection.JavaConverters._
 
 /** Repository to provide connections to different types of solr instances. */
 sealed trait SolrRepository {
@@ -59,7 +59,7 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
         logger.info("Writing solr config file {}", file)
         file.createDirectoryIfNotExists()
         Files.copy(stream, file.path, StandardCopyOption.REPLACE_EXISTING)
-      })
+    })
 
     new EmbeddedSolrServer(solrHome.path, CORE_NAME)
   }

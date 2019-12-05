@@ -92,7 +92,7 @@ final case class FilterComplement(filter: AbstractFQ) extends AbstractFQ
   * @param field field to facet on
   */
 final case class FacetQuery(filter: AbstractFQ, field: EtField) extends Query {
-  override type Result = Map[field.FieldType, Long]
+  override type Result = Map[field.BaseType, Long]
 }
 
 /** Query to filter for results.

@@ -1,13 +1,13 @@
 package de.qaware.findfacts.common.solr
 
+import scala.annotation.meta.field
+
 import de.qaware.findfacts.common.dt.EtKind
 import de.qaware.findfacts.common.solr.Record.Id
-
-import scala.annotation.meta.field
+import de.qaware.findfacts.common.utils.NullableArray.deep
 // scalastyle:off UnderscoreImportChecker
 import de.qaware.findfacts.common.solr.SolrSchema._
 // scalastyle:on UnderscoreImportChecker
-import de.qaware.findfacts.scalautils.NullableArray.deep
 import org.apache.solr.client.solrj.beans.Field
 import org.apache.solr.update.processor.Lookup3Signature
 

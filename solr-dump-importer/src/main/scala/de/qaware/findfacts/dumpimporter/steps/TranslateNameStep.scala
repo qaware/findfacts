@@ -1,13 +1,13 @@
 package de.qaware.findfacts.dumpimporter.steps
 
+import scala.collection.mutable
+
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.solr.Record.Id
 import de.qaware.findfacts.common.solr.TheoryRecord
+import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.pure.PureSyntax
-import de.qaware.findfacts.scalautils.ProgressLogger.withProgress
-
-import scala.collection.mutable
 
 /** Step to translate element names to unique ids.
   *

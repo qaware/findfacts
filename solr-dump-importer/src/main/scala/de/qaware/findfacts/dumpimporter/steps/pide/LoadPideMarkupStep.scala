@@ -5,7 +5,7 @@ import de.qaware.findfacts.common.solr.{ConstRecord, DocRecord, TheoryRecord}
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.findfacts.dumpimporter.steps.{ImportStep, StepContext}
-import de.qaware.findfacts.scalautils.ProgressLogger.withProgress
+import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
 import de.qaware.findfacts.yxml.YxmlParser
 
 import scala.collection.mutable
