@@ -1,15 +1,16 @@
 package de.qaware.findfacts.dumpimporter.steps.thyexport
 
+import scala.language.postfixOps
+import scala.util.matching.Regex
+import scala.util.{Failure, Success}
+
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.solr.{ConstRecord, FactRecord, TypeRecord}
+import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.dataaccess.RepositoryReader
 import de.qaware.findfacts.dumpimporter.steps.thyexport.IsabelleEntities.{Axiom, Theory, Thm}
 import de.qaware.findfacts.dumpimporter.steps.{ImportStep, StepContext}
-
-import scala.language.postfixOps
-import scala.util.matching.Regex
-import scala.util.{Failure, Success}
 
 /** Import step to load a stable theory export.
   *
@@ -59,7 +60,7 @@ class LoadThyExportStep(override val config: Config) extends ImportStep {
       (ctx.consts ++ ctx.facts ++ ctx.types).groupBy(e => (e.sourceFile, e.startPosition, e.endPosition))
 
     // Find related facts and constants, i.e. entities that spring from the same source positions
-    (withProgress(entitiesByPos.keySet)) foreach { key =>
+    withProgress(entitiesByPos.keySet) foreach { key =>
       val entities = entitiesByPos(key)
       val allIds = entities.map(_.id)
 
