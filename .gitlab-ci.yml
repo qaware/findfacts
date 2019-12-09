@@ -18,6 +18,8 @@ build:
     - gunzip elm.gz
     - chmod +x elm
     - mv elm /usr/local/bin/
-    - ./sbt clean scalastyle coverage test coverageReport coverageOff
+    - ./sbt clean
+    - ./sbt scalastyle || true
+    - ./sbt coverage test coverageReport coverageOff
     - ./sbt scapegoat || true
     - ./sbt sonarScan -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_TOKEN

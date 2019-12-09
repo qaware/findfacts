@@ -20,7 +20,7 @@ trait Field {
    */
   protected case class FieldImplicits[A]()(
     implicit val fromString: FromString[A],
-    implicit val toJson: Writes[A],
+    implicit val toJson: Writes[A]
   )
 
   /** Member for implicit wrapper. */

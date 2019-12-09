@@ -39,7 +39,7 @@ object SolrDocMapper {
   implicit def hlistSolrDocMapper[F <: EtField, K, H, T <: HList](
       implicit
       witness: Witness.Aux[F],
-      tMapper: SolrDocMapper[T],
+      tMapper: SolrDocMapper[T]
   ): SolrDocMapper[FieldType[K, H @@ F] :: T] = {
     val field: EtField = witness.value
     instance { doc =>
