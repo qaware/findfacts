@@ -5,7 +5,7 @@ import de.qaware.findfacts.common.dt.EtFields._
 // scalastyle:on
 
 /** Fields for all entities. */
-trait BaseEt {
+sealed trait BaseEt {
 
   /** Unique id. */
   val id: Id.FieldType
@@ -27,7 +27,7 @@ trait BaseEt {
 }
 
 /** Fields for Entities that from the semantic theory. */
-trait TheoryEt extends BaseEt {
+sealed trait TheoryEt extends BaseEt {
 
   /** Name of the entity. */
   val name: Name.FieldType
@@ -48,7 +48,7 @@ trait TheoryEt extends BaseEt {
   * @param constantType type of the constant
   * @param typeUses other entities that the type of the constant references
   */
-case class ConstantEt(
+final case class ConstantEt(
     override val id: Id.FieldType,
     override val sourceFile: SourceFile.FieldType,
     override val startPosition: StartPosition.FieldType,
@@ -68,7 +68,7 @@ case class ConstantEt(
   *
   * @param documentationKind kind of documentation
   */
-case class DocumentationEt(
+final case class DocumentationEt(
     override val id: Id.FieldType,
     override val sourceFile: SourceFile.FieldType,
     override val startPosition: StartPosition.FieldType,
@@ -83,7 +83,7 @@ case class DocumentationEt(
   *
   * @param proofUses entities that the proof references
   */
-case class FactEt(
+final case class FactEt(
     override val id: Id.FieldType,
     override val sourceFile: SourceFile.FieldType,
     override val startPosition: StartPosition.FieldType,
@@ -99,7 +99,7 @@ case class FactEt(
 }
 
 /** Type entity. */
-case class TypeEt(
+final case class TypeEt(
     override val id: Id.FieldType,
     override val sourceFile: SourceFile.FieldType,
     override val startPosition: StartPosition.FieldType,

@@ -162,12 +162,13 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
           .setFacetLimit(Int.MaxValue)
           .setRows(0)
       }
-    case FilterQuery(filter) =>
+    case FilterQuery(filter, max) =>
       filterMapper.buildFilter(queryService, filter) map { fqs =>
         new solrj.SolrQuery()
           .setQuery(SolrQuery.QueryAll)
           .setFilterQueries(fqs: _*)
           .setFacet(false)
+          .setRows(max)
       }
   }
 }

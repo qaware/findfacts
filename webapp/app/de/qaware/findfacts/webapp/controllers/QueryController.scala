@@ -2,36 +2,21 @@ package de.qaware.findfacts.webapp.controllers
 
 import scala.language.postfixOps
 
-import com.google.inject.{Inject, Singleton}
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.webapp.model.ResultEntity
-import io.swagger.annotations.{
-  Api,
-  ApiImplicitParam,
-  ApiImplicitParams,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiResponses
-}
-import play.api.libs.json.{JsError, JsSuccess, Json, Reads}
+import de.qaware.findfacts.common.dt.BaseEt
+import de.qaware.findfacts.core.{FacetQuery, FilterQuery, Query, QueryService}
+import de.qaware.findfacts.webapp.JsonMapping.{entityWrites, queryReads}
+import io.swagger.annotations.{Api, ApiImplicitParam, ApiImplicitParams, ApiOperation, ApiParam, ApiResponse, ApiResponses}
+import play.api.libs.json.{JsError, JsSuccess, Json}
 import play.api.mvc.{AbstractController, AnyContent, ControllerComponents, Request, Result}
-
-sealed trait Query
-final case class Kind(of: String) extends Query
-final case class Not(query: Query) extends Query
 
 /** Controller for the query api.
   *
   * @param cc injected components
   */
 @Api(value = "/")
-@Singleton class QueryController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
+class QueryController(cc: ControllerComponents, queryService: QueryService) extends AbstractController(cc) {
   private val logger = Logger[QueryController]
-
-  implicit val notReads: Reads[Not] = Json.reads[Not]
-  implicit val kindReads: Reads[Kind] = Json.reads[Kind]
-  implicit val queryReads: Reads[Query] = Json.reads[Query]
 
   protected def parseQuery(request: Request[AnyContent]): Either[Result, Query] = {
     request.body.asJson match {
@@ -48,15 +33,20 @@ final case class Not(query: Query) extends Query
 
   protected def decode(encodedQuery: String): Either[Result, Query] = ???
 
-  protected def executeQuery(query: Query): Result = {
-    // TODO fire query against solr
-    Ok(Json.toJson(List("id1", "id2")))
+  protected def executeQuery(query: Query): Result = query match {
+    case f: FilterQuery =>
+      val result = queryService.getResults(f)
+      result.map(e => Ok(Json.toJson(e))).getOrElse(BadRequest(s"Internal server error"))
+    case f @ FacetQuery(_, field) =>
+      val result = queryService.getFacetResults[field.BaseType](f)
+      import field.implicits.toJson
+      result.map(e => Ok(Json.toJson(e))).getOrElse(BadRequest(s"Internal server error"))
   }
 
   @ApiOperation(
     value = "Search query",
     notes = "Accepts a search query and returns list of all results.",
-    response = classOf[ResultEntity],
+    response = classOf[BaseEt],
     responseContainer = "List",
     httpMethod = "POST"
   )
@@ -100,7 +90,7 @@ final case class Not(query: Query) extends Query
   @ApiOperation(
     value = "Executes url-encoded query",
     notes = "Decodes query-url and executes query",
-    response = classOf[ResultEntity],
+    response = classOf[BaseEt],
     responseContainer = "List",
     httpMethod = "GET"
   )
@@ -112,7 +102,7 @@ final case class Not(query: Query) extends Query
   @ApiOperation(
     value = "Retrieves a single entity",
     notes = "Retrieves information about a single entity",
-    response = classOf[ResultEntity],
+    response = classOf[BaseEt],
     httpMethod = "GET")
   @ApiResponses(Array(new ApiResponse(code = 404, message = "Entity not found")))
   def entity(@ApiParam(value = "ID of result entity to fetch", required = true) id: String) = TODO

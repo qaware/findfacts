@@ -52,10 +52,12 @@ val cmdOpts = "com.github.scopt" %% "scopt" % "3.7.1"
 
 // Project structure: root project for common settings and to aggregate tasks
 lazy val root = (project in file("."))
-  .settings(sonarSettings)
+  .settings(
+    sonarSettings,
+    aggregate in sonarScan := false
+  )
   // Aggregate all modules
-  .aggregate(`solr-dump-importer`, `webapp`, `yxml-parser`, core, `common-dt`, `common-utils`, `common-solr`)
-  .settings(aggregate in sonarScan := false)
+  .aggregate(webapp, `solr-dump-importer`, `yxml-parser`, core, `common-dt`, `common-utils`, `common-solr`)
 
 // Importer for isabelle dumps
 lazy val `solr-dump-importer` = project
@@ -77,8 +79,7 @@ lazy val `webapp` = project
   .settings(
     // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
     javaOptions in Runtime += "-Dlog4j.configurationFile=webapp/conf/log4j2.properties",
-    // Add elm sources to assets
-    unmanagedSourceDirectories in Assets += baseDirectory.value / "elm/src",
+
     libraryDependencies ++= loggingBackend ++ Seq(
       wire,
       guice exclude ("org.slf4j", "slf4j-api"),
@@ -90,8 +91,14 @@ lazy val `webapp` = project
     ),
   )
   .enablePlugins(PlayScala)
-  .disablePlugins(PlayLogback)
-  .dependsOn(core)
+  .disablePlugins(PlayLogback, SbtElm)
+  .dependsOn(core, `webapp-ui`)
+
+lazy val `webapp-ui` = project
+  .settings(
+    // Add elm sources to assets
+    unmanagedSourceDirectories in Assets += baseDirectory.value / "src/elm",
+  ).enablePlugins(SbtWeb)
 
 // Parser for yxml
 lazy val `yxml-parser` = project
@@ -115,7 +122,12 @@ lazy val core = project
 
 // Common data types
 lazy val `common-dt` = project
-  .settings(libraryDependencies += shapeless)
+  .settings(
+    libraryDependencies ++= Seq(
+      shapeless,
+      "com.typesafe.play" %% "play-json" % "2.7.4"
+    )
+  )
   .dependsOn(`common-utils`)
 
 // Common utility

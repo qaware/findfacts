@@ -6,7 +6,7 @@ import scala.util.Try
 
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.EtFields.Kind
-import de.qaware.findfacts.common.dt.{ConstantEt, DocumentationEt, EtKind, FactEt, TypeEt}
+import de.qaware.findfacts.common.dt.{BaseEt, ConstantEt, DocumentationEt, EtKind, FactEt, TypeEt}
 import de.qaware.findfacts.common.solr.{SolrRepository, SolrSchema}
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, Query, QueryService}
 import de.qaware.findfacts.scala.Using
@@ -27,11 +27,11 @@ class SolrQueryService(connection: SolrRepository, mapper: SolrQueryMapper) exte
           .getFacetField(SolrSchema.getFieldName(field))
           .getValues
           .asScala
-          .groupBy(e => field.fromString(e.getName).get)
+          .groupBy(e => field.implicits.fromString(e.getName).get)
           .mapValues(_.head.getCount)
           .asInstanceOf[query.Result]
       }
-    case FilterQuery(_) =>
+    case FilterQuery(_, _) =>
       val entities = response.getResults.asScala map { solrDoc =>
         for {
           kind <- EtKind.fromString(solrDoc.getFieldValue(SolrSchema.getFieldName(Kind)).toString)
@@ -44,10 +44,11 @@ class SolrQueryService(connection: SolrRepository, mapper: SolrQueryMapper) exte
           et <- etMapper.mapSolrDocument(solrDoc)
         } yield et
       }
+      response.getNextCursorMark
       Try { entities.map(_.get).toVector.asInstanceOf[query.Result] }
   }
 
-  override def getResults(query: Query): Try[query.Result] = {
+  def getResults(query: Query): Try[query.Result] = {
     val res = for {
       solrQuery <- mapper.buildQuery(this, query)
       solrResult <- Using(connection.solrConnection()) { solr =>
@@ -65,4 +66,8 @@ class SolrQueryService(connection: SolrRepository, mapper: SolrQueryMapper) exte
 
     res
   }
+
+  override def getFacetResults[A](facetQuery: FacetQuery): Try[Map[A, Long]] =
+    getResults(facetQuery).asInstanceOf[Try[Map[A, Long]]]
+  override def getResults(filterQuery: FilterQuery): Try[Vector[BaseEt]] = getResults(filterQuery)
 }

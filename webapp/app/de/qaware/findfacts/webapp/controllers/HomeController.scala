@@ -8,7 +8,7 @@ import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponent
   *
   * @param cc components of this controller
   */
-@Singleton class HomeController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
+final class HomeController (cc: ControllerComponents) extends AbstractController(cc) {
 
   /** Deliver application. */
   def index(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>

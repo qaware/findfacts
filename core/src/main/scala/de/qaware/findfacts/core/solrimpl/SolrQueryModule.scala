@@ -10,6 +10,7 @@ trait SolrQueryModule extends QueryModule {
   /** Solr repository has to be provided. */
   def repository: SolrRepository
 
+  // Internal modules
   private lazy val solrTermMapper: SolrFilterTermMapper = wire[SolrFilterTermMapper]
   private lazy val solrFilterMapper: SolrFilterMapper = wire[SolrFilterMapper]
   private lazy val solrQueryMapper: SolrQueryMapper = wire[SolrQueryMapper]

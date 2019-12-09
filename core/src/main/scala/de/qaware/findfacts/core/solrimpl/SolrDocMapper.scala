@@ -6,7 +6,7 @@ import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.Try
 
-import de.qaware.findfacts.common.dt.{EtField, MultiValuedEtField}
+import de.qaware.findfacts.common.dt.{EtField, MultiValuedField}
 import de.qaware.findfacts.common.solr.SolrSchema
 import org.apache.solr.common.SolrDocument
 import shapeless.labelled.FieldType
@@ -49,9 +49,9 @@ object SolrDocMapper {
 
         val head = (solrField match {
           // Solr uses null values for missing fields or empty multi-valued fields
-          case null if field.isInstanceOf[MultiValuedEtField[_]] => List.empty
+          case null if field.isInstanceOf[MultiValuedField] => List.empty
           case null => throw new IllegalArgumentException(s"Doc did not contain field $fieldName")
-          case solrField: util.List[_] if field.isInstanceOf[MultiValuedEtField[_]] => solrField.asScala.toList
+          case solrField: util.List[_] if field.isInstanceOf[MultiValuedField] => solrField.asScala.toList
           case _ => solrField
         }).asInstanceOf[FieldType[K, H @@ F]]
 
