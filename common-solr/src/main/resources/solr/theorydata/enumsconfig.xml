@@ -6,4 +6,9 @@
         <value>Fact</value>
         <value>Documentation</value>
     </enum>
+    <enum name="DocumentationKind">
+        <value>Meta</value>
+        <value>Inline</value>
+        <value>Latex</value>
+    </enum>
 </enumsConfig>

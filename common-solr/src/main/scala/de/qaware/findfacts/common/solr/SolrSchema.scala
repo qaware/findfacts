@@ -1,6 +1,6 @@
 package de.qaware.findfacts.common.solr
 
-import de.qaware.findfacts.common.dt.{EtField, EtFields}
+import de.qaware.findfacts.common.dt.EtField
 
 /** All solr fields. */
 object SolrSchema {
@@ -28,19 +28,19 @@ object SolrSchema {
     * @return string name
     */
   def getFieldName(field: EtField): String = field match {
-    case EtFields.Id => Id
-    case EtFields.Kind => Kind
-    case EtFields.SourceFile => SourceFile
-    case EtFields.StartPosition => StartPosition
-    case EtFields.EndPosition => EndPosition
-    case EtFields.Name => Name
-    case EtFields.Proposition => Proposition
-    case EtFields.SourceText => SourceText
-    case EtFields.ConstantType => ConstantType
-    case EtFields.PropositionUses => PropositionUses
-    case EtFields.TypeUses => TypeUses
-    case EtFields.Related => Related
-    case EtFields.ProofUses => ProofUses
-    case EtFields.DocumentationKind => DocumentationKind
+    case EtField.Id => Id
+    case EtField.Kind => Kind
+    case EtField.SourceFile => SourceFile
+    case EtField.StartPosition => StartPosition
+    case EtField.EndPosition => EndPosition
+    case EtField.Name => Name
+    case EtField.Proposition => Proposition
+    case EtField.SourceText => SourceText
+    case EtField.ConstantType => ConstantType
+    case EtField.PropositionUses => PropositionUses
+    case EtField.TypeUses => TypeUses
+    case EtField.Related => Related
+    case EtField.ProofUses => ProofUses
+    case EtField.DocumentationKind => DocumentationKind
   }
 }

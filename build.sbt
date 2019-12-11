@@ -7,9 +7,6 @@ ThisBuild / Test / parallelExecution := false
 // Enable compiler optimizations
 ThisBuild / scalacOptions ++= Seq(
   "-deprecation",
-  "-opt:l:method",
-  "-opt:l:inline",
-  "-opt-inline-from:l:method,inline"
 )
 // Missing resolvers for restlet stuff
 ThisBuild / resolvers ++= Seq(
@@ -49,6 +46,14 @@ exclude ("org.slf4j", "slf4j-api"),
 )
 val shapeless = "com.chuusai" %% "shapeless" % "2.3.3"
 val cmdOpts = "com.github.scopt" %% "scopt" % "3.7.1"
+val circeVersion = "0.12.0"
+val circeCore = "io.circe" %% "circe-core" % circeVersion
+val circeGeneric = "io.circe" %% "circe-generic"
+val circe = Seq(
+  circeCore,
+  circeGeneric,
+  "io.circe" %% "circe-parser" % circeVersion
+)
 
 // Project structure: root project for common settings and to aggregate tasks
 lazy val root = (project in file("."))
@@ -79,16 +84,16 @@ lazy val `webapp` = project
   .settings(
     // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
     javaOptions in Runtime += "-Dlog4j.configurationFile=webapp/conf/log4j2.properties",
-
-    libraryDependencies ++= loggingBackend ++ Seq(
+    libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
       wire,
       guice exclude ("org.slf4j", "slf4j-api"),
+      "com.dripower" %% "play-circe" % "2712.0",
       "org.scalatestplus.play" %% "scalatestplus-play" % "4.0.3" % Test exclude ("org.slf4j", "slf4j-api"),
       "io.swagger" %% "swagger-play2" % "1.7.1"
         exclude("com.google.guava", "guava")
         exclude("com.typesafe.play", "play-logback_2.12"),
-      "org.webjars" % "swagger-ui" % "3.24.3"
-    ),
+      "org.webjars" % "swagger-ui" % "2.2.10"
+    )),
   )
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLogback, SbtElm)
@@ -115,6 +120,7 @@ lazy val core = project
     libraryDependencies ++= loggingBackend.map(_ % "it") ++ Seq(
       wire,
       shapeless,
+      circeGeneric,
       scalatest % "it,test"
     )
   )
@@ -125,6 +131,7 @@ lazy val `common-dt` = project
   .settings(
     libraryDependencies ++= Seq(
       shapeless,
+      circeCore,
       "com.typesafe.play" %% "play-json" % "2.7.4"
     )
   )

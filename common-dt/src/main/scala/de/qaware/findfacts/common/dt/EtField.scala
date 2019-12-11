@@ -1,16 +1,17 @@
 package de.qaware.findfacts.common.dt
 
-import scala.collection.immutable
-import scala.util.Try
-
 import de.qaware.findfacts.common.utils.FromString
 import enumeratum.{Enum, EnumEntry}
+import io.circe.{KeyDecoder, KeyEncoder}
+
+import scala.collection.immutable
+import scala.util.Try
 
 /** Seal field types so only existing fields can be used. */
 sealed trait EtField extends Field with EnumEntry
 
 /** Typelevel representation of entity fields. */
-object EtFields extends Enum[EtField] {
+object EtField extends Enum[EtField] {
 
   /** Set of all fields. */
   override val values: immutable.IndexedSeq[EtField] = findValues
@@ -58,7 +59,7 @@ object EtFields extends Enum[EtField] {
   }
 
   /** Source text in isabelle thy. */
-  case object SourceText extends SingleValuedField with EtField {
+  case object SourceText extends OptionalField with EtField {
     type BaseType = String
     override val implicits = FieldImplicits()
   }
@@ -99,11 +100,14 @@ object EtFields extends Enum[EtField] {
     override val implicits = FieldImplicits()
   }
 
-  /** Implicit to get objects from string.
-    *
-    * @return FromString for EtField
-    */
-  implicit def fromString: FromString[EtField] = FromString.instance { s =>
+  /** Implicit to get objects from string. */
+  implicit val fromString: FromString[EtField] = FromString.instance { s =>
     Try(this.values.find(_.toString == s).getOrElse(throw new IllegalArgumentException(s"No such enum value: $s")))
   }
+
+  /** Implicit for json decoding. */
+  implicit val keyDecoder: KeyDecoder[EtField] = KeyDecoder.instance(fromString(_).toOption)
+
+  /** Implicit for json encoding. */
+  implicit val keyEncoder: KeyEncoder[EtField] = KeyEncoder.instance(_.toString)
 }

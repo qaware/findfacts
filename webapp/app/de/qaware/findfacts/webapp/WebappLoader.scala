@@ -7,6 +7,7 @@ import com.softwaremill.macwire.wire
 import de.qaware.findfacts.common.solr.{RemoteSolr, SolrRepository}
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
+import de.qaware.findfacts.webapp.utils.JsonUrlCodec
 import play.api.ApplicationLoader.Context
 import play.api.mvc.EssentialFilter
 import play.api.routing.Router
@@ -18,14 +19,14 @@ import router.Routes
 
 /** Loader that can dynamically load wired up application. */
 class WebappLoader extends ApplicationLoader {
-  override def load(context: Context): Application = new WebappComponents(context).application
+  override def load(context: Context): Application = new WebappModule(context).application
 }
 
 /** DI Module for configured webapp.
   *
   * @param context play context
   */
-class WebappComponents(context: Context)
+class WebappModule(context: Context)
     extends BuiltInComponentsFromContext(context)
     with SolrQueryModule
     with AssetsComponents
@@ -36,7 +37,9 @@ class WebappComponents(context: Context)
   }
 
   // Connect to remote solr.
-  override lazy val repository: SolrRepository = RemoteSolr(new URL("http://localhost:8983/theorydata"))
+  override lazy val repository: SolrRepository = RemoteSolr(new URL("http://localhost:8983/solr/theorydata"))
+
+  private val urlEncoder: JsonUrlCodec = wire[JsonUrlCodec]
 
   // Wire up controllers for the router
   private lazy val homeController: HomeController = wire[HomeController]

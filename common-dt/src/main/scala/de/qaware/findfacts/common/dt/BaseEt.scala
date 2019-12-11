@@ -1,7 +1,7 @@
 package de.qaware.findfacts.common.dt
 
 // scalastyle:off
-import de.qaware.findfacts.common.dt.EtFields._
+import de.qaware.findfacts.common.dt.EtField._
 // scalastyle:on
 
 /** Fields for all entities. */

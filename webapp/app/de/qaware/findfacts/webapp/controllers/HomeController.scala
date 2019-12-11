@@ -1,6 +1,5 @@
 package de.qaware.findfacts.webapp.controllers
 
-import com.google.inject.{Inject, Singleton}
 import de.qaware.findfacts.webapp.views
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, Request}
 
@@ -8,7 +7,7 @@ import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponent
   *
   * @param cc components of this controller
   */
-final class HomeController (cc: ControllerComponents) extends AbstractController(cc) {
+final class HomeController(cc: ControllerComponents) extends AbstractController(cc) {
 
   /** Deliver application. */
   def index(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>

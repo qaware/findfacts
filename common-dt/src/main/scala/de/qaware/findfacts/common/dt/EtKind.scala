@@ -1,8 +1,9 @@
 package de.qaware.findfacts.common.dt
 
-import scala.util.Try
-
 import de.qaware.findfacts.common.utils.FromString
+import io.circe.{Decoder, Encoder}
+
+import scala.util.Try
 
 /** Kinds of entities. */
 object EtKind extends Enumeration {
@@ -19,11 +20,14 @@ object EtKind extends Enumeration {
   /** Comments, sections, titles etc. */
   final val Documentation = Value("Documentation")
 
-  /** [[FromString]] for this enum.
-    *
-    * @return new [[FromString]]
-    */
-  implicit def fromString: FromString[this.Value] = FromString.instance { s =>
-    Try(EtKind.values.find(_.toString == s).getOrElse(throw new IllegalArgumentException(s"Enum does not contain $s")))
+  /** [[FromString]] for this enum. */
+  implicit val fromString: FromString[this.Value] = FromString.instance { s =>
+    Try(this.values.find(_.toString == s).getOrElse(throw new IllegalArgumentException(s"Enum does not contain $s")))
   }
+
+  /** Json encoding for this enums variants. */
+  implicit val jsonEncoder: Encoder[this.Value] = Encoder.encodeString.contramap[this.Value](_.toString)
+
+  /** Json decoding for this enums variants. */
+  implicit val jsonDecoder: Decoder[this.Value] = Decoder.decodeString.emapTry(fromString.apply)
 }

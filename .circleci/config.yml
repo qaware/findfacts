@@ -12,7 +12,7 @@ jobs:
       - checkout
       - restore_cache:
           key: sbt-cache
-      - run: ./sbt compile test
+      - run: ./sbt clean compile test
       - save_cache:
           key: sbt-cache
           paths:

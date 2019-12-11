@@ -8,7 +8,7 @@
         <field name="kind" type="entity_kind" required="true" docValues="true" multiValued="false"/>
         <field name="name" type="string" multiValued="false"/>
         <field name="const_type" type="string" multiValued="false"/>
-        <field name="doc_type" type="string" multiValued="false"/>
+        <field name="doc_kind" type="doc_kind" multiValued="false"/>
         <field name="prop" type="text_general" uninvertible="false" multiValued="false"/>
         <field name="source_text" type="text_general" uninvertible="false" multiValued="false"/>
         <field name="uses" type="string" uninvertible="false" multiValued="true"/>
@@ -37,5 +37,7 @@
         </fieldType>
         <fieldType name="entity_kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
                    enumName="EntityKind"/>
+        <fieldType name="doc_kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
+                   enumName="DocumentationKind"/>
     </types>
 </schema>

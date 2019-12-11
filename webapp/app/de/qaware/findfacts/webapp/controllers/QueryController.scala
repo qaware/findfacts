@@ -1,46 +1,50 @@
 package de.qaware.findfacts.webapp.controllers
 
-import scala.language.postfixOps
-
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.BaseEt
-import de.qaware.findfacts.core.{FacetQuery, FilterQuery, Query, QueryService}
-import de.qaware.findfacts.webapp.JsonMapping.{entityWrites, queryReads}
-import io.swagger.annotations.{Api, ApiImplicitParam, ApiImplicitParams, ApiOperation, ApiParam, ApiResponse, ApiResponses}
-import play.api.libs.json.{JsError, JsSuccess, Json}
-import play.api.mvc.{AbstractController, AnyContent, ControllerComponents, Request, Result}
+import de.qaware.findfacts.common.dt.{BaseEt, EtField}
+import de.qaware.findfacts.core.{FacetQuery, Filter, FilterQuery, Id, Query, QueryService}
+import de.qaware.findfacts.webapp.utils.JsonUrlCodec
+// scalastyle:off
+import io.circe.generic.auto._
+import io.circe.syntax._
+// scalastyle:on
+import io.circe.{Json, Printer}
+import io.swagger.annotations.{Api, ApiImplicitParam, ApiImplicitParams, ApiOperation, ApiParam, ApiResponse, ApiResponses, Example, ExampleProperty}
+import play.api.libs.circe.Circe
+import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, Request, Result}
+
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 /** Controller for the query api.
   *
   * @param cc injected components
   */
 @Api(value = "/")
-class QueryController(cc: ControllerComponents, queryService: QueryService) extends AbstractController(cc) {
+class QueryController(cc: ControllerComponents, queryService: QueryService, urlCodec: JsonUrlCodec)
+    extends AbstractController(cc)
+    with Circe {
+  private final val InternalErrorMsg = "Internal server error"
+  private final val NotFoundMsg = "Entity not found"
+
   private val logger = Logger[QueryController]
 
-  protected def parseQuery(request: Request[AnyContent]): Either[Result, Query] = {
-    request.body.asJson match {
-      case None => Left(BadRequest("Expecting application/json request body"))
-      case Some(json) =>
-        logger.info(s"Received request: $json")
+  // Json printer
+  implicit val jsonPrinter: Printer = Printer.noSpacesSortKeys.copy(dropNullValues = true)
 
-        Json.fromJson[Query](json) match {
-          case JsSuccess(query, _) => Right(query)
-          case JsError(errors) => Left(BadRequest(s"Could not parse query: $errors"))
-        }
+  protected def executeQuery(query: Query): Result = {
+    val json: Try[Json] = query match {
+      case query: FilterQuery => queryService.getResults(query).map(_.toList.asJson)
+      case query @ FacetQuery(_, field) =>
+        import field.keyEncoder
+        queryService.getFacetResults[field.BaseType](query).map(_.asJson)
     }
-  }
-
-  protected def decode(encodedQuery: String): Either[Result, Query] = ???
-
-  protected def executeQuery(query: Query): Result = query match {
-    case f: FilterQuery =>
-      val result = queryService.getResults(f)
-      result.map(e => Ok(Json.toJson(e))).getOrElse(BadRequest(s"Internal server error"))
-    case f @ FacetQuery(_, field) =>
-      val result = queryService.getFacetResults[field.BaseType](f)
-      import field.implicits.toJson
-      result.map(e => Ok(Json.toJson(e))).getOrElse(BadRequest(s"Internal server error"))
+    json match {
+      case Failure(exception) =>
+        logger.error(s"Error executing query $query", exception)
+        InternalServerError(InternalErrorMsg)
+      case Success(value) => Ok(value)
+    }
   }
 
   @ApiOperation(
@@ -57,11 +61,30 @@ class QueryController(cc: ControllerComponents, queryService: QueryService) exte
         name = "query",
         value = "Query object",
         required = true,
-        dataTypeClass = classOf[Query],
-        paramType = "body"
+        paramType = "body",
+        dataType = "de.qaware.findfacts.core.Query",
+        examples = new Example(value = Array(new ExampleProperty(
+          mediaType = "default",
+          value = """{
+  "FilterQuery": {
+    "filter": {
+      "Filter": {
+        "fieldTerms": {
+          "Name": {
+            "StringExpression": {
+              "inner": "*gauss*"
+            }
+          }
+        }
+      }
+    },
+    "maxResults": 10
+  }
+}"""
+        )))
       )))
-  def search = Action { implicit request: Request[AnyContent] =>
-    parseQuery(request).right.map(executeQuery).merge
+  def search: Action[Query] = Action(circe.json[Query]) { implicit request: Request[Query] =>
+    executeQuery(request.body)
   }
 
   @ApiOperation(
@@ -77,14 +100,33 @@ class QueryController(cc: ControllerComponents, queryService: QueryService) exte
         name = "query",
         value = "Query object",
         required = true,
-        dataTypeClass = classOf[Query],
-        paramType = "body"
+        paramType = "body",
+        dataType = "de.qaware.findfacts.core.Query",
+        examples = new Example(value = Array(new ExampleProperty(
+          mediaType = "default",
+          value = """{
+  "FacetQuery" : {
+    "filter" : {
+      "Filter" : {
+        "fieldTerms" : {
+          "Name" : {
+            "StringExpression" : {
+              "inner" : "*gauss*"
+            }
+          }
+        }
+      }
+    },
+    "field" : {
+      "Kind" : {}
+    }
+  }
+}"""
+        )))
       )))
-  def encode = Action { implicit request: Request[AnyContent] =>
-    parseQuery(request).right map { query =>
-      // TODO encode and compress
-      Ok(query.toString)
-    } merge
+  def encode: Action[Query] = Action(circe.json[Query]) { implicit request: Request[Query] =>
+    // Parse back into json - parsing into query first does validation.
+    Ok(urlCodec.encodeCompressed(request.body.asJson))
   }
 
   @ApiOperation(
@@ -94,16 +136,37 @@ class QueryController(cc: ControllerComponents, queryService: QueryService) exte
     responseContainer = "List",
     httpMethod = "GET"
   )
-  def searchEncoded(@ApiParam(value = "Encoded query", required = true) encodedQuery: String) = Action {
-    implicit request: Request[AnyContent] =>
-      decode(encodedQuery).right.map(executeQuery).merge
-  }
+  def searchEncoded(@ApiParam(value = "Encoded query", required = true) encodedQuery: String): Action[AnyContent] =
+    Action { implicit request: Request[AnyContent] =>
+      urlCodec.decodeCompressed(encodedQuery) match {
+        case Failure(ex) =>
+          logger.warn("Could not decode query string: ", ex)
+          BadRequest("Corrupt query encoding")
+        case Success(queryJson) =>
+          queryJson.as[Query] match {
+            case Left(value) => BadRequest(value.message)
+            case Right(query) => executeQuery(query)
+          }
+      }
+    }
 
   @ApiOperation(
     value = "Retrieves a single entity",
     notes = "Retrieves information about a single entity",
     response = classOf[BaseEt],
     httpMethod = "GET")
-  @ApiResponses(Array(new ApiResponse(code = 404, message = "Entity not found")))
-  def entity(@ApiParam(value = "ID of result entity to fetch", required = true) id: String) = TODO
+  @ApiResponses(Array(new ApiResponse(code = 400, message = NotFoundMsg)))
+  def entity(@ApiParam(value = "ID of result entity to fetch", required = true) id: String): Action[AnyContent] =
+    Action { implicit request: Request[AnyContent] =>
+      val singleQuery = FilterQuery(Filter(Map(EtField.Id -> Id(id))), 2)
+      queryService.getResults(singleQuery) match {
+        case Failure(exception) =>
+          logger.error(s"Error executing id query: $exception")
+          InternalServerError(InternalErrorMsg)
+        case Success(Vector(single)) => Ok(single.asJson)
+        case Success(values) =>
+          logger.error(s"Did not receive single value for id $id: ${values.mkString(",")}")
+          BadRequest(NotFoundMsg)
+      }
+    }
 }

@@ -1,7 +1,7 @@
 package de.qaware.findfacts.core
 
-import de.qaware.findfacts.common.dt.EtFields.StartPosition
-import de.qaware.findfacts.common.dt.{EtFields, EtKind, FactEt}
+import de.qaware.findfacts.common.dt.EtField.StartPosition
+import de.qaware.findfacts.common.dt.{EtField, EtKind, FactEt}
 import de.qaware.findfacts.common.solr.{ConstRecord, FactRecord}
 import de.qaware.findfacts.scala.Using
 import org.scalatest.{BeforeAndAfterEach, FunSuite, Matchers, TryValues}
@@ -59,8 +59,8 @@ class QueryIT extends FunSuite with BeforeAndAfterEach with Matchers with TryVal
   }
 
   test("Facet query") {
-    val query = FacetQuery(Filter(Map.empty), EtFields.StartPosition)
-    val result = queryModule.service.getResults(query)
+    val query = FacetQuery(Filter(Map.empty), EtField.StartPosition)
+    val result = queryModule.service.getFacetResults(query)
 
     val resultFacet = result.success.value
     resultFacet should equal(Map(1 -> 1, 20 -> 1))

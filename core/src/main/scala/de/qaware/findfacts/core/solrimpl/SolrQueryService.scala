@@ -1,16 +1,16 @@
 package de.qaware.findfacts.core.solrimpl
 
-import scala.collection.JavaConverters._
-import scala.language.{postfixOps, reflectiveCalls}
-import scala.util.Try
-
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.EtFields.Kind
+import de.qaware.findfacts.common.dt.EtField.Kind
 import de.qaware.findfacts.common.dt.{BaseEt, ConstantEt, DocumentationEt, EtKind, FactEt, TypeEt}
 import de.qaware.findfacts.common.solr.{SolrRepository, SolrSchema}
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, Query, QueryService}
 import de.qaware.findfacts.scala.Using
 import org.apache.solr.client.solrj.response.QueryResponse
+
+import scala.collection.JavaConverters._
+import scala.language.{postfixOps, reflectiveCalls}
+import scala.util.Try
 
 /** Solr impl of the query service.
   *
@@ -44,11 +44,10 @@ class SolrQueryService(connection: SolrRepository, mapper: SolrQueryMapper) exte
           et <- etMapper.mapSolrDocument(solrDoc)
         } yield et
       }
-      response.getNextCursorMark
       Try { entities.map(_.get).toVector.asInstanceOf[query.Result] }
   }
 
-  def getResults(query: Query): Try[query.Result] = {
+  private def execute(query: Query): Try[query.Result] = {
     val res = for {
       solrQuery <- mapper.buildQuery(this, query)
       solrResult <- Using(connection.solrConnection()) { solr =>
@@ -68,6 +67,6 @@ class SolrQueryService(connection: SolrRepository, mapper: SolrQueryMapper) exte
   }
 
   override def getFacetResults[A](facetQuery: FacetQuery): Try[Map[A, Long]] =
-    getResults(facetQuery).asInstanceOf[Try[Map[A, Long]]]
-  override def getResults(filterQuery: FilterQuery): Try[Vector[BaseEt]] = getResults(filterQuery)
+    execute(facetQuery).asInstanceOf[Try[Map[A, Long]]]
+  override def getResults(filterQuery: FilterQuery): Try[Vector[BaseEt]] = execute(filterQuery)
 }
