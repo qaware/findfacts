@@ -1,6 +1,6 @@
 package de.qaware.findfacts.core
 
-import de.qaware.findfacts.common.dt.EtField.StartPosition
+import de.qaware.findfacts.common.dt.EtField.{Kind, StartPosition}
 import de.qaware.findfacts.common.dt.{EtField, EtKind, FactEt}
 import de.qaware.findfacts.common.solr.{ConstRecord, FactRecord}
 import de.qaware.findfacts.scala.Using
@@ -23,7 +23,7 @@ class QueryIT extends FunSuite with BeforeAndAfterEach with Matchers with TryVal
         1,
         11,
         "Const1",
-        "'a => 'b'",
+        "'a => 'b",
         Array(),
         "prop",
         Array(),
@@ -44,7 +44,7 @@ class QueryIT extends FunSuite with BeforeAndAfterEach with Matchers with TryVal
     val result = queryModule.service.getResults(query)
 
     val resList = result.success.value
-    resList should have size (1)
+    resList should have size 1
     resList should matchPattern {
       case Vector(_: FactEt) =>
     }
@@ -52,10 +52,31 @@ class QueryIT extends FunSuite with BeforeAndAfterEach with Matchers with TryVal
       case Vector(f: FactEt) =>
         f.name should equal("ConstIsFact")
         f.startPosition should equal(20)
-        f.kind should equal(EtKind.Fact)
-        f.propositionUses should have size (1)
-        f.related should have size (0)
+        f.propositionUses should have size 1
+        f.related should have size 0
     }
+  }
+
+  test("Filter query shortlist") {
+    val query = FilterQuery(Filter(Map(Kind -> StringExpression(EtKind.Constant.toString))))
+    val result = queryModule.service.getShortResults(query)
+
+    val resList = result.success.value
+    resList should have size 1
+
+    val untypedRes = resList.head.asUntyped
+    untypedRes.kind should equal (EtKind.Constant)
+    untypedRes.sourceFile should equal("Example")
+    untypedRes.startPosition should equal (1)
+    untypedRes.shortDescription should equal("Const1 :: 'a => 'b")
+  }
+
+  test("Recursive query") {
+    // TODO
+  }
+
+  test("Query set operations") {
+    // TODO
   }
 
   test("Facet query") {

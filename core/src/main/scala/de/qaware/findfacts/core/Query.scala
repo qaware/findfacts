@@ -40,10 +40,10 @@ final case class InRange(from: Int, to: Int) extends FilterTerm
 
 /** Matches if the field contains any value that from the result set of another query.
   *
-  * @param fq filter query yielding ids to compare field to
-  * @param field to compare
+  * @param fq filter query to compare field to
+  * @param field to get with filter query
   */
-final case class AnyInResult(fq: AbstractFQ, field: EtField) extends FilterTerm
+final case class AnyInResult(fq: AbstractFQ, field: EtField = EtField.Id) extends FilterTerm
 
 /** Matches if the field contains all values from the result set of another query.
   *

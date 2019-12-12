@@ -1,30 +1,20 @@
 package de.qaware.findfacts.common.dt
 
-import de.qaware.findfacts.common.utils.FromString
-import io.circe.{Decoder, Encoder}
+import enumeratum.EnumEntry
 
-import scala.util.Try
+/** Union type for [[DocKind]]s. */
+sealed trait DocKind extends EnumEntry
 
 /** Types of documentation. */
-object DocKind extends Enumeration {
+object DocKind extends DefaultEnum[DocKind] {
+  override final val values = findValues
 
   /** Comments in the meta-language, (* ... *) */
-  final val Meta = Value("Meta")
+  case object Meta extends Value
 
   /** Latex documentation: sections, etc. */
-  final val Latex = Value("Latex")
+  case object Latex extends Value
 
   /** Inline comments, usually in cartouches. */
-  final val Inline = Value("Inline")
-
-  /** [[FromString]] implicit for this enum. */
-  implicit val fromString: FromString[this.Value] = FromString.instance { s =>
-    Try(this.values.find(_.toString == s).getOrElse(throw new IllegalArgumentException(s"No such enum value: $s")))
-  }
-
-  /** Json encoding for this enums variants. */
-  implicit val jsonEncoder: Encoder[this.Value] = Encoder.encodeString.contramap[this.Value](_.toString)
-
-  /** Json decoding for this enums variants. */
-  implicit val jsonDecoder: Decoder[this.Value] = Decoder.decodeString.emapTry(fromString.apply)
+  case object Inline extends Value
 }

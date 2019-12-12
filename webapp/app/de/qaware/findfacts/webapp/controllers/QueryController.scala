@@ -46,7 +46,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
     val json: Try[Json] = query match {
       case query: FilterQuery => queryService.getShortResults(query).map(_.map(_.asUntyped).toList.asJson)
       case query: FacetQuery =>
-        import query.field.keyEncoder
+        import query.field.baseKeyEncoder
         queryService.getFacetResults(query).map(_.asJson)
     }
     json match {

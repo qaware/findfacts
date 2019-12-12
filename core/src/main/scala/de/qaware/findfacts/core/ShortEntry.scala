@@ -46,7 +46,7 @@ case class ConstantShortEntry(
     private val constType: EtField.ConstantType.FieldType
 ) extends ShortEntry
     with Tagged[EtKind.Constant.type] {
-  override val shortDescription: String = s"$name:: $constType"
+  override val shortDescription: String = s"$name :: $constType"
   override val kind: EtField.Kind.FieldType = EtKind.Constant.asInstanceOf[EtField.Kind.FieldType]
 }
 

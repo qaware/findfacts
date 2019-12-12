@@ -53,21 +53,21 @@ object SolrDocMapper {
         val head = (doc.get(fieldName) match {
           case null =>
             fieldWitness match {
-              case _: SingleValuedField => throw new IllegalArgumentException(s"Doc did not contain field $fieldName")
-              case _: OptionalField => None
-              case _: MultiValuedField => List.empty
+              case _: SingleValuedField[_] => throw new IllegalArgumentException(s"Doc did not contain field $fieldName")
+              case _: OptionalField[_] => None
+              case _: MultiValuedField[_] => List.empty
             }
           case solrField: util.List[_] =>
             fieldWitness match {
-              case _: SingleValuedField | _: OptionalField =>
+              case _: SingleValuedField[_] | _: OptionalField[_] =>
                 throw new IllegalArgumentException(s"Got multi-valued result for single-valued field $fieldName")
-              case _: MultiValuedField => solrField.asScala.toList
+              case _: MultiValuedField[_] => solrField.asScala.toList
             }
           case solrField =>
             fieldWitness match {
-              case _: SingleValuedField => solrField
-              case _: OptionalField => Some(solrField)
-              case _: MultiValuedField =>
+              case _: SingleValuedField[_] => solrField
+              case _: OptionalField[_] => Some(solrField)
+              case _: MultiValuedField[_] =>
                 throw new IllegalArgumentException(s"Got single-valued fresult for multi-valued field $fieldName")
             }
         }).asInstanceOf[FieldType[K, H @@ F]]
@@ -86,7 +86,7 @@ object SolrDocMapper {
   }
 
   /** Coproduct impl. */
-  implicit def genCoProdSolrDocMapper[K0 <: Symbol, K <: EtKind, L <: Tagged[K], R <: Coproduct](
+  implicit def genCoProdSolrDocMapper[K0 <: Symbol, K <: EtKind.Value, L <: Tagged[K], R <: Coproduct](
       implicit
       witness: Witness.Aux[K],
       // Strip any tags while searching for the SolrDocMapper of L (makes search easier)

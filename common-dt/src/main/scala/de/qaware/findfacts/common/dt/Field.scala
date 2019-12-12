@@ -3,6 +3,7 @@ package de.qaware.findfacts.common.dt
 import de.qaware.findfacts.common.utils.FromString
 import io.circe.{Decoder, Encoder, KeyEncoder}
 import shapeless.tag.{@@, Tagged}
+import sun.reflect.generics.tree.BaseType
 
 /** Thin technical layer for fields. */
 trait Field {
@@ -27,18 +28,19 @@ trait Field {
       val jsonEncoder: Encoder[A]
   )
 
-  /** Member for implicit wrapper. */
-  implicit val implicits: FieldImplicits[BaseType]
+  /** Member for implicit wrapper. Override with new instance of FindImplicits. */
+  implicit def implicits: FieldImplicits[BaseType]
 
   /** Encoder for keys of base type. */
-  implicit lazy val keyEncoder: KeyEncoder[BaseType] = KeyEncoder.instance(v => implicits.jsonEncoder(v).toString())
+  implicit lazy val baseKeyEncoder: KeyEncoder[BaseType] = KeyEncoder.instance(v => implicits.jsonEncoder(v).toString())
 
   /** Encoder for field values. */
   implicit def valueEncoder: Encoder[FieldType]
 }
 
 /** Single-valued fields. */
-trait SingleValuedField extends Field {
+trait SingleValuedField[A] extends Field {
+  type BaseType = A
   type FieldType = BaseType @@ this.type
 
   override implicit lazy val valueEncoder: Encoder[FieldType] =
@@ -46,7 +48,8 @@ trait SingleValuedField extends Field {
 }
 
 /** Field that is not necessarily present */
-trait OptionalField extends Field {
+trait OptionalField[A] extends Field {
+  type BaseType = A
   type FieldType = Option[BaseType] @@ this.type
 
   override implicit lazy val valueEncoder: Encoder[FieldType] = {
@@ -55,7 +58,8 @@ trait OptionalField extends Field {
 }
 
 /** Multi-valued fields. Represented as list of base types. */
-trait MultiValuedField extends Field {
+trait MultiValuedField[A] extends Field {
+  type BaseType = A
   type FieldType = List[BaseType] @@ this.type
 
   override implicit lazy val valueEncoder: Encoder[FieldType] = {

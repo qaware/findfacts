@@ -20,6 +20,6 @@ build:
     - mv elm /usr/local/bin/
     - ./sbt clean
     - ./sbt scalastyle || true
-    - ./sbt coverage test coverageReport coverageOff
+    - ./sbt coverage test it:test coverageReport coverageOff
     - ./sbt scapegoat || true
     - ./sbt sonarScan -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_TOKEN

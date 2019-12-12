@@ -2,8 +2,8 @@ package de.qaware.findfacts.common.dt
 
 // scalastyle:off
 import de.qaware.findfacts.common.dt.EtField._
-import shapeless.tag.Tagged
 // scalastyle:on
+import shapeless.tag.Tagged
 
 /** Fields for all entities. */
 sealed trait BaseEt {
@@ -40,7 +40,7 @@ sealed trait TheoryEt extends BaseEt {
   val related: Related.FieldType
 }
 
-// scalastyle:off
+// scalastyle:off scaladoc
 /** Constants.
   *
   * @param constantType type of the constant
@@ -106,4 +106,3 @@ final case class TypeEt(
     override val related: Related.FieldType
 ) extends TheoryEt
     with Tagged[EtKind.Type.type]
-// scalastyle:on
