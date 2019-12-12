@@ -48,7 +48,7 @@ val shapeless = "com.chuusai" %% "shapeless" % "2.3.3"
 val cmdOpts = "com.github.scopt" %% "scopt" % "3.7.1"
 val circeVersion = "0.12.0"
 val circeCore = "io.circe" %% "circe-core" % circeVersion
-val circeGeneric = "io.circe" %% "circe-generic"
+val circeGeneric = "io.circe" %% "circe-generic" % circeVersion
 val circe = Seq(
   circeCore,
   circeGeneric,
