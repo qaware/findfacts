@@ -13,17 +13,33 @@ object TryUtils {
     * @return try of sequence
     */
   implicit def tryFailFirst[A](seq: Seq[Try[A]]): Try[Seq[A]] = {
-    Try { seq.map(_.get) }
+    seq.foldLeft(Try(Seq.empty[A]))((acc, e) => acc.flatMap(acc => e.map(acc :+ _)))
   }
 
-  /** Since [[tryFailFirst]] on deeper nested try/seqs cannot flatten, this implicit works one level higher and flattens
-    * results.
+  /** Does [[tryFailFirst]] and flattens another try.
+    *
+    * @param seq to convert
+    * @tparam A type of underlying elements
+    * @return try of sequence
+    */
+  implicit def flattenTryFailFirst[A](seq: Try[Seq[Try[A]]]): Try[Seq[A]] =
+    seq.flatMap(tryFailFirst)
+
+  /** Does [[tryFailFirst]] and flattens another seq.
+    *
+    * @param seq to convert
+    * @tparam A type of underlying elements
+    * @return try of sequence
+    */
+  implicit def flattenSeqFailFirst[A](seq: Seq[Try[Seq[A]]]): Try[Seq[A]] =
+    tryFailFirst(seq).map(_.flatten)
+
+  /** Same as [[tryFailFirst]], on one more level.
     *
     * @param seq to convert and flatten
     * @tparam A type of underlying elements
     * @return try of sequence
     */
-  implicit def tryFlattenFailFirst[A](seq: Seq[Try[Seq[A]]]): Try[Seq[A]] = {
-    tryFailFirst(seq).map(_.flatten)
-  }
+  implicit def tryFailFirst2[A](seq: Seq[Try[Seq[Try[A]]]]): Try[Seq[A]] =
+    tryFailFirst(seq).map(_.flatten).flatMap(tryFailFirst)
 }

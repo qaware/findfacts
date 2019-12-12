@@ -8,6 +8,7 @@ import com.typesafe.scalalogging.Logger
 object ProgressLogger {
   private val logger = Logger[ProgressLogger.type]
 
+  // scalastyle:off magic.number
   /** Logs progress when the collection is iterated. Exploits lazyness of collection iteration.
     *
     * @param coll iterable to wrap

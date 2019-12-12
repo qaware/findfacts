@@ -2,19 +2,29 @@ package de.qaware.findfacts.webapp.controllers
 
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.{BaseEt, EtField}
-import de.qaware.findfacts.core.{FacetQuery, Filter, FilterQuery, Id, Query, QueryService}
+import de.qaware.findfacts.core.{FacetQuery, Filter, FilterQuery, Id, Query, QueryService, UntypedShortEntry}
 import de.qaware.findfacts.webapp.utils.JsonUrlCodec
 // scalastyle:off
 import io.circe.generic.auto._
 import io.circe.syntax._
 // scalastyle:on
-import io.circe.{Json, Printer}
-import io.swagger.annotations.{Api, ApiImplicitParam, ApiImplicitParams, ApiOperation, ApiParam, ApiResponse, ApiResponses, Example, ExampleProperty}
-import play.api.libs.circe.Circe
-import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, Request, Result}
-
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+
+import io.circe.{Json, Printer}
+import io.swagger.annotations.{
+  Api,
+  ApiImplicitParam,
+  ApiImplicitParams,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiResponses,
+  Example,
+  ExampleProperty
+}
+import play.api.libs.circe.Circe
+import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, Request, Result}
 
 /** Controller for the query api.
   *
@@ -34,10 +44,10 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
 
   protected def executeQuery(query: Query): Result = {
     val json: Try[Json] = query match {
-      case query: FilterQuery => queryService.getResults(query).map(_.toList.asJson)
-      case query @ FacetQuery(_, field) =>
-        import field.keyEncoder
-        queryService.getFacetResults[field.BaseType](query).map(_.asJson)
+      case query: FilterQuery => queryService.getShortResults(query).map(_.map(_.asUntyped).toList.asJson)
+      case query: FacetQuery =>
+        import query.field.keyEncoder
+        queryService.getFacetResults(query).map(_.asJson)
     }
     json match {
       case Failure(exception) =>
@@ -50,7 +60,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
   @ApiOperation(
     value = "Search query",
     notes = "Accepts a search query and returns list of all results.",
-    response = classOf[BaseEt],
+    response = classOf[UntypedShortEntry],
     responseContainer = "List",
     httpMethod = "POST"
   )
@@ -132,7 +142,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
   @ApiOperation(
     value = "Executes url-encoded query",
     notes = "Decodes query-url and executes query",
-    response = classOf[BaseEt],
+    response = classOf[UntypedShortEntry],
     responseContainer = "List",
     httpMethod = "GET"
   )

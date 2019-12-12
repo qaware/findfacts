@@ -17,8 +17,14 @@ trait QueryService {
   /** Executes a facetquery and returns result.
     *
     * @param facetQuery to execute
-    * @tparam A type of facet field
     * @return query result
     */
-  def getFacetResults[A](facetQuery: FacetQuery): Try[Map[A, Long]]
+  def getFacetResults(facetQuery: FacetQuery): Try[Map[facetQuery.field.BaseType, Long]]
+
+  /** Executes a filterquery and returns a shortlist.
+    *
+    * @param filterQuery to execute
+    * @return query result as shortlist
+    */
+  def getShortResults(filterQuery: FilterQuery): Try[Vector[ShortEntry]]
 }

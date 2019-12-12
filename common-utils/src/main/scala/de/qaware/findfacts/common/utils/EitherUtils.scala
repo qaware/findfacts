@@ -12,7 +12,7 @@ object EitherUtils {
     */
   def eitherFailFirst[A, B](single: Seq[Either[A, B]]): Either[A, Seq[B]] = {
     single.foldLeft(Right(Nil): Either[A, Seq[B]]) { (acc, e) =>
-      for (xs <- acc; x <- e) yield xs :+ x
+      for { xs <- acc; x <- e } yield xs :+ x
     }
   }
 }

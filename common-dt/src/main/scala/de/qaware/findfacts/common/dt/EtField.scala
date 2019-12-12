@@ -1,11 +1,11 @@
 package de.qaware.findfacts.common.dt
 
+import scala.collection.immutable
+import scala.util.Try
+
 import de.qaware.findfacts.common.utils.FromString
 import enumeratum.{Enum, EnumEntry}
 import io.circe.{KeyDecoder, KeyEncoder}
-
-import scala.collection.immutable
-import scala.util.Try
 
 /** Seal field types so only existing fields can be used. */
 sealed trait EtField extends Field with EnumEntry
@@ -24,7 +24,7 @@ object EtField extends Enum[EtField] {
 
   /** Kind of the entity. Possible values in [[Kind]]. */
   case object Kind extends SingleValuedField with EtField {
-    type BaseType = EtKind.Value
+    type BaseType = EtKind
     override val implicits = FieldImplicits()
   }
 

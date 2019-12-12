@@ -3,7 +3,7 @@ package de.qaware.findfacts.dumpimporter.dataaccess
 import scala.language.implicitConversions
 
 import de.qaware.findfacts.dumpimporter.dataaccess.treequery.QueryDsl.{all => tAll, not => tNot, of => tOf, _}
-import de.qaware.findfacts.dumpimporter.dataaccess.treequery.{FilterQuery, Node, QueryError}
+import de.qaware.findfacts.dumpimporter.dataaccess.treequery.{FilterQuery, Node, QueryException}
 import org.scalatest.LoneElement.convertToCollectionLoneElementWrapper
 import org.scalatest.{FunSuite, Matchers}
 
@@ -47,7 +47,7 @@ class TreeQueryTest extends FunSuite with Matchers {
   }
 
   test("Querying single for multiple matches should give Error") {
-    single thats number(1, 2) in tree should matchPattern { case Left(QueryError(_)) => }
+    single thats number(1, 2) in tree should matchPattern { case Left(QueryException(_)) => }
   }
 
   test("Query thats on root level") {

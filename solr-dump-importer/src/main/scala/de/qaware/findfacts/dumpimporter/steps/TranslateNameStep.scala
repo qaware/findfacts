@@ -51,6 +51,7 @@ class TranslateNameStep(override val config: Config) extends ImportStep {
     logger.info("Finished translating names.")
   }
 
+  @SuppressWarnings(Array("TraversableHead")) // Justification: groupBy produces only non-empty
   private def groupByName[T <: TheoryRecord](entities: Set[T], missing: mutable.Set[String]): Map[String, Id] = {
     entities.groupBy(_.name) filter {
       case (name, vs) =>

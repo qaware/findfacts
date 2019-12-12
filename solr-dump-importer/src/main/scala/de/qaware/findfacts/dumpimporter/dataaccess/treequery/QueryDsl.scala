@@ -18,7 +18,7 @@ object QueryDsl {
     * @tparam N type of the nodes to query
     * @return an initial query node
     */
-  def single[N <: Node[N]]: ChainNode[N, Either[QueryError, N]] = Single()
+  def single[N <: Node[N]]: ChainNode[N, Either[QueryException, N]] = Single()
 
   /** Builds a query node to find all elements.
     *

@@ -11,6 +11,7 @@ import de.qaware.findfacts.common.solr.SolrSchema._
 import org.apache.solr.client.solrj.beans.Field
 import org.apache.solr.update.processor.Lookup3Signature
 
+// scalastyle:off
 /** Base record class. ID is generated within solr from sourceFile, startPos and endPos.
   *
   * @param sourceFile relative path to file containing record
@@ -18,6 +19,7 @@ import org.apache.solr.update.processor.Lookup3Signature
   * @param endPosition     token in src at which record ends
   * @param kind       of this record. String value for solr compatibility from [[de.qaware.findfacts.common.dt.EtKind]] enum
   */
+@SuppressWarnings(Array("NullParameter", "NullAssignment")) // Justification: Mapped to solr document
 class Record(
     @(Field @field)(SourceFile) val sourceFile: String,
     @(Field @field)(StartPosition) val startPosition: Int,
@@ -62,7 +64,6 @@ object Record {
   type Id = String
 }
 
-// scalastyle:off
 /** Sum type for semantic theory records.
   *
   * @param name of the record

@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.DocKind
 import de.qaware.findfacts.dumpimporter.dataaccess.treequery.QueryDsl.{all, ofOne, single}
 import de.qaware.findfacts.dumpimporter.dataaccess.treequery.YxmlTreeQuery.{YxmlNode, body, key, keyValue, tag}
-import de.qaware.findfacts.dumpimporter.dataaccess.treequery.{QueryDsl, QueryError, QueryNode}
+import de.qaware.findfacts.dumpimporter.dataaccess.treequery.{QueryDsl, QueryException, QueryNode}
 import de.qaware.findfacts.yxml.Yxml
 
 import scala.language.{implicitConversions, postfixOps}
@@ -50,7 +50,7 @@ object PideLexer extends Parsers {
 
   // Helper methods
 
-  private def nodeMatches(query: QueryNode[YxmlNode, Either[QueryError, YxmlNode]]) = Parser { input =>
+  private def nodeMatches(query: QueryNode[YxmlNode, Either[QueryException, YxmlNode]]) = Parser { input =>
     if (input.atEnd)
       Failure("Empty input", input)
     else
@@ -67,11 +67,11 @@ object PideLexer extends Parsers {
     (all thats body without (tag(XmlBody) or tag(Delete)) in node).map(_.getBody).mkString(" ")
   }
 
-  private def delimiterQuery(delim: PideField.Value): QueryNode[YxmlNode, Either[QueryError, YxmlNode]] = {
+  private def delimiterQuery(delim: PideField.Value): QueryNode[YxmlNode, Either[QueryException, YxmlNode]] = {
     single root ofOne thats tag(Delimiter) parent ofOne thats tag(NoCompletion) parent ofOne thats body(delim.toString)
   }
 
-  private def keywordQuery(keyword: PideField.Value): QueryNode[YxmlNode, Either[QueryError, YxmlNode]] = {
+  private def keywordQuery(keyword: PideField.Value): QueryNode[YxmlNode, Either[QueryException, YxmlNode]] = {
     single root ofOne thats (tag(Keyword2) and keyValue(Kind, Keyword.toString)) parent ofOne thats body(
       keyword.toString)
   }

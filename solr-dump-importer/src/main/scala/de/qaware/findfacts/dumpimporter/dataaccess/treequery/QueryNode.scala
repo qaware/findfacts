@@ -4,7 +4,7 @@ package de.qaware.findfacts.dumpimporter.dataaccess.treequery
   *
   * @param msg error message
   */
-final case class QueryError(msg: String) extends Exception(msg)
+final case class QueryException(msg: String) extends Exception(msg)
 
 /** Trait for final query nodes, to allow only execution of the query after certain query constructions in the DSL.
   *
@@ -175,16 +175,16 @@ sealed trait UpstreamNode[N <: Node[N], R] extends QueryNode[N, R] {
 }
 
 // Implementors
-/** Query-node to get a single result. Returns [[QueryError]] if result is no singleton.
+/** Query-node to get a single result. Returns [[QueryException]] if result is no singleton.
   *
   * @tparam N type of the nodes to query
   */
 final case class Single[N <: Node[N]]()
-    extends QueryNode[N, Either[QueryError, N]]
-    with ChainNode[N, Either[QueryError, N]] {
-  override def convertResult(res: Seq[N]): Either[QueryError, N] = res match {
+    extends QueryNode[N, Either[QueryException, N]]
+    with ChainNode[N, Either[QueryException, N]] {
+  override def convertResult(res: Seq[N]): Either[QueryException, N] = res match {
     case Seq(e) => Right(e)
-    case _ => Left(QueryError(s"Was not single: $res"))
+    case _ => Left(QueryException(s"Was not single: $res"))
   }
 }
 

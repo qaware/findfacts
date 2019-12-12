@@ -2,6 +2,7 @@ package de.qaware.findfacts.common.dt
 
 // scalastyle:off
 import de.qaware.findfacts.common.dt.EtField._
+import shapeless.tag.Tagged
 // scalastyle:on
 
 /** Fields for all entities. */
@@ -9,9 +10,6 @@ sealed trait BaseEt {
 
   /** Unique id. */
   val id: Id.FieldType
-
-  /** Kind of the entity. */
-  val kind: Kind.FieldType
 
   /** Source in which entity was defined. */
   val sourceFile: SourceFile.FieldType
@@ -60,9 +58,8 @@ final case class ConstantEt(
     override val related: Related.FieldType,
     typeUses: TypeUses.FieldType,
     constantType: ConstantType.FieldType
-) extends TheoryEt {
-  override val kind: Kind.FieldType = EtKind.Constant.asInstanceOf[Kind.FieldType]
-}
+) extends TheoryEt
+    with Tagged[EtKind.Constant.type]
 
 /** Documentation.
   *
@@ -75,9 +72,8 @@ final case class DocumentationEt(
     override val endPosition: EndPosition.FieldType,
     override val sourceText: SourceText.FieldType,
     documentationKind: DocumentationKind.FieldType)
-    extends BaseEt {
-  override val kind: Kind.FieldType = EtKind.Documentation.asInstanceOf[Kind.FieldType]
-}
+    extends BaseEt
+    with Tagged[EtKind.Documentation.type]
 
 /** Any fact.
   *
@@ -94,9 +90,8 @@ final case class FactEt(
     override val propositionUses: PropositionUses.FieldType,
     override val related: Related.FieldType,
     proofUses: ProofUses.FieldType
-) extends TheoryEt {
-  override val kind: Kind.FieldType = EtKind.Fact.asInstanceOf[Kind.FieldType]
-}
+) extends TheoryEt
+    with Tagged[EtKind.Fact.type]
 
 /** Type entity. */
 final case class TypeEt(
@@ -109,7 +104,6 @@ final case class TypeEt(
     override val proposition: Proposition.FieldType,
     override val propositionUses: PropositionUses.FieldType,
     override val related: Related.FieldType
-) extends TheoryEt {
-  override val kind: Kind.FieldType = EtKind.Type.asInstanceOf[Kind.FieldType]
-}
+) extends TheoryEt
+    with Tagged[EtKind.Type.type]
 // scalastyle:on

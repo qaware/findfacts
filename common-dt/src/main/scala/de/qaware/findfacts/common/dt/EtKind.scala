@@ -1,33 +1,40 @@
 package de.qaware.findfacts.common.dt
 
-import de.qaware.findfacts.common.utils.FromString
-import io.circe.{Decoder, Encoder}
-
 import scala.util.Try
 
+import de.qaware.findfacts.common.utils.FromString
+import enumeratum.{Enum, EnumEntry}
+import io.circe.{Decoder, Encoder}
+
+/** Union type for entity kinds. */
+sealed trait EtKind extends EnumEntry
+
 /** Kinds of entities. */
-object EtKind extends Enumeration {
+object EtKind extends Enum[EtKind] {
+
+  /** Set of all values. */
+  final val values = findValues
 
   /** Type definition. */
-  final val Type = Value("Type")
+  case object Type extends EtKind
 
   /** Constants, including constructors. */
-  final val Constant = Value("Constant")
+  case object Constant extends EtKind
 
   /** Some propositions. */
-  final val Fact = Value("Fact")
+  case object Fact extends EtKind
 
   /** Comments, sections, titles etc. */
-  final val Documentation = Value("Documentation")
+  case object Documentation extends EtKind
 
   /** [[FromString]] for this enum. */
-  implicit val fromString: FromString[this.Value] = FromString.instance { s =>
+  implicit val fromString: FromString[EtKind] = FromString.instance { s =>
     Try(this.values.find(_.toString == s).getOrElse(throw new IllegalArgumentException(s"Enum does not contain $s")))
   }
 
   /** Json encoding for this enums variants. */
-  implicit val jsonEncoder: Encoder[this.Value] = Encoder.encodeString.contramap[this.Value](_.toString)
+  implicit val jsonEncoder: Encoder[EtKind] = Encoder.encodeString.contramap[EtKind](_.toString)
 
   /** Json decoding for this enums variants. */
-  implicit val jsonDecoder: Decoder[this.Value] = Decoder.decodeString.emapTry(fromString.apply)
+  implicit val jsonDecoder: Decoder[EtKind] = Decoder.decodeString.emapTry(fromString.apply)
 }

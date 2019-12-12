@@ -1,6 +1,6 @@
 package de.qaware.findfacts.core
 
-import de.qaware.findfacts.common.dt.{BaseEt, EtField}
+import de.qaware.findfacts.common.dt.EtField
 
 /** Union type for terms to filter a single field. */
 sealed trait FilterTerm
@@ -9,11 +9,7 @@ sealed trait FilterTerm
 sealed trait AbstractFQ
 
 /** Union type for queries. */
-sealed trait Query {
-
-  /** Result type of the query. */
-  type Result
-}
+sealed trait Query
 
 // Primitives
 /** Id type.
@@ -91,17 +87,11 @@ final case class FilterComplement(filter: AbstractFQ) extends AbstractFQ
   * @param filter to apply before facet
   * @param field field to facet on
   */
-final case class FacetQuery(filter: AbstractFQ, field: EtField) extends Query {
-  override type Result = Map[field.BaseType, Long]
-}
+final case class FacetQuery(filter: AbstractFQ, field: EtField) extends Query
 
 /** Query to filter for results.
   *
   * @param filter to apply
   * @param maxResults maximum number of results to stream back
   */
-final case class FilterQuery(filter: AbstractFQ, maxResults: Int = 100) extends Query {
-
-  /** Store type in instance */
-  override type Result = Vector[BaseEt]
-}
+final case class FilterQuery(filter: AbstractFQ, maxResults: Int = 100) extends Query
