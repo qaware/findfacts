@@ -3,14 +3,14 @@ package de.qaware.findfacts.common.solr
 import java.net.URL
 import java.nio.file.{Files, StandardCopyOption}
 
-import scala.collection.JavaConverters._
-
 import better.files.{File, Resource}
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.scala.Using
 import org.apache.solr.client.solrj.SolrClient
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
 import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}
+
+import scala.collection.JavaConverters._
 
 /** Repository to provide connections to different types of solr instances. */
 sealed trait SolrRepository {
@@ -45,7 +45,7 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
   require(solrHome.isDirectory, s"Solr home $solrHome does not exist")
   require(solrHome.isWriteable, s"No write access to solr home directory $solrHome")
 
-  override def solrConnection(): SolrClient = {
+  override lazy val solrConnection: SolrClient = {
     logger.info("Starting up embedded solr server...")
     // Unpack solr resources
     SOLR_CONF_FILES.map(res =>
@@ -70,7 +70,7 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
   * @param url to solr instance
   */
 final case class RemoteSolr(url: URL) extends SolrRepository {
-  override def solrConnection(): SolrClient = new HttpSolrClient.Builder().withBaseSolrUrl(url.toString).build
+  override lazy val solrConnection: SolrClient = new HttpSolrClient.Builder().withBaseSolrUrl(url.toString).build
 }
 
 /** Remote solr cloud.
@@ -80,7 +80,7 @@ final case class RemoteSolr(url: URL) extends SolrRepository {
 final case class CloudSolr(zkhosts: Seq[ZKHost]) extends SolrRepository {
   require(zkhosts.nonEmpty, "must have at least one zookeeper")
 
-  override def solrConnection(): SolrClient = {
+  override lazy val solrConnection: SolrClient = {
     val hosts: java.util.List[String] = zkhosts.map(zkhost => zkhost.host + zkhost.port.toString).toBuffer.asJava
     new CloudSolrClient.Builder(hosts).build
   }

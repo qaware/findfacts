@@ -1,32 +1,15 @@
 package de.qaware.findfacts.core.solrimpl
 
-import de.qaware.findfacts.common.dt.EtField
 import de.qaware.findfacts.common.solr.SolrSchema
 import de.qaware.findfacts.core.solrimpl.SolrQuery.BiConnective
-import de.qaware.findfacts.core.{
-  AbstractFQ,
-  AllInResult,
-  AnyInResult,
-  FacetQuery,
-  Filter,
-  FilterComplement,
-  FilterIntersection,
-  FilterQuery,
-  FilterTerm,
-  FilterUnion,
-  Id,
-  InRange,
-  Number,
-  Query,
-  StringExpression
-}
+import de.qaware.findfacts.core.{AbstractFQ, AllInResult, AnyInResult, FacetQuery, Filter, FilterComplement, FilterIntersection, FilterQuery, FilterTerm, FilterUnion, Id, InRange, Number, Query, StringExpression}
 // scalastyle:off
 import de.qaware.findfacts.common.utils.TryUtils._
 // scalastyle:on
+import org.apache.solr.client.solrj
+
 import scala.language.postfixOps
 import scala.util.Try
-
-import org.apache.solr.client.solrj
 
 /** Solr-specific query constants. */
 object SolrQuery {
@@ -69,18 +52,14 @@ object SolrQuery {
 class SolrFilterTermMapper {
 
   /** Builds nested query by executing inner one */
-  private def buildInnerQuery(
-      queryService: SolrQueryService,
-      fq: AbstractFQ,
-      field: EtField,
-      connective: BiConnective) = {
-    queryService.getResults(FilterQuery(fq)) map {
+  private def buildInnerQuery(queryService: SolrQueryService, fq: AbstractFQ, connective: BiConnective) = {
+    queryService.getShortResults(FilterQuery(fq)) map {
       case Vector() =>
         connective match {
-          case SolrQuery.And => s"${SolrSchema.getFieldName(field)}:${SolrQuery.All}"
-          case SolrQuery.Or => s"${SolrQuery.Not}${SolrSchema.getFieldName(field)}:${SolrQuery.All}"
+          case SolrQuery.And => s"${SolrQuery.All}"
+          case SolrQuery.Or => s"(${SolrQuery.Not}${SolrQuery.All})"
         }
-      case elems => s"${SolrSchema.getFieldName(field)}:(${elems.map(_.id).mkString(connective.str)})"
+      case elems => s"(${elems.map(_.id).mkString(connective.str)})"
     }
   }
 
@@ -93,10 +72,10 @@ class SolrFilterTermMapper {
   def buildFilterQuery(queryService: SolrQueryService, filter: FilterTerm): Try[String] = filter match {
     case Id(inner) => Try(inner)
     case Number(inner) => Try(inner.toString)
-    case StringExpression(inner) => Try(inner)
+    case StringExpression(inner) => Try("\"" + inner + "\"")
     case InRange(from, to) => Try(s"[$from TO $to]")
-    case AnyInResult(fq, field) => buildInnerQuery(queryService, fq, field, SolrQuery.Or)
-    case AllInResult(fq, field) => buildInnerQuery(queryService, fq, field, SolrQuery.And)
+    case AnyInResult(fq) => buildInnerQuery(queryService, fq, SolrQuery.Or)
+    case AllInResult(fq) => buildInnerQuery(queryService, fq, SolrQuery.And)
   }
 }
 

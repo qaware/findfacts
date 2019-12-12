@@ -1,17 +1,16 @@
 package de.qaware.findfacts.core.solrimpl
 
-import scala.collection.JavaConverters._
-import scala.language.{postfixOps, reflectiveCalls}
-import scala.util.Try
-
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.BaseEt
 import de.qaware.findfacts.common.solr.{SolrRepository, SolrSchema}
 import de.qaware.findfacts.common.utils.TryUtils.flattenTryFailFirst
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService, ShortEntry}
-import de.qaware.findfacts.scala.Using
 import org.apache.solr.client.solrj
 import org.apache.solr.client.solrj.response.QueryResponse
+
+import scala.collection.JavaConverters._
+import scala.language.{postfixOps, reflectiveCalls}
+import scala.util.Try
 
 /** Solr impl of the query service.
   *
@@ -23,9 +22,9 @@ class SolrQueryService(connection: SolrRepository, mapper: SolrQueryMapper) exte
 
   /** Get result from solr */
   private def getSolrResult(query: solrj.SolrQuery): Try[QueryResponse] = {
-    Using(connection.solrConnection()) { solr =>
+    Try {
       logger.info(s"Executing query $query")
-      val resp = solr.query(query)
+      val resp = connection.solrConnection().query(query)
       if (resp.getStatus != 0 && resp.getStatus != 200) {
         throw new IllegalStateException(s"Query status was not ok: $resp")
       }

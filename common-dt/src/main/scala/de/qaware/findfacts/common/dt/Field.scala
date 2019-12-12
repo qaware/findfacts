@@ -3,7 +3,6 @@ package de.qaware.findfacts.common.dt
 import de.qaware.findfacts.common.utils.FromString
 import io.circe.{Decoder, Encoder, KeyEncoder}
 import shapeless.tag.{@@, Tagged}
-import sun.reflect.generics.tree.BaseType
 
 /** Thin technical layer for fields. */
 trait Field {

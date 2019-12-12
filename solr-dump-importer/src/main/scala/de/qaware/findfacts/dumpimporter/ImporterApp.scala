@@ -95,6 +95,7 @@ object ImporterApp extends App {
           step.apply(context)
       }
       logger.info("Finished importing.")
+      config.solr.solrConnection().close()
     case _ =>
   }
 }
