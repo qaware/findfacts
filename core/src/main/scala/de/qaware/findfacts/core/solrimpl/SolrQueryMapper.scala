@@ -72,7 +72,7 @@ class SolrFilterTermMapper {
   def buildFilterQuery(queryService: SolrQueryService, filter: FilterTerm): Try[String] = filter match {
     case Id(inner) => Try(inner)
     case Number(inner) => Try(inner.toString)
-    case StringExpression(inner) => Try("\"" + inner + "\"")
+    case StringExpression(inner) => Try(s"($inner)")
     case InRange(from, to) => Try(s"[$from TO $to]")
     case AnyInResult(fq) => buildInnerQuery(queryService, fq, SolrQuery.Or)
     case AllInResult(fq) => buildInnerQuery(queryService, fq, SolrQuery.And)
