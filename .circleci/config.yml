@@ -2,15 +2,12 @@ version: 2
 jobs:
   build:
     environment:
-      profiles: ui
+      profiles: ui,loader
     docker:
       - image: circleci/openjdk:11
     steps:
-      - run: |
-          curl -L -o elm.gz https://github.com/elm/compiler/releases/download/0.19.1/binary-for-linux-64-bit.gz
-          gunzip elm.gz
-          chmod +x elm
-          sudo mv elm /usr/local/bin/
+      - run: install-isabelle.sh
+      - run: install-elm.sh
       - checkout
       - restore_cache:
           key: sbt-cache
