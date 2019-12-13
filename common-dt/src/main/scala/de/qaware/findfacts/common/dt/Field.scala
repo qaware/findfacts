@@ -17,9 +17,9 @@ trait Field {
     *
     * @param fromString [[FromString]] implicit for base type
     * @param jsonDecoder [[Decoder]] implicit for base type
-    * @param jsonKeyDecoder [[Decoder]] implicit for base type, used as keys
+    * @param jsonKeyDecoder [[KeyDecoder]] implicit for base type used as keys
     * @param jsonEncoder [[Encoder]] implicit for base type
-    * @param jsonKeyEncoder [[Encoder]] implicit for base type, used as keys
+    * @param jsonKeyEncoder [[KeyEncoder]] implicit for base type used as keys
     *
     * @tparam A base type. Needs to be a parameter since base type gets restricted in subclasses
     */

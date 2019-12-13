@@ -17,17 +17,19 @@ ThisBuild / resolvers ++= Seq(
 )
 // Settings for sonarqube integration
 ThisBuild / scapegoatVersion := "1.3.8"
-ThisBuild / scapegoatIgnoredFiles += ".*/Using.scala"
-ThisBuild / coverageExcludedFiles := "*.*/Using.scala"
+ThisBuild / scapegoatIgnoredFiles += ".*scala.Using.scala"
+ThisBuild / coverageExcludedFiles := "*.*scala.Using.scala"
 lazy val sonarSettings = Seq(
   sonarProperties ++= Map(
     "sonar.projectName" -> "Isabelle AFP Search",
     "sonar.projectKey" -> "de.qaware.isabelle-afp-search:root",
     "sonar.modules" -> "solr-dump-importer,yxml-parser,common-solr,common-utils",
-    "sonar.junit.reportPaths" -> "target/test-reports",
-    "sonar.scala.coverage.reportPaths" -> "target/scala-2.12/scoverage-report/scoverage.xml",
-    "sonar.scala.scapegoat.reportPaths" -> "target/scala-2.12/scapegoat-report/scapegoat-scalastyle.xml",
-    "sonar.scala.scalastyle.reportPaths" -> "target/scalastyle-result.xml"
+    "sonar.junit.reportPaths" -> (file("target") / "test-reports").getPath,
+    "sonar.scala.coverage.reportPaths" ->
+      (file("target") / "scala-2.12" / "scoverage-report" / "scoverage.xml").getPath,
+    "sonar.scala.scapegoat.reportPaths" ->
+      (file("target") / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath,
+    "sonar.scala.scalastyle.reportPaths" -> (file("target") / "scalastyle-result.xml").getPath
   ))
 
 // Project-wide dependencies (intersection from all modules that can be run on their own)
@@ -55,15 +57,36 @@ val circe = Seq(
   "io.circe" %% "circe-parser" % circeVersion
 )
 
-// Project structure: root project for common settings and to aggregate tasks
+// Profiles
+val UiProfile = "ui"
+val LoaderProfile = "loader"
+val Profiles = Set(UiProfile, LoaderProfile)
+lazy val profiles = {
+  val selected: Seq[String] = Option(System.getProperty("profiles")).toSeq.flatMap(_.split(","))
+  selected.filterNot(Profiles.contains).map(p => throw new IllegalArgumentException(s"Profile $p does not exist!"))
+  selected
+}
+
+// Root project aggregates all
 lazy val root = (project in file("."))
   .settings(
     sonarSettings,
     aggregate in sonarScan := false
   )
-  // Aggregate all modules
-  .aggregate(webapp, `solr-dump-importer`, `yxml-parser`, core, `common-dt`, `common-utils`, `common-solr`)
+  // Aggregate all top-level modules
+  .aggregate(core, ui, loaders)
 
+// Controls aggregation of subproject that need the elm-compiler (depending if ui profile is active)
+lazy val ui = project
+  .settings(aggregate := profiles.contains(UiProfile))
+  .aggregate(`webapp`)
+
+// Controls aggregation of subprojects that need isablelle (depending if loaders profile is active)
+lazy val loaders = project
+  .settings(aggregate := profiles.contains(LoaderProfile))
+  .aggregate(`solr-dump-importer`)
+
+// Real sub-projects
 // Importer for isabelle dumps
 lazy val `solr-dump-importer` = project
   .configs(IntegrationTest)
@@ -77,13 +100,17 @@ lazy val `solr-dump-importer` = project
       scalatest % "it"
     ),
   )
-  .dependsOn(`common-solr`, `common-dt`, `yxml-parser`, `common-utils`)
+  .dependsOn(`common-solr`, `common-dt`, `yxml-parser`, `common-utils`, `isabelle`)
+
+// Isabelle project dependency
+lazy val isabelle = project
+  .settings(unmanagedJars in Compile ++= (baseDirectory.value / "lib" / "classes" ** "*.jar").get())
 
 // Full-stack play web application, with elm ui
 lazy val `webapp` = project
   .settings(
     // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
-    javaOptions in Runtime += "-Dlog4j.configurationFile=webapp/conf/log4j2.properties",
+    javaOptions in Runtime += "-Dlog4j.configurationFile=" + (file("webapp") / "conf" / "log4j2.properties").getPath,
     libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
       wire,
       guice exclude ("org.slf4j", "slf4j-api"),
@@ -102,7 +129,7 @@ lazy val `webapp` = project
 lazy val `webapp-ui` = project
   .settings(
     // Add elm sources to assets
-    unmanagedSourceDirectories in Assets += baseDirectory.value / "src/elm",
+    unmanagedSourceDirectories in Assets += baseDirectory.value / "src" / "elm",
   ).enablePlugins(SbtWeb)
 
 // Parser for yxml

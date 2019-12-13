@@ -1,6 +1,8 @@
 version: 2
 jobs:
   build:
+    environment:
+      profiles: ui
     docker:
       - image: circleci/openjdk:11
     steps:

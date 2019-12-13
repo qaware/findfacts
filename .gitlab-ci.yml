@@ -1,6 +1,9 @@
 stages:
   - analyze # linting, testing (with coverage), static code analysis, and upload to sonarqube
 
+variables:
+  profiles: "ui"
+
 build:
   only:
     refs:
