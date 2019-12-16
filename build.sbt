@@ -19,18 +19,24 @@ ThisBuild / resolvers ++= Seq(
 ThisBuild / scapegoatVersion := "1.3.8"
 ThisBuild / scapegoatIgnoredFiles += ".*scala.Using.scala"
 ThisBuild / coverageExcludedFiles := "*.*scala.Using.scala"
-lazy val sonarSettings = Seq(
+def sonarSettings = Seq(
   sonarProperties ++= Map(
-    "sonar.projectName" -> "Isabelle AFP Search",
-    "sonar.projectKey" -> "de.qaware.isabelle-afp-search:root",
-    "sonar.modules" -> "solr-dump-importer,yxml-parser,common-solr,common-utils",
-    "sonar.junit.reportPaths" -> (file("target") / "test-reports").getPath,
-    "sonar.scala.coverage.reportPaths" ->
-      (file("target") / "scala-2.12" / "scoverage-report" / "scoverage.xml").getPath,
-    "sonar.scala.scapegoat.reportPaths" ->
-      (file("target") / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath,
-    "sonar.scala.scalastyle.reportPaths" -> (file("target") / "scalastyle-result.xml").getPath
+    "sonar.projectName" -> ("Isabelle AFP Search - " + name.value),
+    "sonar.projectKey" -> ("de.qaware.isabelle-afp-search:" + name.value),
+    "sonar.sources" -> (baseDirectory.value / "src" / "main" / "scala").getPath,
+    "sonar.tests" -> (baseDirectory.value / "src" / "test" / "scala").getPath,
+    "sonar.junit.reportPaths" -> (baseDirectory.value / "target" / "test-reports").getPath,
+    "sonar.scala.coverage.reportPaths" -> (baseDirectory.value / "target" / "scala-2.12" / "scoverage-report" / "scoverage.xml").getPath,
+    "sonar.scala.scapegoat.reportPaths" -> (baseDirectory.value / "target" / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath,
+    "sonar.scala.scalastyle.reportPaths" -> (baseDirectory.value / "target" / "scalastyle-result.xml").getPath
   ))
+val Sonar = Tags.Tag("sonar")
+Global / concurrentRestrictions ++= Seq(
+  Tags.limit(Sonar,  1),
+  Tags.exclusive(Sonar),
+  Tags.limitAll( 1 )
+)
+def sonar = Def.task { sonarScan.value } tag Sonar
 
 // Project-wide dependencies (intersection from all modules that can be run on their own)
 val scalatest = "org.scalatest" %% "scalatest" % "3.0.8"
@@ -42,9 +48,9 @@ ThisBuild / libraryDependencies ++= Seq(
 // Additional named dependencies that are re-used multiple times
 val wire = "com.softwaremill.macwire" %% "macros" % "2.3.3" % "provided"
 val loggingBackend = Seq(
-"org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.12.1"
-exclude ("org.slf4j", "slf4j-api"),
-"org.apache.logging.log4j" % "log4j-core" % "2.12.1"
+  "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.12.1"
+  exclude ("org.slf4j", "slf4j-api"),
+  "org.apache.logging.log4j" % "log4j-core" % "2.12.1"
 )
 val shapeless = "com.chuusai" %% "shapeless" % "2.3.3"
 val cmdOpts = "com.github.scopt" %% "scopt" % "3.7.1"
@@ -69,28 +75,28 @@ lazy val profiles = {
 
 // Root project aggregates all
 lazy val root = (project in file("."))
-  .settings(
-    sonarSettings,
-    aggregate in sonarScan := false
-  )
-  // Aggregate all top-level modules
-  .aggregate(core, ui, loaders)
+  // Aggregate all modules
+  .aggregate(core, ui, loaders, `yxml-parser`, `common-dt`, `common-utils`, `common-solr`)
+  .disablePlugins(SonarPlugin)
 
 // Controls aggregation of subproject that need the elm-compiler (depending if ui profile is active)
 lazy val ui = project
   .settings(aggregate := profiles.contains(UiProfile))
   .aggregate(`webapp`)
+  .disablePlugins(SonarPlugin)
 
 // Controls aggregation of subprojects that need isablelle (depending if loaders profile is active)
 lazy val loaders = project
   .settings(aggregate := profiles.contains(LoaderProfile))
   .aggregate(`solr-dump-importer`)
+  .disablePlugins(SonarPlugin)
 
 // Real sub-projects
 // Importer for isabelle dumps
 lazy val `solr-dump-importer` = project
   .configs(IntegrationTest)
   .settings(
+    sonarSettings,
     fork in run := true,
     javaOptions ++= Seq("-Xmx24G", "-Xss512m"),
     Defaults.itSettings,
@@ -105,10 +111,16 @@ lazy val `solr-dump-importer` = project
 // Isabelle project dependency
 lazy val isabelle = project
   .settings(unmanagedJars in Compile ++= (baseDirectory.value / "lib" / "classes" ** "*.jar").get())
+  .disablePlugins(SonarPlugin)
 
 // Full-stack play web application, with elm ui
 lazy val `webapp` = project
   .settings(
+    sonarSettings,
+    sonarProperties ++= Map(
+      "sonar.sources" -> (baseDirectory.value / "app").getPath,
+      "sonar.tests" -> (baseDirectory.value / "test").getPath,
+    ),
     // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
     javaOptions in Runtime += "-Dlog4j.configurationFile=" + (file("webapp") / "conf" / "log4j2.properties").getPath,
     libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
@@ -130,11 +142,16 @@ lazy val `webapp-ui` = project
   .settings(
     // Add elm sources to assets
     unmanagedSourceDirectories in Assets += baseDirectory.value / "src" / "elm",
-  ).enablePlugins(SbtWeb)
+  )
+  .enablePlugins(SbtWeb)
+  .disablePlugins(SonarPlugin)
+
 
 // Parser for yxml
 lazy val `yxml-parser` = project
-  .settings(libraryDependencies ++= loggingBackend ++ Seq(
+  .settings(
+    sonarSettings,
+    libraryDependencies ++= loggingBackend ++ Seq(
     cmdOpts,
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
     "com.lihaoyi" %% "fastparse" % "2.1.3"
@@ -143,6 +160,7 @@ lazy val `yxml-parser` = project
 lazy val core = project
   .configs(IntegrationTest)
   .settings(
+    sonarSettings,
     Defaults.itSettings,
     libraryDependencies ++= loggingBackend.map(_ % "it") ++ Seq(
       wire,
@@ -156,6 +174,7 @@ lazy val core = project
 // Common data types
 lazy val `common-dt` = project
   .settings(
+    sonarSettings,
     libraryDependencies ++= Seq(
       shapeless,
       circeCore,
@@ -166,10 +185,12 @@ lazy val `common-dt` = project
 
 // Common utility
 lazy val `common-utils` = project
+  .settings(sonarSettings)
 
 // Common solr entities and data access
 lazy val `common-solr` = project
   .settings(
+    sonarSettings,
     libraryDependencies += "org.apache.solr" % "solr-core" % "8.2.0"
       exclude ("org.slf4j", "slf4j-api")
       exclude ("org.apache.logging.log4j", "log4j-api")

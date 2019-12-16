@@ -3,6 +3,8 @@ package de.qaware.findfacts.scala
 import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
 
+// scalastyle:off
+
 /** A utility for performing automatic resource management. It can be used to perform an
  * operation using resources, after which it releases the resources in reverse order
  * of their creation.
