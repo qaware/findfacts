@@ -9,14 +9,11 @@ import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
 import de.qaware.findfacts.dumpimporter.Config
 import de.qaware.findfacts.dumpimporter.pure.PureSyntax
 
-/** Step to translate element names to unique ids.
-  *
-  * @param config parameter
-  */
-class TranslateNameStep(override val config: Config) extends ImportStep {
+/** Step to translate element names to unique ids. */
+class TranslateNameStep extends ImportStep {
   private val logger = Logger[TranslateNameStep]
 
-  override def apply(ctx: StepContext): Unit = {
+  override def apply(implicit ctx: StepContext): Unit = {
     logger.info("Translating names - building cache...")
 
     // Store names that cannot be found in order not to pollute the log

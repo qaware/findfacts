@@ -5,9 +5,7 @@ import java.net.URL
 import better.files.File
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
-import de.qaware.findfacts.dumpimporter.steps.pide.LoadPideMarkupStep
-import de.qaware.findfacts.dumpimporter.steps.thyexport.LoadThyExportStep
-import de.qaware.findfacts.dumpimporter.steps.{SanityCheckStep, StepContext, TranslateNameStep, WriteSolrStep}
+import de.qaware.findfacts.dumpimporter.steps.{ImportStep, WriteSolrStep}
 import scopt.{OptionParser, Read}
 
 /** Intermediate data to build the config.
@@ -75,27 +73,13 @@ object ImporterApp extends App {
   builder.parse(args, ConfigBuilder()) match {
     case Some(confBuilder) =>
       val config = confBuilder.buildConfig
-      logger.info("Starting import...")
-      if (config.solr.getClass != classOf[LocalSolr]) {
-        // Check if non-embedded solr instance is available to fail early if it is not
-        config.solr.solrConnection().close()
-        logger.info("Could successfully connect to solr at {}", config.solr)
+
+      /*val importer = new ImporterModule {
+        override def baseDirectory: File = config.dump
+        override def indexWriterStep: ImportStep = new WriteSolrStep(config.solr)
       }
-      val context = StepContext.empty
-      val steps = Seq(
-        new LoadThyExportStep(config),
-        new TranslateNameStep(config),
-        new LoadPideMarkupStep(config),
-        new SanityCheckStep(config),
-        new WriteSolrStep(config)
-      )
-      steps.zipWithIndex foreach {
-        case (step, i) =>
-          logger.info("Step {}/{}...", i + 1, steps.size)
-          step.apply(context)
-      }
-      logger.info("Finished importing.")
-      config.solr.solrConnection().close()
+
+      importer.execute().failed.toOption.map(logger.error("Error during import: ", _))*/
     case _ =>
   }
 }

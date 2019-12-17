@@ -33,6 +33,7 @@ object Dependencies {
   val solr = ("org.apache.solr" % "solr-core" % "8.2.0"
     exclude ("org.slf4j", "slf4j-api")
     exclude ("org.apache.logging.log4j", "log4j-api")
+    exclude ("org.apache.logging.log4j", "log4j-web")
     exclude ("org.apache.logging.log4j", "log4j-core")
     exclude ("org.apache.logging.log4j", "log4j-slf4j-impl"))
   val playGuice = ("com.typesafe.play" %% "play-guice" % playVersion

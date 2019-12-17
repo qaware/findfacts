@@ -1,29 +1,29 @@
 package de.qaware.findfacts.dumpimporter.steps.pide
 
-import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.solr.{ConstRecord, DocRecord, TheoryRecord}
-import de.qaware.findfacts.dumpimporter.Config
-import de.qaware.findfacts.dumpimporter.dataaccess.RepositoryReader
-import de.qaware.findfacts.dumpimporter.steps.{ImportStep, StepContext}
-import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
-import de.qaware.findfacts.yxml.YxmlParser
-
 import scala.collection.mutable
 import scala.language.postfixOps
 
+import better.files.File
+import com.typesafe.scalalogging.Logger
+import de.qaware.findfacts.common.solr.{ConstRecord, DocRecord, TheoryRecord}
+import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
+import de.qaware.findfacts.dumpimporter.dataaccess.RepositoryReader
+import de.qaware.findfacts.dumpimporter.steps.{ImportStep, StepContext}
+import de.qaware.findfacts.yxml.YxmlParser
+
 /** Importer step that loads theory data from PIDE config.
   *
-  * @param config of the importer
+  * @param dump repository reader for the importer
   */
-class LoadPideMarkupStep(override val config: Config) extends ImportStep {
+class LoadPideMarkupStep(val dump: RepositoryReader) extends ImportStep {
 
   /** Name of files containing PIDE markup. */
   final val MarkupFileName: String = "markup.yxml"
 
   private val logger = Logger[LoadPideMarkupStep]
 
-  override def apply(ctx: StepContext): Unit = {
-    val markupFiles = RepositoryReader(config.dump).readAll(s".*/$MarkupFileName".r)
+  override def apply(implicit ctx: StepContext): Unit = {
+    val markupFiles = dump.readAll(s".*/$MarkupFileName".r)
     logger.info(s"Found ${markupFiles.size} markup files")
 
     val allSources = ctx.allEntities.map(_.sourceFile).to[mutable.Set]

@@ -1,11 +1,14 @@
 # isabelle-afp-search
 Project to make isabelle and the AFP easily searchable. Structured in:
-- **common-solr**: common solr entities and access
-- **common-utils**: common utilities
-- **core**: search application core
-- **solr-dump-importer**: importer pipeline to import isabelle `dump` into search index
-- **webapp**: search ui layer as web application
+- **common**: common modules
+- **search**: search application, with core module (**search-core**), web application (**search-webapp**), and frontend ui (**search-webapp-ui**).
+- **importer**: importer pipeline to import isabelle `dump` into search index
 
-## Building the project
-Requirements: java 11 sdk, elm compiler for webapp
-- **core**: `./sbt package` to build jar.
+## Usage
+### Importer isabelle tool
+Requirements: java 11, checked out and initialized **isabelle** submodule
+
+```isabelle/bin/isabelle import_solr -?```
+
+### Search webapp
+Requirements

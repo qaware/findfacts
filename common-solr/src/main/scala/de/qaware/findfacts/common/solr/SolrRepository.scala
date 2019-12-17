@@ -29,15 +29,15 @@ sealed trait SolrRepository {
 final case class LocalSolr(solrHome: File) extends SolrRepository {
 
   /** Name of the default core for embedded solr. */
-  final val CORE_NAME = "theorydata"
+  final val EmbeddedCoreName = "theorydata"
 
   /** Solr config files that are created per default. */
-  final val SOLR_CONF_FILES = Seq(
+  final val SolrConfFiles = Seq(
     "solr.xml",
-    "theorydata/schema.xml",
-    "theorydata/enumsconfig.xml",
-    "theorydata/core.properties",
-    "theorydata/conf/solrconfig.xml"
+    s"$EmbeddedCoreName/schema.xml",
+    s"$EmbeddedCoreName/enumsconfig.xml",
+    s"$EmbeddedCoreName/core.properties",
+    s"$EmbeddedCoreName/conf/solrconfig.xml"
   )
 
   private val logger = Logger[LocalSolr]
@@ -48,7 +48,7 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
   override lazy val solrConnection: SolrClient = {
     logger.info("Starting up embedded solr server...")
     // Unpack solr resources
-    SOLR_CONF_FILES.map(res =>
+    SolrConfFiles.map(res =>
       Using.resource(Resource.getAsStream("solr/" + res)) { stream =>
         val file = solrHome.canonicalFile / res
 
@@ -61,7 +61,7 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
         Files.copy(stream, file.path, StandardCopyOption.REPLACE_EXISTING)
     })
 
-    new EmbeddedSolrServer(solrHome.path, CORE_NAME)
+    new EmbeddedSolrServer(solrHome.path, EmbeddedCoreName)
   }
 }
 

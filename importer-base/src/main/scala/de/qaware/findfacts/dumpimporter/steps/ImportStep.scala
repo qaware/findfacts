@@ -9,14 +9,11 @@ import scala.collection.mutable
 /** Step of the import process. */
 trait ImportStep {
 
-  /** Configuration parameter */
-  val config: Config
-
   /** Applies the step, mutating the context.
     *
     * @param ctx context that is mutated in the step
     */
-  def apply(ctx: StepContext): Unit
+  def apply(implicit ctx: StepContext): Unit
 }
 
 /** Holds mutable context shared throughout the steps.
@@ -123,8 +120,8 @@ final class StepContext(
 object StepContext {
 
   /** Builds an empty context.
-    *
-    * @return a new context
-    */
-  def empty: StepContext = new StepContext()
+   *
+   * @return a new context
+   */
+  def apply(): StepContext = new StepContext()
 }
