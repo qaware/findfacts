@@ -1,10 +1,10 @@
 import scala.sys.process._
 
-import sbt.Keys.{mainClass, crossTarget, run}
+import sbt.Keys.{crossTarget, mainClass, run}
 import sbt.complete.DefaultParsers._
 import sbt.io.IO
-import sbt.io.syntax.{File, _}
-import sbt.{AutoPlugin, Compile, Def, InputKey, Plugins, SettingKey, TaskKey, inputKey, taskKey}
+import sbt.io.syntax._
+import sbt.{AutoPlugin, Compile, Def, Plugins, SettingKey, TaskKey}
 import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport.assembly
 
@@ -13,13 +13,14 @@ object IsabelleToolPlugin extends AutoPlugin {
 
   object autoImport {
     lazy val isabelleExecutable: SettingKey[File] = SettingKey[File]("isabelle executable")
-    lazy val isabelleTool: SettingKey[String] = SettingKey[String]("isabelle task defined by project")
+    lazy val isabelleTool: SettingKey[String] = SettingKey[String]("isabelle tool defined by project")
+    lazy val isabelleComponentAssembly: TaskKey[File] = TaskKey[File]("isabelle component assembyl task")
   }
 
   import autoImport._
 
   override def projectSettings: Seq[Def.Setting[_]] = Seq(
-    assembly := {
+    isabelleComponentAssembly := {
       // Assemble fat jar for isabelle tool
       val fatJarName = assembly.value.getName
       val toolClass = (mainClass in (Compile, run)).value
@@ -34,7 +35,7 @@ object IsabelleToolPlugin extends AutoPlugin {
     },
     run := {
       // Make sure task is assembled
-      assembly.value
+      isabelleComponentAssembly.value
 
       // Parse tool args
       val args = spaceDelimited("<arg>").parsed
