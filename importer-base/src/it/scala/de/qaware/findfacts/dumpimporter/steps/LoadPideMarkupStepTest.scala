@@ -1,4 +1,4 @@
-package de.qaware.findfacts.dumpimporter.steps
+package de.qaware.findfacts.theoryimporter.steps
 
 import better.files.Resource
 import org.scalatest.{DoNotDiscover, FunSuite, Matchers, Suite}

@@ -1,6 +1,8 @@
 import Profiles._
 import Dependencies._
 
+Global / onChangedBuildSource := IgnoreSourceChanges
+
 // Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
 ThisBuild / version := "0.1.0-SNAPSHOT"
@@ -111,7 +113,7 @@ lazy val `importer-base` = project
   .settings(
     fork in run := true,
     javaOptions ++= Seq("-Xmx24G", "-Xss512m"),
-    libraryDependencies ++= Seq(cmdOpts),
+    libraryDependencies ++= Seq(cmdOpts, cats),
   )
   .dependsOn(`common-dt`, `common-solr`, `common-utils`, `yxml-parser`)
 

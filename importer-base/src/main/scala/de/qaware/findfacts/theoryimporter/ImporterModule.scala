@@ -1,0 +1,50 @@
+package de.qaware.findfacts.theoryimporter
+
+import scala.util.Try
+
+import com.softwaremill.macwire.wire
+import com.typesafe.scalalogging.Logger
+import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
+import de.qaware.findfacts.theoryimporter.TheoryView.Theory
+import de.qaware.findfacts.theoryimporter.steps.ImportError
+import de.qaware.findfacts.theoryimporter.steps.impl.thy.{TermExtractor, TypExtractor}
+// scalastyle:off
+import de.qaware.findfacts.theoryimporter.steps.impl._
+// scalastyle:on
+import de.qaware.findfacts.theoryimporter.steps.{ImportStep, StepContext}
+
+/** DI module for the importer. */
+trait ImporterModule {
+  private val logger = Logger[ImporterModule]
+
+  // internals
+  private val termExtractor = wire[TermExtractor]
+  private val typeExtractor = wire[TypExtractor]
+
+  // Steps
+  lazy val steps: Seq[ImportStep] = Seq(
+    wire[LoadTheoryStep],
+    //wire[LoadPideMarkupStep], TODO
+    wire[TranslateNameStep],
+    wire[FindRelatedStep],
+    wire[SanityCheckStep],
+    indexWriterStep
+  )
+
+  /** Configured index writer has to be provided. */
+  val indexWriterStep: ImportStep
+
+  /** Runs the importer for a given theory.
+    *
+    * @return an empty try indicating success or failure
+    */
+  def importSession(theories: Seq[Theory]): Try[List[ImportError]] = Try {
+    logger.info("Starting import...")
+
+    implicit lazy val context: StepContext = StepContext()
+    val result = withProgress(steps).map(_.apply(theories)).toList.flatten
+
+    logger.info("Finished importing.")
+    result
+  }
+}

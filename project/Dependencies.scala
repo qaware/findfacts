@@ -17,6 +17,7 @@ object Dependencies {
   val scalaTestBase = "org.scalatest" %% "scalatest" % "3.0.8"
   val scalaTest = scalaTestBase
   val shapeless = "com.chuusai" %% "shapeless" % "2.3.3"
+  val cats = "org.typelevel" %% "cats-core" % "2.0.0"
   val cmdOpts = "com.github.scopt" %% "scopt" % "3.7.1"
   val circeCore = "io.circe" %% "circe-core" % circeVersion
   val circeGeneric = "io.circe" %% "circe-generic" % circeVersion

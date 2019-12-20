@@ -1,6 +1,7 @@
-package de.qaware.findfacts.dumpimporter.steps
+package de.qaware.findfacts.theoryimporter.steps
 
 import de.qaware.findfacts.common.solr.ConstRecord
+import de.qaware.findfacts.theoryimporter.StepContext
 import org.scalatest.FunSuite
 
 case class TestSpecPosition(id: String, startLine: Int, endLine: Int) {
