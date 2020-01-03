@@ -15,77 +15,14 @@ import Browser.Navigation as Navigation
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (expectJson, jsonBody)
-import Json.Decode as D
-import Json.Encode as E
+
 import Url exposing (Url)
 import Url.Parser as UrlParser
-
-
-
--- Query
-
-type alias Entity =
-   { res : String
-   }
-
-
-
-   -- JSON
-
-
-decoder : D.Decoder Entity
-decoder =
-   D.map Entity
-       (D.field "res" D.string)
-
-
--- Query
-
-
-type alias Query =
-    List QueryField
-
-
-type QueryField
-    = Kind String
-    | Name String
-    | Uses Query
-
-
-
--- String
-
-
-fromString : String -> Result String Query
-fromString _ =
-    Err "Not implemented"
-
-
-
--- JSON
-
-
-encode : Query -> E.Value
-encode query =
-    E.object (List.map encodeQueryField query)
-
-
-encodeQueryField : QueryField -> ( String, E.Value )
-encodeQueryField field =
-    case field of
-        Kind k ->
-            ( "kind", E.string k )
-
-        Name n ->
-            ( "name", E.string n )
-
-        Uses query ->
-            ( "uses", encode query )
-
+import Query exposing (..)
+import Entity exposing (..)
 
 
 -- MAIN
-
 
 main : Program () Model Msg
 main =
@@ -233,7 +170,6 @@ view model =
             ]
         ]
     }
-
 
 menu : Model -> Html Msg
 menu model =

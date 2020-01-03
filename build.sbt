@@ -143,14 +143,10 @@ lazy val `search-webapp` = project
     ))
   )
   .enablePlugins(PlayScala)
-  .disablePlugins(PlayLogback, SbtElm)
+  .disablePlugins(PlayLogback)
   .dependsOn(`search-core`, `search-webapp-ui`)
 
 // Elm ui
 lazy val `search-webapp-ui` = project
-  .settings(
-    publish / skip := true,
-    // Add elm sources to assets
-    unmanagedSourceDirectories in Assets += baseDirectory.value / "src" / "elm",
-  )
-  .enablePlugins(SbtWeb)
+  .settings(publish / skip := true)
+  .enablePlugins(ElmPlugin)
