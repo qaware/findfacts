@@ -19,7 +19,7 @@ import Http exposing (expectJson, jsonBody)
 import Url exposing (Url)
 import Url.Parser as UrlParser
 import Query exposing (..)
-import Entity exposing (..)
+import Entities exposing (..)
 
 
 -- MAIN
@@ -44,7 +44,7 @@ type alias Model =
     { key : Navigation.Key
     , page : Page
     , navState : Navbar.State
-    , query : Maybe Query
+    , query : Maybe FilterQuery
     }
 
 
@@ -76,7 +76,7 @@ type Msg
     | NavbarMsg Navbar.State
     | QueryString String
     | Search
-    | NewEntities (Result Http.Error Entity)
+    | NewEntities (Result Http.Error ShortResult)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -116,12 +116,12 @@ update msg model =
             ( model, Cmd.none )
 
 
-executeQuery : Query -> Cmd Msg
+executeQuery : FilterQuery -> Cmd Msg
 executeQuery query =
     Http.post
         { url = "/v1/query"
         , body = jsonBody (encode query)
-        , expect = expectJson NewEntities decoder
+        , expect = expectJson NewEntities shortDecoder
         }
 
 

@@ -1,24 +1,43 @@
-module Query exposing (Query, QueryField, encode, fromString)
+module Query exposing (FilterQuery, Field, encode, fromString)
 
-import Json.Decode as D
 import Json.Encode as E
 
 
+type FilterTerm
+    = Id String
+    | Number Int
+    | StringExpression String
+    | InRange Int Int
+    | AnyInResult AbstractFQ
+    | AllInResult AbstractFQ
 
-type alias Query =
-    List QueryField
+type AbstractFQ
+    = Filter (Field -> FilterTerm)
+    | Intersection (List AbstractFQ)
+    | Union (List AbstractFQ)
+    | Complement AbstractFQ
 
+type Field
+    = Name
+    | Kind
+    | StartPosition
+    | EndPosition
 
-type QueryField
-    = Kind String
-    | Name String
-    | Uses Query
+type alias FilterQuery =
+    { filter: AbstractFQ
+    , maxResults: Int
+    }
+
+type alias FacetQuery =
+    { filter: AbstractFQ
+    , field: String
+    }
 
 
 -- String
 
 
-fromString : String -> Result String Query
+fromString : String -> Result String FilterQuery
 fromString _ =
     Err "Not implemented"
 
@@ -27,19 +46,5 @@ fromString _ =
 -- JSON
 
 
-encode : Query -> E.Value
-encode query =
-    E.object (List.map encodeQueryField query)
-
-
-encodeQueryField : QueryField -> ( String, E.Value )
-encodeQueryField field =
-    case field of
-        Kind k ->
-            ( "kind", E.string k )
-
-        Name n ->
-            ( "name", E.string n )
-
-        Uses query ->
-            ( "uses", encode query )
+encode : FilterQuery -> E.Value
+encode query = E.string "TODO"
