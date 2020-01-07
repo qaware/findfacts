@@ -1,10 +1,7 @@
 package de.qaware.findfacts.theoryimporter
 
-import scala.util.Try
-
 import com.softwaremill.macwire.wire
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
 import de.qaware.findfacts.theoryimporter.steps.ImportError
 import de.qaware.findfacts.theoryimporter.steps.impl.thy.{TermExtractor, TypExtractor}
@@ -38,11 +35,11 @@ trait ImporterModule {
     *
     * @return an empty try indicating success or failure
     */
-  def importSession(theories: Seq[Theory]): Try[List[ImportError]] = Try {
+  def importSession(theories: Seq[Theory]): List[ImportError] = {
     logger.info("Starting import...")
 
     implicit lazy val context: StepContext = StepContext()
-    val result = withProgress(steps).map(_.apply(theories)).toList.flatten
+    val result = steps.flatMap(_.apply(theories)(context)).toList
 
     logger.info("Finished importing.")
     result

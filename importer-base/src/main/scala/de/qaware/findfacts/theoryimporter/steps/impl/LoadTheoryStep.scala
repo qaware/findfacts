@@ -5,7 +5,6 @@ import scala.language.postfixOps
 import cats.implicits._
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.solr.{ConstRecord, FactRecord, TypeRecord}
-import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
 import de.qaware.findfacts.theoryimporter.TheoryView.{Axiom, Const, Theory, Thm, Typedef}
 import de.qaware.findfacts.theoryimporter.steps.impl.thy.{TermExtractor, TypExtractor}
 import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
@@ -22,22 +21,24 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
   override def apply(theories: Seq[Theory])(implicit ctx: StepContext): List[ImportError] = {
     logger.info(s"Found ${theories.size} theories. Resolving ...")
 
-    val errors = withProgress(theories) flatMap { theory =>
+    val errors = theories flatMap { theory =>
       // Partition axioms in constant definition axioms and "normal" axioms
-      val constAxNames = theory.constdefs.map(_.axiomName).toSet
-      val typeAxNames = theory.typedefs.map(_.axiomName).toSet
+      val constAxNames: Set[String] = theory.constdefs.map(_.axiomName).toSet
+      val typeAxNames: Set[String] = theory.typedefs.map(_.axiomName).toSet
       val (defAxioms, axioms) =
         theory.axioms.partition(ax => constAxNames.contains(ax.entity.name) || typeAxNames.contains(ax.entity.name))
       val (constAxioms, typeAxioms) = defAxioms.partition(ax => constAxNames.contains(ax.entity.name))
 
+      // Extracting facts doesn't create errors
       extractFacts(theory.name, theory.thms, axioms, ctx)
+
       extractConsts(theory, constAxioms, ctx) ++
         extractTypes(theory, typeAxioms, ctx)
-    }
+    } toList
 
     logger.info(s"Extracted ${ctx.consts.size} constants, ${ctx.types.size} types, ${ctx.facts.size} facts.")
 
-    errors.toList
+    errors
   }
 
   /** Extracts constants from theory.

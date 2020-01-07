@@ -11,7 +11,7 @@ ThisBuild / resolvers ++= Resolvers.all
 // Parallel execution causes logging issues
 ThisBuild / Test / parallelExecution := false
 // Enable deprecation warnings
-ThisBuild / scalacOptions += "-deprecation"
+ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature")
 // Project-wide dependencies (intersection from all modules that can be run on their own)
 ThisBuild / libraryDependencies ++= Seq(logging, wire, enum, files, scalaTest % "test")
 // Don't run tests in assembly

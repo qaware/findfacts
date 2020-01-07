@@ -34,9 +34,9 @@ object Importer
     progress: Progress = No_Progress)
   {
     val theories = theory_names map { theory_name =>
-      provider.focus(theory_name)
+      val theory_provider = provider.focus(theory_name)
 
-      val isabelle_theory = Export_Theory.read_theory(provider, session_name, theory_name)
+      val isabelle_theory = Export_Theory.read_theory(theory_provider, session_name, theory_name)
 
       // Create accessor for importer
 
@@ -53,9 +53,9 @@ object Importer
       }
     }
 
-    importer.importSession(theories)
+    val errors = importer.importSession(theories)
 
-    progress.echo("imported " + provider)
+    progress.echo("imported " + session_name + " with " + errors.size + " errors.")
   }
 
   /* Isabelle tool wrapper */
@@ -107,9 +107,9 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR
     sessions foreach { session =>
       val theory_dirs = dump_theory_dirs.filter(dir => dir == session || dir.startsWith(session + "."))
       val theory_names = theory_dirs map { theory_dir =>
-        if (theory_dir.length > session.length) theory_dir else session + "." + session
+        if (theory_dir.length > session.length) theory_dir else session
       }
-      val provider = Export.Provider.directory(dump_dir, session, theory_names.head)
+      val provider = Export.Provider.directory(dump_dir, session, "dummy")
 
       import_session(provider, session, theory_names, importer_module, progress)
     }

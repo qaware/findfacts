@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.solr.{LocalSolr, SolrRepository}
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
 import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
+import org.apache.solr.client.solrj.SolrServerException
 
 /** Step to write entities to solr.
   *
@@ -28,22 +29,23 @@ class WriteSolrStep(solrRepository: SolrRepository) extends ImportStep {
     val entities = ctx.allEntities
 
     logger.info(s"Writing ${entities.size} entities to solr...")
+
     // Add all entities
     Try {
       val solr = solrRepository.solrConnection()
       solr.addBeans(entities.iterator.asJava)
       // Commit, wait for response and check if it is ok
-      solr.commit()
+      val res = solr.commit()
+      if (res.getStatus != 0 && res.getStatus != STATUS_OK) {
+        throw new SolrServerException(s"Error ${res.getStatus} while writing to solr")
+      }
     } match {
-      case Failure(ex) => List(ImportError(this, "*", ex.getMessage))
+      case Failure(ex) =>
+        logger.error("Exception occurred while writing to solr: ", ex)
+        List(ImportError(this, "*", ex.getMessage))
       case Success(res) =>
-        if (res.getStatus != 0 && res.getStatus != STATUS_OK) {
-          logger.error(s"Update request failed: $res")
-          List(ImportError(this, "*", "Update request failed "))
-        } else {
-          logger.info("Finished writing to solr")
-          Nil
-        }
+        logger.info("Finished writing to solr")
+        Nil
     }
   }
 }

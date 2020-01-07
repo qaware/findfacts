@@ -1,5 +1,7 @@
 package de.qaware.findfacts
 
+import _root_.scala.language.implicitConversions
+
 import de.qaware.findfacts.theoryimporter.TheoryView
 import isabelle.{Export_Theory, Markup, Properties, Term}
 
@@ -220,12 +222,12 @@ object Theory
   implicit class Constdef_Wrapper(val inner: Export_Theory.Constdef) extends AnyVal with TheoryView.Constdef
   {
     override def name: String = inner.name
-    override def axiomName: String = inner.axiomName
+    override def axiomName: String = inner.axiom_name
   }
 
   implicit class Typedef_Wrapper(val inner: Export_Theory.Typedef) extends AnyVal with TheoryView.Typedef
   {
     override def name: String = inner.name
-    override def axiomName: String = inner.axiomName
+    override def axiomName: String = inner.axiom_name
   }
 }

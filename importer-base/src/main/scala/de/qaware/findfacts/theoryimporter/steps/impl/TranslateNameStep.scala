@@ -5,10 +5,8 @@ import scala.collection.mutable
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.solr.Record.Id
 import de.qaware.findfacts.common.solr.TheoryRecord
-import de.qaware.findfacts.common.utils.ProgressLogger.withProgress
-import de.qaware.findfacts.theoryimporter.pure.PureSyntax
-import de.qaware.findfacts.theoryimporter.TheoryView
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
+import de.qaware.findfacts.theoryimporter.pure.PureSyntax
 import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
 
 /** Step to translate element names to unique ids. */
@@ -29,7 +27,7 @@ class TranslateNameStep extends ImportStep {
 
     logger.info(s"Translating names used by ${ctx.consts.size} constants...")
     // Update elements
-    withProgress(ctx.consts) foreach { const =>
+    ctx.consts foreach { const =>
       val defUses = const.propositionUses.distinct
         .filterNot(unresolvedNames.contains)
         .flatMap(getOrLog("const", constIdByName, missingNames, _))
@@ -40,7 +38,7 @@ class TranslateNameStep extends ImportStep {
     }
 
     logger.info(s"Translating names used by ${ctx.types.size} types...")
-    withProgress(ctx.types) foreach { typ =>
+    ctx.types foreach { typ =>
       val uses = typ.uses.distinct
         .filterNot(unresolvedNames.contains)
         .flatMap(getOrLog("type", constIdByName, missingNames, _))
@@ -48,7 +46,7 @@ class TranslateNameStep extends ImportStep {
     }
 
     logger.info(s"Translating names used by ${ctx.facts.size} facts...")
-    withProgress(ctx.facts) foreach { fact =>
+    ctx.facts foreach { fact =>
       val uses = fact.uses.distinct
         .filterNot(unresolvedNames.contains)
         .flatMap(getOrLog("const", constIdByName, missingNames, _))
