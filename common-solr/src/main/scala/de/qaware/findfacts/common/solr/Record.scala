@@ -9,7 +9,6 @@ import de.qaware.findfacts.common.utils.NullableArray.deep
 import de.qaware.findfacts.common.solr.SolrSchema._
 // scalastyle:on UnderscoreImportChecker
 import org.apache.solr.client.solrj.beans.Field
-import org.apache.solr.update.processor.Lookup3Signature
 
 // scalastyle:off
 /** Base record class. ID is generated within solr from sourceFile, startPos and endPos.
@@ -45,18 +44,7 @@ class Record(
     * @return solr id of this record
     */
   @(Field @field)(Id)
-  lazy val id: Id = {
-    val sig = new Lookup3Signature()
-
-    keyFields.foreach { f =>
-      if (f != null) {
-        sig.add(f.toString)
-      }
-    }
-
-    val bytes = sig.getSignature
-    bytes.map("%02x".format(_)).mkString
-  }
+  lazy val id: Id = keyFields.mkString(".")
 }
 object Record {
 
@@ -105,7 +93,7 @@ final case class TypeRecord(
       proposition,
       related,
       sourceText) {
-  registerKeyFields(Seq(sourceFile, startPosition, kind, name))
+  registerKeyFields(Seq(kind, name))
 
   def this() {
     this(null, -1, -1, null)
@@ -162,7 +150,7 @@ final case class ConstRecord(
       proposition,
       related,
       sourceText) {
-  registerKeyFields(Seq(sourceFile, startPosition, kind, name))
+  registerKeyFields(Seq(kind, name))
 
   def this() {
     this(null, -1, -1, null)
@@ -230,7 +218,7 @@ final case class FactRecord(
       proposition,
       related,
       sourceText) {
-  registerKeyFields(Seq(sourceFile, startPosition, kind, name))
+  registerKeyFields(Seq(kind, name))
 
   def this() {
     this(null, -1, -1, null)
@@ -283,7 +271,7 @@ final case class DocRecord(
     @(Field @field)(SourceText) text: String,
     @(Field @field)(DocumentationKind) documentationType: String
 ) extends Record(sourceFile, startPosition, endPosition, EtKind.Documentation.toString) {
-  registerKeyFields(Seq(sourceFile, startPosition, kind))
+  registerKeyFields(Seq(sourceFile, startPosition))
 
   def this() {
     this(null, -1, -1, null, null)

@@ -55,7 +55,16 @@ object Importer
 
     val errors = importer.importSession(theories)
 
-    progress.echo("imported " + session_name + " with " + errors.size + " errors.")
+    errors foreach { error =>
+      val message = session_name + ": " + error.step.getClass + ": " + error.causeEntity + ": " + error.errorMsg
+      progress.echo_error_message(message)
+    }
+
+    if (errors.isEmpty) {
+      progress.echo("imported " + session_name)
+    } else {
+      progress.echo("imported " + session_name + " with " + errors.size + " errors.")
+    }
   }
 
   /* Isabelle tool wrapper */

@@ -61,7 +61,7 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
           case Seq(ax) => Right(ax)
           case axs =>
             logger.whenDebugEnabled {
-              logger.debug(s"Expected exactly one axiom for name $axName, got: ${axs.mkString(",")}")
+              logger.warn(s"Expected exactly one axiom for name $axName, got: ${axs.mkString(",")}")
             }
             Left(ImportError(this, axName, "non-unique constdef axiom name"))
         }
@@ -78,9 +78,9 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
           const.entity.pos.offset,
           const.entity.pos.endOffset,
           const.entity.name,
-          const.typ.toString,
+          typExtractor.prettyPrint(const.typ),
           typExtractor.referencedTypes(const.typ).toArray,
-          axioms.map(_.prop.term).map(termExtractor.prettyPrint(_)).mkString(" | "),
+          axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
           axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toArray
         )
 
@@ -107,7 +107,7 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
           thm.entity.pos.offset,
           thm.entity.pos.endOffset,
           thm.entity.name,
-          thm.prop.term.toString,
+          termExtractor.prettyPrint(thm.prop.term),
           termExtractor.referencedConsts(thm.prop.term).toArray,
           thm.deps.toArray
         ),
@@ -157,7 +157,7 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
           t.entity.pos.offset,
           t.entity.pos.endOffset,
           t.entity.name,
-          axioms.map(_.prop.term.toString).mkString(" | "),
+          axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
           axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toArray
         )
 

@@ -115,7 +115,7 @@ lazy val `importer-base` = project
     javaOptions ++= Seq("-Xmx24G", "-Xss512m"),
     libraryDependencies ++= Seq(cmdOpts, cats),
   )
-  .dependsOn(`common-dt`, `common-solr`, `common-utils`, `yxml-parser`)
+  .dependsOn(`common-dt`, `common-solr`, `common-utils`)
 
 // Isabelle project dependency
 lazy val isabelle = project
@@ -129,7 +129,8 @@ lazy val `importer-isabelle` = project
   .settings(
     publish / skip := true,
     isabelleTool := "dump_importer",
-    isabelleExecutable := (baseDirectory in isabelle).value / "bin" / "isabelle"
+    isabelleExecutable := (baseDirectory in isabelle).value / "bin" / "isabelle",
+    libraryDependencies ++= loggingBackend
   )
   .dependsOn(`importer-base`, `isabelle`)
   .enablePlugins(IsabelleToolPlugin)

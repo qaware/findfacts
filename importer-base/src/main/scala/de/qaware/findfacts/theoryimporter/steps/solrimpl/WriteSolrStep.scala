@@ -4,7 +4,7 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.solr.{LocalSolr, SolrRepository}
+import de.qaware.findfacts.common.solr.SolrRepository
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
 import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
 import org.apache.solr.client.solrj.SolrServerException
@@ -19,11 +19,6 @@ class WriteSolrStep(solrRepository: SolrRepository) extends ImportStep {
   final val STATUS_OK = 200
 
   private val logger = Logger[WriteSolrStep]
-
-  if (solrRepository.getClass != classOf[LocalSolr]) {
-    // Check if non-embedded solr instance is available to fail early if it is not
-    logger.info(s"Connection to solr at ${solrRepository} successful")
-  }
 
   override def apply(theories: Seq[Theory])(implicit ctx: StepContext): List[ImportError] = {
     val entities = ctx.allEntities
