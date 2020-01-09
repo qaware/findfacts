@@ -1,28 +1,29 @@
 module Main exposing (..)
 
+import Bootstrap.Accordion as Accordion
 import Bootstrap.Button as Button
 import Bootstrap.Card as Card
 import Bootstrap.Card.Block as Block
-import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
 import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Navbar as Navbar
 import Browser
-import Browser.Events exposing (onClick)
 import Browser.Navigation as Navigation
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Http exposing (expectJson, jsonBody)
-
+import Entities exposing (ResultList, ShortResult, decoder)
+import Html exposing (Html, br, div, h1, text)
+import Html.Attributes exposing (href)
+import Http exposing (Error(..), expectJson, jsonBody)
+import List exposing (map)
+import Query exposing (FilterQuery, encode, fromString)
 import Url exposing (Url)
 import Url.Parser as UrlParser
-import Query exposing (..)
-import Entities exposing (..)
+
 
 
 -- MAIN
+
 
 main : Program () Model Msg
 main =
@@ -44,24 +45,38 @@ type alias Model =
     { key : Navigation.Key
     , page : Page
     , navState : Navbar.State
-    , query : Maybe FilterQuery
+    , apiBaseUrl : String
+    , searchState : SearchState
+    , selectedState : Accordion.State
+    , searchQuery : Maybe FilterQuery
     }
 
 
 type Page
     = Home
     | Syntax
+    | Imprint
     | NotFound
 
 
+type SearchState
+    = Init
+    | Searching
+    | SearchError String
+    | SearchResult (List ShortResult)
+
+
 init : () -> Url -> Navigation.Key -> ( Model, Cmd Msg )
-init flags url key =
+init _ url key =
     let
+        baseUrl =
+            Url.toString { url | path = "", query = Nothing, fragment = Nothing }
+
         ( navState, navCmd ) =
             Navbar.initialState NavbarMsg
 
         ( model, urlCmd ) =
-            urlUpdate url (Model key Home navState Nothing)
+            urlUpdate url (Model key Home navState baseUrl Init Accordion.initialState Nothing)
     in
     ( model, Cmd.batch [ urlCmd, navCmd ] )
 
@@ -76,7 +91,8 @@ type Msg
     | NavbarMsg Navbar.State
     | QueryString String
     | Search
-    | NewEntities (Result Http.Error ShortResult)
+    | NewEntities (Result Http.Error ResultList)
+    | Selected Accordion.State
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -99,30 +115,48 @@ update msg model =
         QueryString queryStr ->
             case fromString queryStr of
                 Ok query ->
-                    ( { model | query = Just query }, Cmd.none )
+                    ( { model | searchQuery = Just query }, Cmd.none )
 
-                Err _ ->
-                    ( { model | query = Nothing }, Cmd.none )
+                Err e ->
+                    ( { model | searchQuery = Nothing, searchState = SearchError e }, Cmd.none )
 
         Search ->
-            case model.query of
+            case model.searchQuery of
                 Nothing ->
-                    ( model, Cmd.none )
+                    ( { model | searchState = SearchError "No query", selectedState = Accordion.initialState }, Cmd.none )
 
                 Just q ->
-                    ( model, executeQuery q )
+                    ( { model | searchState = Searching, selectedState = Accordion.initialState }, executeQuery model q )
 
-        NewEntities res ->
-            ( model, Cmd.none )
+        NewEntities (Ok results) ->
+            ( { model | searchState = SearchResult results }, Cmd.none )
 
+        NewEntities (Err e) ->
+            ( { model
+                | searchState =
+                    SearchError
+                        (case e of
+                            BadUrl _ ->
+                                "Invalid backend configuration"
 
-executeQuery : FilterQuery -> Cmd Msg
-executeQuery query =
-    Http.post
-        { url = "/v1/query"
-        , body = jsonBody (encode query)
-        , expect = expectJson NewEntities shortDecoder
-        }
+                            Timeout ->
+                                "Backend timed out"
+
+                            NetworkError ->
+                                "Could not reach server"
+
+                            BadStatus status ->
+                                "Server error: " ++ String.fromInt status
+
+                            BadBody body ->
+                                "Could not read response" ++ body
+                        )
+              }
+            , Cmd.none
+            )
+
+        Selected state ->
+            ( { model | selectedState = state }, Cmd.none )
 
 
 urlUpdate : Url -> Model -> ( Model, Cmd Msg )
@@ -144,7 +178,17 @@ routeParser =
     UrlParser.oneOf
         [ UrlParser.map Home UrlParser.top
         , UrlParser.map Syntax (UrlParser.s "syntax")
+        , UrlParser.map Imprint (UrlParser.s "imprint")
         ]
+
+
+executeQuery : Model -> FilterQuery -> Cmd Msg
+executeQuery model query =
+    Http.post
+        { url = model.apiBaseUrl ++ "/v1/search"
+        , body = jsonBody (encode query)
+        , expect = expectJson NewEntities decoder
+        }
 
 
 
@@ -153,7 +197,10 @@ routeParser =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Navbar.subscriptions model.navState NavbarMsg
+    Sub.batch
+        [ Navbar.subscriptions model.navState NavbarMsg
+        , Accordion.subscriptions model.selectedState Selected
+        ]
 
 
 
@@ -171,6 +218,7 @@ view model =
         ]
     }
 
+
 menu : Model -> Html Msg
 menu model =
     Navbar.config NavbarMsg
@@ -179,6 +227,7 @@ menu model =
         |> Navbar.brand [ href "#" ] [ text "Home" ]
         |> Navbar.items
             [ Navbar.itemLink [ href "#syntax" ] [ text "Syntax" ]
+            , Navbar.itemLink [ href "#imprint" ] [ text "Imprint" ]
             ]
         |> Navbar.view model.navState
 
@@ -191,7 +240,10 @@ mainContent model =
                 pageHome model
 
             Syntax ->
-                pageSyntax model
+                pageSyntax
+
+            Imprint ->
+                pageImprint
 
             NotFound ->
                 pageNotFound
@@ -210,18 +262,63 @@ pageHome model =
                 [ InputGroup.config
                     (InputGroup.text [ Input.placeholder "Search for", Input.onInput QueryString ])
                     |> InputGroup.successors
-                        [ InputGroup.button [ Button.secondary ] [ text "Go!" ] ]
+                        [ InputGroup.button [ Button.primary, Button.onClick Search ] [ text "Go!" ] ]
                     |> InputGroup.view
                 ]
+            ]
+        , br [] []
+        , Grid.row []
+            [ Grid.col [ Col.lg6 ]
+                (searchResults model)
             ]
         ]
     ]
 
 
-pageSyntax : Model -> List (Html Msg)
-pageSyntax model =
+searchResults : Model -> List (Html Msg)
+searchResults model =
+    case model.searchState of
+        Init ->
+            []
+
+        Searching ->
+            [ text "Searching..." ]
+
+        SearchError err ->
+            [ text ("Something went wrong! " ++ err) ]
+
+        SearchResult res ->
+            [ Accordion.config Selected
+                |> Accordion.withAnimation
+                |> Accordion.cards (map displayResult res)
+                |> Accordion.view model.selectedState
+            ]
+
+
+displayResult : ShortResult -> Accordion.Card Msg
+displayResult res =
+    Accordion.card
+        { id = res.id
+        , options = []
+        , header =
+            Accordion.header [] <| Accordion.toggle [] [ text res.shortDescription ]
+        , blocks =
+            [ Accordion.block []
+                [ Block.text [] [ text res.sourceFile ] ]
+            ]
+        }
+
+
+pageSyntax : List (Html Msg)
+pageSyntax =
     [ h1 [] [ text "Search syntax" ]
     , Grid.row [] []
+    ]
+
+
+pageImprint : List (Html Msg)
+pageImprint =
+    [ h1 [] [ text "Imprint" ]
     ]
 
 

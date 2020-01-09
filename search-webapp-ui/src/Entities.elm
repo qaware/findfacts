@@ -1,43 +1,72 @@
-module Entities exposing (Kind, kindDecoder, ShortResult, shortDecoder)
+module Entities exposing (Kind, ResultList, ShortResult, decoder)
 
-import Json.Decode exposing (Decoder, map6, field, string, int, andThen, succeed, fail)
+import Json.Decode exposing (Decoder, andThen, fail, field, int, list, map6, string, succeed)
 
-type Kind
-  = Constant
-  | Documentation
-  | Fact
-  | Type
+
+
+-- Entities
+
+
+type alias ResultList =
+    List ShortResult
+
 
 type alias ShortResult =
-  { id: String
-  , kind: Kind
-  , source: String
-  , startPosition: Int
-  , endPosition: Int
-  , shortDescription: String
-   }
+    { id : String
+    , kind : Kind
+    , sourceFile : String
+    , startPosition : Int
+    , endPosition : Int
+    , shortDescription : String
+    }
+
+
+type Kind
+    = Constant
+    | Documentation
+    | Fact
+    | Type
+
 
 
 -- JSON
 
-kindDecoder : Decoder Kind
-kindDecoder = string |> andThen kindFromString
 
-kindFromString: String -> Decoder Kind
+decoder : Decoder ResultList
+decoder =
+    list shortDecoder
+
+
+kindDecoder : Decoder Kind
+kindDecoder =
+    string |> andThen kindFromString
+
+
+kindFromString : String -> Decoder Kind
 kindFromString string =
     case string of
-        "Constant" -> succeed Constant
-        "Documentation" -> succeed Documentation
-        "Fact" -> succeed Fact
-        "Type" -> succeed Type
-        _ -> fail ("Invalid kind: " ++ string)
+        "Constant" ->
+            succeed Constant
+
+        "Documentation" ->
+            succeed Documentation
+
+        "Fact" ->
+            succeed Fact
+
+        "Type" ->
+            succeed Type
+
+        _ ->
+            fail ("Invalid kind: " ++ string)
+
 
 shortDecoder : Decoder ShortResult
 shortDecoder =
-   map6 ShortResult
-       (field "id" string)
-       (field "kind" kindDecoder)
-       (field "source" string)
-       (field "startPosition" int)
-       (field "endPosition" int)
-       (field "shortDescription" string)
+    map6 ShortResult
+        (field "id" string)
+        (field "kind" kindDecoder)
+        (field "sourceFile" string)
+        (field "startPosition" int)
+        (field "endPosition" int)
+        (field "shortDescription" string)
