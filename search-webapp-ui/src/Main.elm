@@ -49,7 +49,7 @@ type alias Model =
     , apiBaseUrl : String
     , searchState : SearchState
     , selectedState : Accordion.State
-    , searchQuery : Maybe FilterQuery
+    , searchQuery : Maybe (Result String FilterQuery)
     }
 
 
@@ -114,20 +114,27 @@ update msg model =
             ( { model | navState = state }, Cmd.none )
 
         QueryString queryStr ->
-            case fromString queryStr of
-                Ok query ->
-                    ( { model | searchQuery = Just query }, Cmd.none )
+            ( { model
+                | searchQuery =
+                    if String.isEmpty queryStr then
+                        Nothing
 
-                Err e ->
-                    ( { model | searchQuery = Nothing, searchState = SearchError e }, Cmd.none )
+                    else
+                        Just (fromString queryStr)
+              }
+            , Cmd.none
+            )
 
         Search ->
             case model.searchQuery of
                 Nothing ->
-                    ( { model | searchState = SearchError "No query", selectedState = Accordion.initialState }, Cmd.none )
+                    ( model, Cmd.none )
 
-                Just q ->
-                    ( { model | searchState = Searching, selectedState = Accordion.initialState }, executeQuery model q )
+                Just (Err e) ->
+                    ( { model | searchState = SearchError e }, Cmd.none )
+
+                Just (Ok query) ->
+                    ( { model | searchState = Searching, selectedState = Accordion.initialState }, executeQuery model query )
 
         NewEntities (Ok results) ->
             ( { model | searchState = SearchResult results }, Cmd.none )
@@ -252,6 +259,18 @@ mainContent model =
 
 pageHome : Model -> List (Html Msg)
 pageHome model =
+    let
+        validationState =
+            case model.searchQuery of
+                Nothing ->
+                    []
+
+                Just (Ok _) ->
+                    [ Input.success ]
+
+                Just (Err _) ->
+                    [ Input.danger ]
+    in
     [ div []
         [ Grid.row []
             [ Grid.col [ Col.lg6 ]
@@ -261,7 +280,7 @@ pageHome model =
         , Grid.row []
             [ Grid.col [ Col.lg6 ]
                 [ InputGroup.config
-                    (InputGroup.text [ Input.placeholder "Search for", Input.onInput QueryString ])
+                    (InputGroup.text (List.append [ Input.placeholder "Search for", Input.onInput QueryString ] validationState))
                     |> InputGroup.successors
                         [ InputGroup.button [ Button.primary, Button.onClick Search ] [ text "Go!" ] ]
                     |> InputGroup.view

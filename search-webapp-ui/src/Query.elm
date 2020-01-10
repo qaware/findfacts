@@ -1,7 +1,7 @@
 module Query exposing (Field, FilterQuery, encode, fromString)
 
 import Json.Encode exposing (Value, int, object, string)
-import List exposing (map)
+import List exposing (foldr, map)
 
 
 type FilterTerm
@@ -44,9 +44,65 @@ type alias FacetQuery =
 
 
 fromString : String -> Result String FilterQuery
-fromString _ =
-    -- TODO
-    Ok (FilterQuery (Filter [ ( Name, StringExpression "*gauss*" ) ]) 100)
+fromString str =
+    if str == "" then
+        Err "No query"
+
+    else
+        let
+            filterTermResults =
+                map filterTermFromString (String.split " " str)
+
+            filterTerms =
+                foldr
+                    (\term acc ->
+                        case ( term, acc ) of
+                            ( Ok t, Ok ts ) ->
+                                Ok (t :: ts)
+
+                            ( Err e, Ok ts ) ->
+                                Err e
+
+                            _ ->
+                                acc
+                    )
+                    (Ok [])
+                    filterTermResults
+        in
+        Result.map (\terms -> FilterQuery (Filter terms) 10) filterTerms
+
+
+filterTermFromString : String -> Result String ( Field, FilterTerm )
+filterTermFromString str =
+    case String.split ":" str of
+        [ field, filter ] ->
+            if String.isEmpty filter then
+                Err "Empty filter"
+
+            else
+                Result.map (\f -> ( f, StringExpression filter )) (fieldFromString field)
+
+        _ ->
+            Err "Invalid query"
+
+
+fieldFromString : String -> Result String Field
+fieldFromString str =
+    case str of
+        "Name" ->
+            Ok Name
+
+        "Kind" ->
+            Ok Kind
+
+        "StartPosition" ->
+            Ok StartPosition
+
+        "EndPosition" ->
+            Ok EndPosition
+
+        _ ->
+            Err ("No such field: " ++ str)
 
 
 fieldToString : Field -> String
