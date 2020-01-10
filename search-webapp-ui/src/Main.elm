@@ -9,9 +9,10 @@ import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Navbar as Navbar
+import Bootstrap.Text as Text
 import Browser
 import Browser.Navigation as Navigation
-import Entities exposing (ResultList, ShortResult, decoder)
+import Entities exposing (ResultList, ShortResult, decoder, kindToString)
 import Html exposing (Html, br, div, h1, text)
 import Html.Attributes exposing (href)
 import Http exposing (Error(..), expectJson, jsonBody)
@@ -268,7 +269,7 @@ pageHome model =
             ]
         , br [] []
         , Grid.row []
-            [ Grid.col [ Col.lg6 ]
+            [ Grid.col []
                 (searchResults model)
             ]
         ]
@@ -301,7 +302,15 @@ displayResult res =
         { id = res.id
         , options = []
         , header =
-            Accordion.header [] <| Accordion.toggle [] [ text res.shortDescription ]
+            Accordion.header [] <|
+                Accordion.toggle []
+                    [ Card.config [ Card.align Text.alignXsLeft ]
+                        |> Card.header [] [ text (kindToString res.kind) ]
+                        |> Card.block []
+                            [ Block.text [] [ text res.shortDescription ] ]
+                        |> Card.footer [] [ text (res.sourceFile ++ ": " ++ String.fromInt res.startPosition) ]
+                        |> Card.view
+                    ]
         , blocks =
             [ Accordion.block []
                 [ Block.text [] [ text res.sourceFile ] ]

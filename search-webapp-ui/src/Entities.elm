@@ -1,4 +1,4 @@
-module Entities exposing (Kind, ResultList, ShortResult, decoder)
+module Entities exposing (Kind, ResultList, ShortResult, decoder, kindToString)
 
 import Json.Decode exposing (Decoder, andThen, fail, field, int, list, map6, string, succeed)
 
@@ -26,6 +26,26 @@ type Kind
     | Documentation
     | Fact
     | Type
+
+
+
+-- STRING
+
+
+kindToString : Kind -> String
+kindToString kind =
+    case kind of
+        Constant ->
+            "Constant"
+
+        Documentation ->
+            "Documentation"
+
+        Fact ->
+            "Fact"
+
+        Type ->
+            "Type"
 
 
 
