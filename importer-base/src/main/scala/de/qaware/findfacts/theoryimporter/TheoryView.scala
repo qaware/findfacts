@@ -4,6 +4,19 @@ package de.qaware.findfacts.theoryimporter
 object TheoryView {
 
   // scalastyle:off
+  trait Block extends Any {
+    def offset: Int
+    def endOffset: Int
+    def text: String
+  }
+  object Block {
+    def unapply(arg: Block): Option[(Int, Int, String)] = Some(arg.offset, arg.endOffset, arg.text)
+  }
+
+  trait Source extends Any {
+    def get(offset: Int, endOffset: Int): Option[Block]
+  }
+
   trait Prop extends Any {
     def typargs: List[(String, List[String])]
     def args: List[(String, Typ)]
@@ -167,14 +180,13 @@ object TheoryView {
   }
 
   trait PThm extends Any with Proof {
-    def serial: Long
     def theoryName: String
     def name: String
     def types: List[Typ]
   }
   object PThm {
-    def unapply(arg: PThm): Option[(Long, String, String, List[Typ])] =
-      Some(arg.serial, arg.theoryName, arg.name, arg.types)
+    def unapply(arg: PThm): Option[(String, String, List[Typ])] =
+      Some(arg.theoryName, arg.name, arg.types)
   }
 
   trait Position extends Any {
@@ -188,10 +200,10 @@ object TheoryView {
   trait Entity extends Any {
     def name: String
     def pos: Position
-    def serial: Long
   }
   object Entity {
-    def unapply(arg: Entity): Option[(String, Position, Long)] = Some(arg.name, arg.pos, arg.serial)
+    def unapply(arg: Entity): Option[(String, Position)] =
+      Some(arg.name, arg.pos)
   }
 
   trait Type extends Any {
@@ -248,6 +260,7 @@ object TheoryView {
   trait Theory extends Any {
     def name: String
     def session: String
+    def source: Source
     def types: List[Type]
     def consts: List[Const]
     def axioms: List[Axiom]
@@ -256,8 +269,8 @@ object TheoryView {
     def typedefs: List[Typedef]
   }
   object Theory {
-    def unapply(arg: Theory)
-      : Option[(String, String, List[Type], List[Const], List[Axiom], List[Thm], List[Constdef], List[Typedef])] =
-      Some(arg.name, arg.session, arg.types, arg.consts, arg.axioms, arg.thms, arg.constdefs, arg.typedefs)
+    def unapply(arg: Theory): Option[
+      (String, String, Source, List[Type], List[Const], List[Axiom], List[Thm], List[Constdef], List[Typedef])] =
+      Some(arg.name, arg.session, arg.source, arg.types, arg.consts, arg.axioms, arg.thms, arg.constdefs, arg.typedefs)
   }
 }

@@ -38,10 +38,8 @@ final class StepContext(
   /** Adds an entity and all its isabelle serials to the context.
     *
     * @param entity to add
-    * @param serials of corresponding isabelle entities
     */
-  def addEntity(entity: Record, serials: Seq[Long] = Seq.empty): Unit = {
-    serials.map(_serialsById.addBinding(entity.id, _))
+  def addEntity(entity: Record): Unit = {
     addToSet(entity)
   }
 
@@ -55,10 +53,6 @@ final class StepContext(
     if (old.id != entity.id) {
       throw new IllegalArgumentException("Id must not change when updating entities!")
     }
-
-    // Update serial mapping
-    val serials = _serialsById.remove(old.id).getOrElse(mutable.Set.empty)
-    _serialsById.put(entity.id, serials)
     removeFromSet(old)
     addToSet(entity)
   }
@@ -86,13 +80,6 @@ final class StepContext(
     * @return immutable docs set
     */
   def docs: Set[DocRecord] = _docs.to[Set]
-
-  /** Accessor to look up isabelle an immutable view of serials belonging to an entity.
-    *
-    * @param id unique id of the entity to look up
-    * @return immutable set of ids
-    */
-  def serialsById(id: Id): Set[Long] = _serialsById.getOrElse(id, mutable.Set.empty).to[Set]
 
   /** Gives an immutable set of all semantic theory entities.
     *

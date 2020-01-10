@@ -121,7 +121,8 @@ lazy val `importer-base` = project
 lazy val isabelle = project
   .settings(
     publish / skip := true,
-    unmanagedJars in Compile ++= (baseDirectory.value / "lib" / "classes" ** "*.jar").get()
+    unmanagedJars in Compile ++= (baseDirectory.value / "lib" / "classes" ** "*.jar").get(),
+    libraryDependencies ++= isabelleDependencies
   )
 
 // Importer isabelle projects. Follows isabelle conventions.

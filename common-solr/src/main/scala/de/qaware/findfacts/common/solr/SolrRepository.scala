@@ -70,7 +70,11 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
   * @param url to solr instance
   */
 final case class RemoteSolr(url: URL) extends SolrRepository {
-  override lazy val solrConnection: SolrClient = new HttpSolrClient.Builder().withBaseSolrUrl(url.toString).build
+  override lazy val solrConnection: SolrClient = new HttpSolrClient.Builder()
+    .withBaseSolrUrl(url.toString)
+    .withConnectionTimeout(5 * 60 * 1000)
+    .withSocketTimeout(5 * 60 * 1000)
+    .build
 }
 
 /** Remote solr cloud.

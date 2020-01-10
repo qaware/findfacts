@@ -1,9 +1,17 @@
+/*  Title:      findfacts/theory.scala
+    Author:     Fabian Huch, TU Munich/QAware GmbH
+
+Isabelle Export_Theory -> findfacts TheoryView mapping.
+*/
+
 package de.qaware.findfacts
 
-import _root_.scala.language.implicitConversions
 
+import _root_.scala.language.implicitConversions
 import de.qaware.findfacts.theoryimporter.TheoryView
-import isabelle.{Export_Theory, Markup, Properties, Term}
+import de.qaware.findfacts.theoryimporter.TheoryView.Source
+import isabelle._
+
 
 object Theory
 {
@@ -173,7 +181,6 @@ object Theory
 
   implicit class PThm_Wrapper(val inner: Term.PThm) extends AnyVal with TheoryView.PThm
   {
-    override def serial: Long = inner.serial
     override def theoryName: String = inner.theory_name
     override def name: String = inner.name
     override def types: List[TheoryView.Typ] = inner.types.map(map_typ)
@@ -189,7 +196,6 @@ object Theory
   {
     override def name: String = inner.name
     override def pos: TheoryView.Position = inner.pos
-    override def serial: Long = inner.serial
   }
 
   implicit class Type_Wrapper(val inner: Export_Theory.Type) extends AnyVal with TheoryView.Type
@@ -229,5 +235,38 @@ object Theory
   {
     override def name: String = inner.name
     override def axiomName: String = inner.axiom_name
+  }
+
+  implicit class Block_wrapper(val inner: Markup_Blocks.Block) extends AnyVal with TheoryView.Block
+  {
+    override def offset: Int = inner.range.start
+    override def endOffset: Int = inner.range.stop
+    override def text: String = inner.body
+  }
+
+  implicit class Source_Wrapper(val inner: Markup_Blocks) extends AnyVal with TheoryView.Source
+  {
+    override def get(offset: Int, endOffset: Int): Option[TheoryView.Block] =
+      inner.get_containing(Text.Range(offset, endOffset)).map(Block_wrapper)
+  }
+
+  def map_theory(
+    session_name: String,
+    isabelle_theory: Export_Theory.Theory,
+    markup_Blocks: Markup_Blocks): TheoryView.Theory =
+  {
+
+    new TheoryView.Theory
+    {
+      override val name: String = isabelle_theory.name
+      override val session: String = session_name
+      override def source: Source = markup_Blocks
+      override def types: List[TheoryView.Type] = isabelle_theory.types.map(Type_Wrapper)
+      override def consts: List[TheoryView.Const] = isabelle_theory.consts.map(Const_Wrapper)
+      override def axioms: List[TheoryView.Axiom] = isabelle_theory.axioms.map(Axiom_Wrapper)
+      override def thms: List[TheoryView.Thm] = isabelle_theory.thms.map(Thm_Wrapper)
+      override def constdefs: List[TheoryView.Constdef] = isabelle_theory.constdefs.map(Constdef_Wrapper)
+      override def typedefs: List[TheoryView.Typedef] = isabelle_theory.typedefs.map(Typedef_Wrapper)
+    }
   }
 }

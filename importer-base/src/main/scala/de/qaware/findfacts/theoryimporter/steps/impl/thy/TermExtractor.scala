@@ -4,10 +4,15 @@ import de.qaware.findfacts.theoryimporter.TheoryView
 import de.qaware.findfacts.theoryimporter.TheoryView.{Abs, App, Bound, ConstTerm, Free, Term, Typ, Var}
 import de.qaware.findfacts.theoryimporter.pure.PureSyntax
 
-class TermExtractor {
+class TermExtractor(typExtractor: TypExtractor) {
 
-  private def replace(body: Term, _name: String, _typ: Typ, targetDepth: Int): Term = body match {
-    case Bound(depth) if depth == targetDepth =>
+  private def replace(body: Term, _name: String, _typ: Typ, absDepth: Int): Term = body match {
+    // Correct bounds that reference abstractions before the replaced one, since now there is one less lambda in between
+    case Bound(depth) if depth > absDepth => new Bound {
+      override def index: Int = depth - 1
+    }
+    // Replace bound by free variable if we hit
+    case Bound(depth) if depth == absDepth =>
       new Free {
         override def name: String = _name
         override def typ: Typ = _typ
@@ -16,12 +21,12 @@ class TermExtractor {
       new Abs {
         override def name: String = __name
         override def typ: Typ = __typ
-        override def body: Term = replace(_body, _name, _typ, targetDepth + 1)
+        override def body: Term = replace(_body, _name, _typ, absDepth + 1)
       }
     case App(_fun, _arg) =>
       new App {
-        override def fun: Term = replace(_fun, _name, _typ, targetDepth)
-        override def arg: Term = replace(_arg, _name, _typ, targetDepth)
+        override def fun: Term = replace(_fun, _name, _typ, absDepth)
+        override def arg: Term = replace(_arg, _name, _typ, absDepth)
       }
     case _ => body
   }
@@ -56,7 +61,7 @@ class TermExtractor {
     case ConstTerm(PureSyntax.Type.name, _) => "Γ"
     case ConstTerm(name, _) => s"<$name>"
     case Free(name, _) => s"'$name'"
-    case Var(name, _) => s"?${name.toString}"
+    case Var(indexname, _) => s"?${typExtractor.prettyPrint(indexname)}"
     case Bound(index) => vars(index)
     case abs: Abs => s"(λ ${chainAbs(abs, vars)})"
     case App(ConstTerm(PureSyntax.Eq.name, _), arg) => s"${prettyPrintRec(arg, vars)} ≡"
@@ -69,5 +74,13 @@ class TermExtractor {
   private def chainAbs(abs: Abs, vars: IndexedSeq[String]): String = abs.body match {
     case b: Abs => s"${abs.name} ${chainAbs(b, b.name +: vars)}"
     case _ => s"${abs.name}. ${prettyPrintRec(abs.body, abs.name +: vars)}"
+  }
+
+  def semanticEqual(t1: Term, t2: Term): Boolean = {
+    (minimize(t1), minimize(t2)) match {
+      case (Abs(_, typ1, term1), Abs(_, typ2, term2)) => typ1 == typ2 && semanticEqual(term1, term2)
+      case (App(fun1, arg1), App(fun2, arg2)) => semanticEqual(fun1, fun2) && semanticEqual(arg1, arg2)
+      case (t1, t2) => t1 == t2
+    }
   }
 }

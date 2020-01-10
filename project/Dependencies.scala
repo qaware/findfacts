@@ -45,4 +45,5 @@ object Dependencies {
   val playSwagger = ("io.swagger" %% "swagger-play2" % "1.7.1"
     exclude ("com.google.guava", "guava")
     exclude ("com.typesafe.play", "play-logback_2.12"))
+  val isabelleDependencies = Seq("org.tukaani" % "xz" % "1.8")
 }

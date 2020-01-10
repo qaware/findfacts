@@ -12,10 +12,10 @@ class TypExtractor {
   }
 
   def prettyPrint(typ: Typ): String = typ match {
-    case TypeTyp(PureSyntax.Fun.name, args) => s"(${args.mkString(" ⇒ ")})"
+    case TypeTyp(PureSyntax.Fun.name, args) => s"(${args.map(prettyPrint).mkString(" ⇒ ")})"
     case TypeTyp(name, List()) => name
-    case TypeTyp(name, List(single)) => s"$single $name"
-    case TypeTyp(name, args) => s"(${args.mkString(" ⇒ ")}) $name"
+    case TypeTyp(name, List(single)) => s"${prettyPrint(single)} $name"
+    case TypeTyp(name, args) => s"(${args.map(prettyPrint).mkString(" ⇒ ")}) $name"
 
     case TFree(name, List()) => name
     case TFree(name, List(single)) => s"($name::$single)"

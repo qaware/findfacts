@@ -15,20 +15,20 @@ class TranslateNameStep extends ImportStep {
 
     // Update elements
     ctx.consts foreach { const =>
-      val defUses = const.propositionUses.distinct.filter(pureFilter).map(e => s"${EtKind.Constant.entryName}.$e")
-      val typeUses = const.typeUses.distinct.filter(pureFilter).map(e => s"${EtKind.Type.entryName}.$e")
+      val defUses = const.propositionUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Constant, _))
+      val typeUses = const.typeUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Type, _))
       ctx.updateEntity(const, const.copy(typeUses = typeUses, propositionUses = defUses))
     }
 
     ctx.types foreach { typ =>
-      val uses = typ.uses.distinct.filter(pureFilter).map(e => s"${EtKind.Type.entryName}.$e")
+      val uses = typ.uses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Type, _))
       ctx.updateEntity(typ, typ.copy(uses = uses))
     }
 
     logger.info(s"Translating names used by ${ctx.facts.size} facts...")
     ctx.facts foreach { fact =>
-      val uses = fact.uses.distinct.filter(pureFilter).map(e => s"${EtKind.Constant.entryName}.$e")
-      val proofUses = fact.proofUses.distinct.filter(pureFilter).map(e => s"${EtKind.Fact.entryName}.$e")
+      val uses = fact.uses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Constant, _))
+      val proofUses = fact.proofUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Fact, _))
       ctx.updateEntity(fact, fact.copy(uses = uses, proofUses = proofUses))
     }
 
@@ -37,5 +37,7 @@ class TranslateNameStep extends ImportStep {
   }
 
   // Filter out pure stuff
-  def pureFilter(name: String): Boolean = !name.startsWith("Pure.") && !PureSyntax.values.exists(_.name == name)
+  private def pureFilter(name: String): Boolean = !name.startsWith("Pure.") && !PureSyntax.values.exists(_.name == name)
+
+  private def toUniqueKey(kind: EtKind, name: String): String = s"${kind.entryName}.$name"
 }

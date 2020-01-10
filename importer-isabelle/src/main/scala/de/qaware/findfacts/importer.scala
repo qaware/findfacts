@@ -1,10 +1,18 @@
+/*  Title:      findfacts/importer.scala
+    Author:     Fabian Huch, TU Munich/QAware GmbH
+
+Isabelle dump importer.
+*/
+
 package de.qaware.findfacts
+
 
 import de.qaware.findfacts.Theory._
 import de.qaware.findfacts.common.solr.{LocalSolr, RemoteSolr, SolrRepository}
 import de.qaware.findfacts.theoryimporter.solrimpl.SolrImporterModule
-import de.qaware.findfacts.theoryimporter.{ImporterModule, TheoryView}
-import isabelle.{Console_Progress, Export, Export_Theory, File, Getopts, Isabelle_Tool, No_Progress, Path, Progress, Url}
+import de.qaware.findfacts.theoryimporter.ImporterModule
+import isabelle._
+
 
 object Importer
 {
@@ -33,24 +41,19 @@ object Importer
     importer: ImporterModule,
     progress: Progress = No_Progress)
   {
+    progress.echo("importing " + session_name + " with " + theory_names.size + " theories...")
+
     val theories = theory_names map { theory_name =>
       val theory_provider = provider.focus(theory_name)
 
       val isabelle_theory = Export_Theory.read_theory(theory_provider, session_name, theory_name)
 
+      val markup_xml = theory_provider.uncompressed_yxml("markup.yxml")
+      val markup_blocks = Markup_Blocks.from_XML(markup_xml)
+
       // Create accessor for importer
 
-      new TheoryView.Theory
-      {
-        override val name: String = theory_name
-        override val session: String = session_name
-        override def types: List[TheoryView.Type] = isabelle_theory.types.map(Type_Wrapper)
-        override def consts: List[TheoryView.Const] = isabelle_theory.consts.map(Const_Wrapper)
-        override def axioms: List[TheoryView.Axiom] = isabelle_theory.axioms.map(Axiom_Wrapper)
-        override def thms: List[TheoryView.Thm] = isabelle_theory.thms.map(Thm_Wrapper)
-        override def constdefs: List[TheoryView.Constdef] = isabelle_theory.constdefs.map(Constdef_Wrapper)
-        override def typedefs: List[TheoryView.Typedef] = isabelle_theory.typedefs.map(Typedef_Wrapper)
-      }
+      map_theory(session_name, isabelle_theory, markup_blocks)
     }
 
     val errors = importer.importSession(theories)
@@ -61,9 +64,9 @@ object Importer
     }
 
     if (errors.isEmpty) {
-      progress.echo("imported " + session_name)
+      progress.echo("finished importing " + session_name)
     } else {
-      progress.echo("imported " + session_name + " with " + errors.size + " errors.")
+      progress.echo("finished importing " + session_name + " with " + errors.size + " errors.")
     }
   }
 
@@ -113,14 +116,16 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR
 
     // run import
 
-    sessions foreach { session =>
-      val theory_dirs = dump_theory_dirs.filter(dir => dir == session || dir.startsWith(session + "."))
-      val theory_names = theory_dirs map { theory_dir =>
-        if (theory_dir.length > session.length) theory_dir else session
-      }
-      val provider = Export.Provider.directory(dump_dir, session, "dummy")
+    sessions map { session =>
+      Future.fork {
+        val theory_dirs = dump_theory_dirs.filter(dir => dir == session || dir.startsWith(session + "."))
+        val theory_names = theory_dirs map { theory_dir =>
+          if (theory_dir.length > session.length) theory_dir else session
+        }
+        val provider = Export.Provider.directory(dump_dir, session, "dummy")
 
-      import_session(provider, session, theory_names, importer_module, progress)
-    }
+        import_session(provider, session, theory_names, importer_module, progress)
+      }
+    } foreach(_.join)
   })
 }
