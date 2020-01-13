@@ -1,7 +1,7 @@
 package de.qaware.findfacts.theoryimporter.steps.impl
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.theoryimporter.TheoryView
+import de.qaware.findfacts.common.utils.LoggingUtils.doDebug
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
 import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
 
@@ -32,7 +32,8 @@ class SanityCheckStep extends ImportStep {
       logger.warn("Sanity checks failed")
     }
 
-    duplicateIDs.keys.map(ImportError(this, _, "Non-unique id")).toList ++
-      duplicateNames.keys.map(e => ImportError(this, s"${e._1}:${e._2}", "Duplicate name"))
+    duplicateIDs.map(e => doDebug(ImportError(this, e._1, "Dumplicate id", e._2.mkString(",")))).toList ++
+      duplicateNames.map(e =>
+        doDebug(ImportError(this, s"${e._1._1}:${e._1._2}", "Duplicate name", e._2.mkString(","))))
   }
 }

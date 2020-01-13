@@ -5,7 +5,8 @@ import scala.language.postfixOps
 import cats.implicits._
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.solr.{ConstRecord, FactRecord, TypeRecord}
-import de.qaware.findfacts.theoryimporter.TheoryView.{Axiom, Source, Theory, Thm, Typedef}
+import de.qaware.findfacts.common.utils.LoggingUtils.doDebug
+import de.qaware.findfacts.theoryimporter.TheoryView.{Axiom, Block, Position, Source, Theory, Thm}
 import de.qaware.findfacts.theoryimporter.steps.impl.thy.{TermExtractor, TypExtractor}
 import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
 
@@ -29,8 +30,7 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
         theory.axioms.partition(ax => constAxNames.contains(ax.entity.name) || typeAxNames.contains(ax.entity.name))
       val (constAxioms, typeAxioms) = defAxioms.partition(ax => constAxNames.contains(ax.entity.name))
 
-      // Extracting facts doesn't create errors
-      extractFacts(theory.name, theory.thms.distinct, axioms, ctx)(theory.source) ++
+      extractFacts(theory.name, theory.source, theory.thms.distinct, axioms, ctx) ++
         extractConsts(theory, constAxioms, ctx) ++
         extractTypes(theory, typeAxioms, ctx)
     } toList
@@ -42,161 +42,160 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
 
   /** Extracts constants from theory.
     *
-    * @param thy to extract constants from
+    * @param thy         to extract constants from
     * @param constAxioms of constant definitions, pre-computed
-    * @param context to write constants to
+    * @param context     to write constants to
     */
   private def extractConsts(thy: Theory, constAxioms: Seq[Axiom], context: StepContext): List[ImportError] = {
-    import thy.source
-
     // Find related axioms, if any
-    val axNameByConst = thy.constdefs.groupBy(_.name).mapValues(_.map(_.axiomName))
-    val constAxiomsByName = constAxioms.groupBy(_.entity.name)
+    val axNameByConst: Map[String, List[String]] = thy.constdefs.groupBy(_.name).mapValues(_.map(_.axiomName))
+    val constAxiomsByName: Map[String, Seq[Axiom]] = constAxioms.groupBy(_.entity.name)
 
-    val groupedConstants = thy.consts.groupBy(c => (c.entity.name, c.entity.pos, c.typargs, c.typ))
-    groupedConstants.flatMap {
-      case ((name, pos, _, typ), consts) =>
-        val (errors, axioms) = (for {
-          axName <- axNameByConst.getOrElse(name, List.empty)
-          ax <- constAxiomsByName.get(axName)
-        } yield {
-          ax match {
-            case Seq(ax) => Right(ax)
-            case axs =>
-              logger.whenDebugEnabled {
-                logger.warn(s"Expected exactly one axiom for name $axName, got: ${axs.mkString(",")}")
-              }
-              Left(ImportError(this, axName, "non-unique constdef axiom name"))
-          }
-        }).separate
-
-        if (errors.isEmpty) {
-          if (axioms.isEmpty) {
-            logger.whenDebugEnabled { logger.debug(s"No constant definition for $name") }
-          }
-
-          val defPositions = consts.map(_.entity.pos) ++ axioms.map(_.entity.pos)
-          defPositions.map(p => source.get(p.offset, p.endOffset)).filter(_.isDefined).distinct match {
-            case List(Some(src)) =>
-              // Enrich const data with axiom def
-              val entity = ConstRecord(
-                thy.name,
-                pos.offset,
-                pos.endOffset,
-                name,
-                typExtractor.prettyPrint(typ),
-                typExtractor.referencedTypes(typ).toArray,
-                axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
-                axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toArray,
-                Array.empty,
-                src.text
-              )
-
-              // Register entity
-              context.addEntity(entity)
-              None
-            case _ => Some(ImportError(this, name, "Not a single source for const"))
-          }
-        } else {
-          errors
-        }
-    } toList
-  }
-
-  /** Extracts facts from theory.
-    *
-    * @param name of the theory
-    * @param thms to extract facts from
-    * @param axioms that do not belong to const/thm definition
-    * @param context to write fact entities into
-    */
-  private def extractFacts(name: String, thms: Seq[Thm], axioms: Seq[Axiom], context: StepContext)(
-      implicit source: Source): List[ImportError] = {
-    (thms flatMap { thm =>
-      source.get(thm.entity.pos.offset, thm.entity.pos.endOffset) match {
-        case None => Some(ImportError(this, thm.entity.name, "No source for thm"))
-        case Some(src) =>
-          context.addEntity(
-            FactRecord(
-              name,
-              thm.entity.pos.offset,
-              thm.entity.pos.endOffset,
-              thm.entity.name,
-              termExtractor.prettyPrint(thm.prop.term),
-              termExtractor.referencedConsts(thm.prop.term).toArray,
-              thm.deps.toArray,
-              Array.empty,
-              src.text
-            )
-          )
-          None
-      }
-    }).toList ++
-      (axioms flatMap { ax =>
-        source.get(ax.entity.pos.offset, ax.entity.pos.endOffset) match {
-          case None => Some(ImportError(this, ax.entity.name, "No source for axiom"))
-          case Some(src) =>
-            context.addEntity(
-              FactRecord(
-                name,
-                ax.entity.pos.offset,
-                ax.entity.pos.endOffset,
-                ax.entity.name,
-                termExtractor.prettyPrint(ax.prop.term),
-                termExtractor.referencedConsts(ax.prop.term).toArray,
-                Array.empty,
-                Array.empty,
-                src.text
-              )
-            )
-            None
-        }
-      })
-  }
-
-  /** Extracts types from theory.
-    *
-    * @param thy to extract from
-    * @param typeAxioms of type definitions, pre-computed
-    * @param context to write type entities into
-    */
-  private def extractTypes(thy: Theory, typeAxioms: Seq[Axiom], context: StepContext): List[ImportError] = {
-    val typedefByTypeName = thy.typedefs.groupBy(_.name)
-    val typeAxiomsByName = typeAxioms.groupBy(_.entity.name)
-
-    thy.types.distinct flatMap { t =>
-      val (errors, axioms) = (typedefByTypeName.getOrElse(t.entity.name, List.empty) map { typDef: Typedef =>
-        typeAxiomsByName.getOrElse(typDef.axiomName, Seq.empty) match {
-          case Seq(ax) => Right(ax)
-          case axs: Any =>
-            logger.error(s"Expected exactly one axiom for type ${typDef.axiomName}, got: ${axs.mkString(",")}")
-            Left(ImportError(this, typDef.axiomName, "non-unique typedef axiom name"))
-        }
-      }).separate
-
-      if (errors.isEmpty) {
-        val defPositions = t.entity.pos +: axioms.map(_.entity.pos)
-        defPositions.map(p => thy.source.get(p.offset, p.endOffset)).filter(_.isDefined).distinct match {
-          case List(Some(src)) =>
-            val typeEntity = TypeRecord(
+    thy.consts
+      .groupBy(c => (c.entity.name, c.entity.pos, c.typargs, c.typ))
+      .flatMap {
+        case ((name, pos, _, typ), consts) =>
+          val res = for {
+            src <- findSrc(s"Const $pos:$name", consts.map(_.entity.pos), thy.source).left.map(Seq(_))
+            axioms <- findAxioms(name, src, axNameByConst, constAxiomsByName)
+          } yield
+            ConstRecord(
               thy.name,
-              t.entity.pos.offset,
-              t.entity.pos.endOffset,
-              t.entity.name,
+              pos.offset,
+              pos.endOffset,
+              name,
+              typExtractor.prettyPrint(typ),
+              typExtractor.referencedTypes(typ).toArray,
               axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
               axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toArray,
               Array.empty,
               src.text
             )
 
-            // Register entity
-            context.addEntity(typeEntity)
-            None
-          case _ => Some(ImportError(this, t.entity.name, "Not a single source for type"))
-        }
-      } else {
-        errors
+          // Add entity or report errors
+          res.fold(identity, e => {
+            context.addEntity(e)
+            List.empty[ImportError]
+        })
+    } toList
+  }
+
+  /** Extracts facts from theory.
+    *
+    * @param theoryName    of the theory
+    * @param thms    to extract facts from
+    * @param axioms  that do not belong to const/thm definition
+    * @param context to write fact entities into
+    */
+  private def extractFacts(
+      theoryName: String,
+      source: Source,
+      thms: Seq[Thm],
+      axioms: Seq[Axiom],
+      context: StepContext): List[ImportError] = {
+    val thmErrors = thms map { thm =>
+      findSrc(s"Thm ${thm.entity}", Seq(thm.entity.pos), source).right map { src =>
+        context.addEntity(
+          FactRecord(
+            theoryName,
+            thm.entity.pos.offset,
+            thm.entity.pos.endOffset,
+            thm.entity.name,
+            termExtractor.prettyPrint(thm.prop.term),
+            termExtractor.referencedConsts(thm.prop.term).toArray,
+            thm.deps.toArray,
+            Array.empty,
+            src.text
+          ))
       }
+    }
+
+    val axErrors = axioms map { ax =>
+      findSrc(s"Axiom ${ax.entity}", Seq(ax.entity.pos), source).right map { src =>
+        context.addEntity(
+          FactRecord(
+            theoryName,
+            ax.entity.pos.offset,
+            ax.entity.pos.endOffset,
+            ax.entity.name,
+            termExtractor.prettyPrint(ax.prop.term),
+            termExtractor.referencedConsts(ax.prop.term).toArray,
+            Array.empty,
+            Array.empty,
+            src.text
+          )
+        )
+      }
+    }
+
+    (thmErrors ++ axErrors).flatMap(_.swap.toOption).toList
+  }
+
+  /** Extracts types from theory.
+    *
+    * @param thy        to extract from
+    * @param typeAxioms of type definitions, pre-computed
+    * @param context    to write type entities into
+    */
+  private def extractTypes(thy: Theory, typeAxioms: Seq[Axiom], context: StepContext): List[ImportError] = {
+    val typedefByTypeName = thy.typedefs.groupBy(_.name).mapValues(_.map(_.axiomName))
+    val typeAxiomsByName = typeAxioms.groupBy(_.entity.name)
+
+    thy.types.distinct flatMap { typ =>
+      val res = for {
+        src <- findSrc(s"Type ${typ.entity}", Seq(typ.entity.pos), thy.source).left.map(Seq(_))
+        axioms <- findAxioms(typ.entity.name, src, typedefByTypeName, typeAxiomsByName)
+      } yield
+        TypeRecord(
+          thy.name,
+          typ.entity.pos.offset,
+          typ.entity.pos.endOffset,
+          typ.entity.name,
+          axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
+          axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toArray,
+          Array.empty,
+          src.text
+        )
+
+      res.fold(identity, e => {
+        context.addEntity(e)
+        List.empty[ImportError]
+      })
+    }
+  }
+
+  private def findSrc(debugIdentifier: String, positions: Seq[Position], source: Source): Either[ImportError, Block] = {
+    positions.flatMap(source.get).distinct match {
+      case Nil => Left(doDebug(ImportError(this, debugIdentifier, "No source", s"at ${positions.mkString(",")}")))
+      case Seq(src) => Right(src)
+      case srcs =>
+        Left(
+          doDebug(
+            ImportError(
+              this,
+              debugIdentifier,
+              "Multiple sources",
+              s"at ${positions.mkString(",")}: ${srcs.mkString(",")}")))
+    }
+  }
+
+  private def findAxioms(
+      name: String,
+      sourceBlock: Block,
+      axNameMapping: Map[String, List[String]],
+      axiomsByName: Map[String, Seq[Axiom]]): Either[List[ImportError], Seq[Axiom]] = {
+    val axNames = axNameMapping.getOrElse(name, Nil)
+    val (errors, axioms) = axNames
+      .map(axName =>
+        axiomsByName.getOrElse(axName, Nil) match {
+          case Nil => Left(doDebug(ImportError(this, axName, "No axiom for name", s"in $sourceBlock:$name")))
+          case axioms => Right(axioms.filter(ax => sourceBlock.contains(ax.entity)))
+      })
+      .separate
+
+    errors match {
+      case Nil => Right(axioms.flatten)
+      case _ => Left(errors)
     }
   }
 }

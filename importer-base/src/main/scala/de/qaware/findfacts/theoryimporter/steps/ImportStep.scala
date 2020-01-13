@@ -7,8 +7,18 @@ import de.qaware.findfacts.theoryimporter.TheoryView.Theory
   * @param step the error occurred in
   * @param causeEntity name of the entity associated with the error
   * @param errorMsg description of the issue
+  * @param debugInfo lazy string for more involved debug information
   */
-case class ImportError(step: ImportStep, causeEntity: String, errorMsg: String)
+class ImportError(val step: ImportStep, val causeEntity: String, val errorMsg: String, debugInfo: => String) {
+  val getDebugInfo: String = debugInfo
+
+  override def toString: String = s"Error at $step, $causeEntity: $errorMsg. Additional info: $debugInfo"
+}
+object ImportError {
+  // scalastyle:ignore
+  def apply(step: ImportStep, causeEntity: String, errorMsg: String, debugInfo: => String): ImportError =
+    new ImportError(step, causeEntity, errorMsg, debugInfo)
+}
 
 /** Step of the import process. */
 trait ImportStep {

@@ -5,16 +5,19 @@ object TheoryView {
 
   // scalastyle:off
   trait Block extends Any {
-    def offset: Int
-    def endOffset: Int
+    def start: Int
+    def stop: Int
     def text: String
+
+    def contains(entity: Entity): Boolean
+    override def toString: String = s"[$start..$stop]:$text"
   }
   object Block {
-    def unapply(arg: Block): Option[(Int, Int, String)] = Some(arg.offset, arg.endOffset, arg.text)
+    def unapply(arg: Block): Option[(Int, Int, String)] = Some(arg.start, arg.stop, arg.text)
   }
 
   trait Source extends Any {
-    def get(offset: Int, endOffset: Int): Option[Block]
+    def get(position: Position): Option[Block]
   }
 
   trait Prop extends Any {
@@ -192,6 +195,8 @@ object TheoryView {
   trait Position extends Any {
     def offset: Int
     def endOffset: Int
+
+    override def toString: String = s"[$offset..$endOffset]"
   }
   object Position {
     def unapply(arg: Position): Option[(Int, Int)] = Some(arg.offset, arg.endOffset)
@@ -200,6 +205,8 @@ object TheoryView {
   trait Entity extends Any {
     def name: String
     def pos: Position
+
+    override def toString: String = s"$pos:$name"
   }
   object Entity {
     def unapply(arg: Entity): Option[(String, Position)] =

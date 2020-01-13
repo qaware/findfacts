@@ -37,7 +37,7 @@ class WriteSolrStep(solrRepository: SolrRepository) extends ImportStep {
     } match {
       case Failure(ex) =>
         logger.error("Exception occurred while writing to solr: ", ex)
-        List(ImportError(this, "*", ex.getMessage))
+        List(ImportError(this, "*", ex.getMessage, ex.getStackTrace.mkString("\n")))
       case Success(res) =>
         logger.info("Finished writing to solr")
         Nil

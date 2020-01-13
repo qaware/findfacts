@@ -16,13 +16,10 @@ object Markup_Blocks
 
   def from_XML(body: XML.Body): Markup_Blocks =
   {
-    val body_text = XML.content(body)
-    val markup_tree = Markup_Tree.from_XML(body)
-
-    val blocks = markup_tree.branches.toList map {
-      case (range, markup) =>
-        val text = XML.content(markup.subtree.to_XML(range, body_text, Markup.Elements.full))
-        Block(range, text)
+    val blocks = body.map(XML.content).foldLeft(Nil: List[Block]) {
+      case (acc, text) =>
+        val start_index = if (acc.isEmpty) 1 else acc.last.range.stop
+        acc :+ Block(Text.Range(start_index, start_index + Symbol.length(text)), text)
     }
 
     new Markup_Blocks(blocks)
