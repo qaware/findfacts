@@ -9,7 +9,7 @@
         <field name="name" type="string" multiValued="false" omitNorms="true" omitTermFreqAndPositions="true"/>
         <field name="const_type" type="string" multiValued="false" omitNorms="true" omitTermFreqAndPositions="true"/>
         <field name="doc_kind" type="doc_kind" multiValued="false" omitNorms="true"/>
-        <field name="prop" type="text_general" uninvertible="false" multiValued="false" stored="false" omitTermFreqAndPositions="true"/>
+        <field name="prop" type="text_general" uninvertible="false" multiValued="false" omitTermFreqAndPositions="true"/>
         <field name="source_text" type="text_general" uninvertible="false" multiValued="false" omitTermFreqAndPositions="true"/>
         <field name="uses" type="string" uninvertible="false" multiValued="true"  omitNorms="true" omitTermFreqAndPositions="true"/>
         <field name="type_uses" type="string" uninvertible="false" multiValued="true"  omitNorms="true" omitTermFreqAndPositions="true"/>

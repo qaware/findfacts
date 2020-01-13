@@ -15,6 +15,7 @@ import play.api.{Application, ApplicationLoader, BuiltInComponentsFromContext}
 import play.filters.HttpFiltersComponents
 import play.filters.csrf.CSRFFilter
 import play.modules.swagger.{SwaggerPlugin, SwaggerPluginImpl}
+import router.Routes
 
 /** Loader that can dynamically load wired up application. */
 class WebappLoader extends ApplicationLoader {
