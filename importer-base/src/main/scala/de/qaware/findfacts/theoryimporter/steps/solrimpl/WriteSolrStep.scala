@@ -24,6 +24,10 @@ class WriteSolrStep(solrRepository: SolrRepository) extends ImportStep {
   override def apply(theories: Seq[Theory])(implicit ctx: StepContext): List[ImportError] = {
     val entities = ctx.blocks ++ ctx.docs
 
+    if (entities.isEmpty) {
+      return List.empty
+    }
+
     logger.info(s"Writing ${entities.size} entities to solr...")
 
     // Add all entities
@@ -45,7 +49,7 @@ class WriteSolrStep(solrRepository: SolrRepository) extends ImportStep {
         List(ImportError(this, "*", ex.getMessage, ex.getStackTrace.mkString("\n")))
       case Success(res) =>
         logger.info("Finished writing to solr")
-        Nil
+        List.empty
     }
   }
 }

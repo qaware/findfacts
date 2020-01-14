@@ -78,7 +78,7 @@ object ToSolrDoc {
       tMapper: ToSolrDoc[T]
   ): ToSolrDoc[FieldType[K, List[B] @@ F] :: T] = hlistToSolrDoc(witness, tMapper) {
     case (fieldName, values, doc) =>
-      doc.addField(fieldName, values.map(_.toString))
+      doc.addField(fieldName, values.map(_.toString).toArray)
       doc
   }
 

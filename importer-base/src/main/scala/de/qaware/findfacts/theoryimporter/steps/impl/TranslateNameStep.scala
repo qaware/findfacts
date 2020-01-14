@@ -15,29 +15,30 @@ class TranslateNameStep extends ImportStep {
 
     // Update elements
     ctx.consts foreach { const =>
-      val defUses = const.propositionUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Constant, _))
-      val typeUses = const.typeUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Type, _))
+      val defUses = const.propositionUses.distinct.filterNot(pureFilter).map(toUniqueKey(EtKind.Constant, _))
+      val typeUses = const.typeUses.distinct.filterNot(pureFilter).map(toUniqueKey(EtKind.Type, _))
       ctx.updateEntity(const, const.copy(typeUses = typeUses, propositionUses = defUses))
     }
 
     ctx.types foreach { typ =>
-      val uses = typ.propositionUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Type, _))
+      val uses = typ.propositionUses.distinct.filterNot(pureFilter).map(toUniqueKey(EtKind.Type, _))
       ctx.updateEntity(typ, typ.copy(propositionUses = uses))
     }
 
     logger.info(s"Translating names used by ${ctx.facts.size} facts...")
     ctx.facts foreach { fact =>
-      val uses = fact.propositionUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Constant, _))
-      val proofUses = fact.proofUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Fact, _))
+      val uses = fact.propositionUses.distinct.filterNot(pureFilter).map(toUniqueKey(EtKind.Constant, _))
+      val proofUses = fact.proofUses.distinct.filterNot(pureFilter).map(toUniqueKey(EtKind.Fact, _))
       ctx.updateEntity(fact, fact.copy(propositionUses = uses, proofUses = proofUses))
     }
 
     logger.info("Finished translating names.")
-    Nil
+    List.empty
   }
 
-  // Filter out pure stuff
-  private def pureFilter(name: String): Boolean = !name.startsWith("Pure.") && !PureSyntax.values.exists(_.name == name)
+  /** Filter out pure stuff */
+  private def pureFilter(name: String): Boolean = name.startsWith("Pure.") || PureSyntax.values.exists(_.name == name)
 
+  /** Make unique key */
   private def toUniqueKey(kind: EtKind, name: String): String = s"${kind.entryName}.$name"
 }
