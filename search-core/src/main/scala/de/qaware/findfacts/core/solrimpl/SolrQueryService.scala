@@ -1,16 +1,16 @@
 package de.qaware.findfacts.core.solrimpl
 
+import scala.collection.JavaConverters._
+import scala.language.{postfixOps, reflectiveCalls}
+import scala.util.Try
+
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.BaseEt
-import de.qaware.findfacts.common.solr.{SolrRepository, SolrSchema}
+import de.qaware.findfacts.common.solr.{FromSolrDoc, SolrRepository, SolrSchema}
 import de.qaware.findfacts.common.utils.TryUtils.flattenTryFailFirst
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService, ShortEntry}
 import org.apache.solr.client.solrj
 import org.apache.solr.client.solrj.response.QueryResponse
-
-import scala.collection.JavaConverters._
-import scala.language.{postfixOps, reflectiveCalls}
-import scala.util.Try
 
 /** Solr impl of the query service.
   *
@@ -32,7 +32,7 @@ class SolrQueryService(connection: SolrRepository, mapper: SolrQueryMapper) exte
     }
   }
 
-  override def getFacetResults(facetQuery: FacetQuery): Try[Map[facetQuery.field.BaseType, Long]] = {
+  override def getFacetResults(facetQuery: FacetQuery): Try[Map[String, Long]] = {
     for {
       solrQuery <- mapper.buildQuery(this, facetQuery)
       solrResult <- getSolrResult(solrQuery)
@@ -41,27 +41,27 @@ class SolrQueryService(connection: SolrRepository, mapper: SolrQueryMapper) exte
           .getFacetField(SolrSchema.getFieldName(facetQuery.field))
           .getValues
           .asScala
-          .groupBy(e => facetQuery.field.implicits.fromString(e.getName).get)
+          .groupBy(_.getName)
           .mapValues(_.head.getCount)
       }
     } yield result
   }
 
   /** Get result docs and map to entity. */
-  private def getListResults[A](filterQuery: FilterQuery)(implicit docMapper: SolrDocMapper[A]): Try[Vector[A]] = {
+  private def getListResults[A](filterQuery: FilterQuery)(implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] = {
     val results = for {
       query <- mapper.buildQuery(this, filterQuery)
       solrRes <- getSolrResult(query)
-    } yield solrRes.getResults.asScala.toSeq.map(docMapper.mapSolrDocument)
+    } yield solrRes.getResults.asScala.toSeq.map(docMapper.fromSolrDoc)
 
     (results: Try[Seq[A]]).map(_.toVector)
   }
 
   override def getResults(filterQuery: FilterQuery): Try[Vector[BaseEt]] = {
-    getListResults(filterQuery)(SolrDocMapper[BaseEt])
+    getListResults(filterQuery)(FromSolrDoc[BaseEt])
   }
 
   override def getShortResults(filterQuery: FilterQuery): Try[Vector[ShortEntry]] = {
-    getListResults(filterQuery)(SolrDocMapper[ShortEntry])
+    getListResults(filterQuery)(FromSolrDoc[ShortEntry])
   }
 }

@@ -10,18 +10,6 @@ sealed trait BaseEt {
 
   /** Unique id. */
   val id: Id.FieldType
-
-  /** Source in which entity was defined. */
-  val sourceFile: SourceFile.FieldType
-
-  /** Start pos of entity definition, in isabelle tokens. */
-  val startPosition: StartPosition.FieldType
-
-  /** End pos of entity definition, in isabelle tokens. */
-  val endPosition: EndPosition.FieldType
-
-  /** Source code of the entity. */
-  val sourceText: SourceText.FieldType
 }
 
 /** Fields for Entities that from the semantic theory. */
@@ -35,9 +23,28 @@ sealed trait TheoryEt extends BaseEt {
 
   /** Other entities that the proposition of the entity uses. */
   val propositionUses: PropositionUses.FieldType
+}
 
-  /** Other entities defined at the same source positions as this entity. */
-  val related: Related.FieldType
+final case class BlockEt private (
+    override val id: Id.FieldType,
+    /** Source in which entity was defined. */
+    sourceFile: SourceFile.FieldType,
+    /** Start pos of entity definition, in isabelle tokens. */
+    startPosition: StartPosition.FieldType,
+    /** End pos of entity definition, in isabelle tokens. */
+    endPosition: EndPosition.FieldType,
+    /** Source code of the entity. */
+    sourceText: SourceText.FieldType,
+    /** Entities from this bloock. */
+    entities: Children.FieldType
+) extends BaseEt
+    with Tagged[EtKind.Block.type] {
+  def this(
+      sourceFile: SourceFile.FieldType,
+      startPosition: StartPosition.FieldType,
+      endPosition: EndPosition.FieldType,
+      sourceText: SourceText.FieldType) =
+    this(s"$sourceFile.$startPosition", sourceFile, startPosition, endPosition, sourceText, List.empty)
 }
 
 // scalastyle:off scaladoc
@@ -46,63 +53,84 @@ sealed trait TheoryEt extends BaseEt {
   * @param constantType type of the constant
   * @param typeUses other entities that the type of the constant references
   */
-final case class ConstantEt(
+final case class ConstantEt private (
     override val id: Id.FieldType,
-    override val sourceFile: SourceFile.FieldType,
-    override val startPosition: StartPosition.FieldType,
-    override val endPosition: EndPosition.FieldType,
     override val name: Name.FieldType,
     override val proposition: Proposition.FieldType,
-    override val sourceText: SourceText.FieldType,
     override val propositionUses: PropositionUses.FieldType,
-    override val related: Related.FieldType,
     typeUses: TypeUses.FieldType,
     constantType: ConstantType.FieldType
 ) extends TheoryEt
-    with Tagged[EtKind.Constant.type]
+    with Tagged[EtKind.Constant.type] {
+  def this(
+      name: Name.FieldType,
+      proposition: Proposition.FieldType,
+      propositionUses: PropositionUses.FieldType,
+      typeUses: TypeUses.FieldType,
+      constantType: ConstantType.FieldType
+  ) = this(s"${EtKind.Constant}.$name", name, proposition, propositionUses, typeUses, constantType)
+}
 
 /** Documentation.
   *
   * @param documentationKind kind of documentation
   */
-final case class DocumentationEt(
+final case class DocumentationEt private (
     override val id: Id.FieldType,
-    override val sourceFile: SourceFile.FieldType,
-    override val startPosition: StartPosition.FieldType,
-    override val endPosition: EndPosition.FieldType,
-    override val sourceText: SourceText.FieldType,
+    sourceFile: SourceFile.FieldType,
+    startPosition: StartPosition.FieldType,
+    endPosition: EndPosition.FieldType,
+    sourceText: SourceText.FieldType,
     documentationKind: DocumentationKind.FieldType)
     extends BaseEt
-    with Tagged[EtKind.Documentation.type]
+    with Tagged[EtKind.Documentation.type] {
+  def this(
+      sourceFile: SourceFile.FieldType,
+      startPosition: StartPosition.FieldType,
+      endPosition: EndPosition.FieldType,
+      sourceText: SourceText.FieldType,
+      documentationKind: DocumentationKind.FieldType
+  ) =
+    this(
+      s"$sourceFile.$startPosition.$documentationKind",
+      sourceFile,
+      startPosition,
+      endPosition,
+      sourceText,
+      documentationKind)
+}
 
 /** Any fact.
   *
   * @param proofUses entities that the proof references
   */
-final case class FactEt(
+final case class FactEt private (
     override val id: Id.FieldType,
-    override val sourceFile: SourceFile.FieldType,
-    override val startPosition: StartPosition.FieldType,
-    override val endPosition: EndPosition.FieldType,
-    override val sourceText: SourceText.FieldType,
     override val name: Name.FieldType,
     override val proposition: Proposition.FieldType,
     override val propositionUses: PropositionUses.FieldType,
-    override val related: Related.FieldType,
     proofUses: ProofUses.FieldType
 ) extends TheoryEt
-    with Tagged[EtKind.Fact.type]
+    with Tagged[EtKind.Fact.type] {
+  def this(
+      name: Name.FieldType,
+      proposition: Proposition.FieldType,
+      propositionUses: PropositionUses.FieldType,
+      proofUses: ProofUses.FieldType
+  ) = this(s"${EtKind.Fact}.$name", name, proposition, propositionUses, proofUses)
+}
 
 /** Type entity. */
-final case class TypeEt(
+final case class TypeEt private (
     override val id: Id.FieldType,
-    override val sourceFile: SourceFile.FieldType,
-    override val startPosition: StartPosition.FieldType,
-    override val endPosition: EndPosition.FieldType,
-    override val sourceText: SourceText.FieldType,
     override val name: Name.FieldType,
     override val proposition: Proposition.FieldType,
     override val propositionUses: PropositionUses.FieldType,
-    override val related: Related.FieldType
 ) extends TheoryEt
-    with Tagged[EtKind.Type.type]
+    with Tagged[EtKind.Type.type] {
+  def this(
+      name: Name.FieldType,
+      proposition: Proposition.FieldType,
+      propositionUses: PropositionUses.FieldType
+  ) = this(s"${EtKind.Type}.$name", name, proposition, propositionUses)
+}

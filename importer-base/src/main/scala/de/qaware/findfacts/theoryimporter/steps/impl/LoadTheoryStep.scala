@@ -4,7 +4,7 @@ import scala.language.postfixOps
 
 import cats.implicits._
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.solr.{ConstRecord, FactRecord, TypeRecord}
+import de.qaware.findfacts.common.dt.{BlockEt, ConstantEt, FactEt, TypeEt}
 import de.qaware.findfacts.common.utils.LoggingUtils.doDebug
 import de.qaware.findfacts.theoryimporter.TheoryView.{Axiom, Block, Position, Source, Theory, Thm}
 import de.qaware.findfacts.theoryimporter.steps.impl.thy.{TermExtractor, TypExtractor}
@@ -55,28 +55,28 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
       .groupBy(c => (c.entity.name, c.entity.pos, c.typargs, c.typ))
       .flatMap {
         case ((name, pos, _, typ), consts) =>
-          val res = for {
+          val res: Either[Seq[ImportError], Unit] = for {
             src <- findSrc(s"Const $pos:$name", consts.map(_.entity.pos), thy.source).left.map(Seq(_))
             axioms <- findAxioms(name, src, axNameByConst, constAxiomsByName)
           } yield
-            ConstRecord(
-              thy.name,
-              pos.offset,
-              pos.endOffset,
-              name,
-              typExtractor.prettyPrint(typ),
-              typExtractor.referencedTypes(typ).toArray,
-              axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
-              axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toArray,
-              Array.empty,
-              src.text
+            context.addEntity(
+              new ConstantEt(
+                name,
+                axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
+                axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toList,
+                typExtractor.referencedTypes(typ).toList,
+                typExtractor.prettyPrint(typ)
+              ),
+              new BlockEt(
+                thy.name,
+                src.start,
+                src.stop,
+                src.text,
+              )
             )
 
           // Add entity or report errors
-          res.fold(identity, e => {
-            context.addEntity(e)
-            List.empty[ImportError]
-        })
+          res.fold(identity, _ => List.empty[ImportError])
     } toList
   }
 
@@ -96,34 +96,27 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
     val thmErrors = thms map { thm =>
       findSrc(s"Thm ${thm.entity}", Seq(thm.entity.pos), source).right map { src =>
         context.addEntity(
-          FactRecord(
-            theoryName,
-            thm.entity.pos.offset,
-            thm.entity.pos.endOffset,
+          new FactEt(
             thm.entity.name,
             termExtractor.prettyPrint(thm.prop.term),
-            termExtractor.referencedConsts(thm.prop.term).toArray,
-            thm.deps.toArray,
-            Array.empty,
-            src.text
-          ))
+            termExtractor.referencedConsts(thm.prop.term).toList,
+            thm.deps
+          ),
+          new BlockEt(theoryName, src.start, src.stop, src.text)
+        )
       }
     }
 
     val axErrors = axioms map { ax =>
       findSrc(s"Axiom ${ax.entity}", Seq(ax.entity.pos), source).right map { src =>
         context.addEntity(
-          FactRecord(
-            theoryName,
-            ax.entity.pos.offset,
-            ax.entity.pos.endOffset,
+          new FactEt(
             ax.entity.name,
             termExtractor.prettyPrint(ax.prop.term),
-            termExtractor.referencedConsts(ax.prop.term).toArray,
-            Array.empty,
-            Array.empty,
-            src.text
-          )
+            termExtractor.referencedConsts(ax.prop.term).toList,
+            List.empty
+          ),
+          new BlockEt(theoryName, src.start, src.stop, src.text)
         )
       }
     }
@@ -146,21 +139,16 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
         src <- findSrc(s"Type ${typ.entity}", Seq(typ.entity.pos), thy.source).left.map(Seq(_))
         axioms <- findAxioms(typ.entity.name, src, typedefByTypeName, typeAxiomsByName)
       } yield
-        TypeRecord(
-          thy.name,
-          typ.entity.pos.offset,
-          typ.entity.pos.endOffset,
-          typ.entity.name,
-          axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
-          axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toArray,
-          Array.empty,
-          src.text
+        context.addEntity(
+          new TypeEt(
+            typ.entity.name,
+            axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
+            axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toList
+          ),
+          new BlockEt(thy.name, src.start, src.stop, src.text)
         )
 
-      res.fold(identity, e => {
-        context.addEntity(e)
-        List.empty[ImportError]
-      })
+      res.fold(identity, _ => List.empty[ImportError])
     }
   }
 

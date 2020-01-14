@@ -4,7 +4,8 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.solr.SolrRepository
+import de.qaware.findfacts.common.dt.BaseEt
+import de.qaware.findfacts.common.solr.{SolrRepository, ToSolrDoc}
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
 import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
 import org.apache.solr.client.solrj.SolrServerException
@@ -21,14 +22,18 @@ class WriteSolrStep(solrRepository: SolrRepository) extends ImportStep {
   private val logger = Logger[WriteSolrStep]
 
   override def apply(theories: Seq[Theory])(implicit ctx: StepContext): List[ImportError] = {
-    val entities = ctx.allEntities
+    val entities = ctx.blocks ++ ctx.docs
 
     logger.info(s"Writing ${entities.size} entities to solr...")
 
     // Add all entities
     Try {
       val solr = solrRepository.solrConnection()
-      solr.addBeans(entities.iterator.asJava)
+
+      val mapper = ToSolrDoc[BaseEt]
+
+      solr.add(entities.map(mapper.toSolrDoc).asJava)
+
       // Commit, wait for response and check if it is ok
       val res = solr.commit()
       if (res.getStatus != 0 && res.getStatus != STATUS_OK) {

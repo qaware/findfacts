@@ -21,9 +21,8 @@ trait ImporterModule {
   // Steps
   lazy val steps: Seq[ImportStep] = Seq(
     wire[LoadTheoryStep],
-    //wire[LoadPideMarkupStep], TODO
     wire[TranslateNameStep],
-    wire[FindRelatedStep],
+    wire[LoadDocumentationStep],
     wire[SanityCheckStep],
     indexWriterStep
   )

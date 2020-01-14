@@ -21,15 +21,15 @@ class TranslateNameStep extends ImportStep {
     }
 
     ctx.types foreach { typ =>
-      val uses = typ.uses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Type, _))
-      ctx.updateEntity(typ, typ.copy(uses = uses))
+      val uses = typ.propositionUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Type, _))
+      ctx.updateEntity(typ, typ.copy(propositionUses = uses))
     }
 
     logger.info(s"Translating names used by ${ctx.facts.size} facts...")
     ctx.facts foreach { fact =>
-      val uses = fact.uses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Constant, _))
+      val uses = fact.propositionUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Constant, _))
       val proofUses = fact.proofUses.distinct.filter(pureFilter).map(toUniqueKey(EtKind.Fact, _))
-      ctx.updateEntity(fact, fact.copy(uses = uses, proofUses = proofUses))
+      ctx.updateEntity(fact, fact.copy(propositionUses = uses, proofUses = proofUses))
     }
 
     logger.info("Finished translating names.")

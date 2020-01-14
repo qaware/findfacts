@@ -1,6 +1,7 @@
 package de.qaware.findfacts.common.dt
 
 import enumeratum.EnumEntry
+import io.circe.generic.auto._
 
 /** Seal field types so only existing fields can be used. */
 sealed trait EtField extends Field with EnumEntry
@@ -10,10 +11,13 @@ object EtField extends DefaultEnum[EtField] {
   override final val values = findValues
 
   /** Unique id. */
-  case object Id extends SingleValuedField[String] with Value { override val implicits = FieldImplicits() }
+  case object Id extends SingleValuedField[String] with EtField { override val implicits = FieldImplicits() }
 
   /** Kind of the entity. Possible values in [[Kind]]. */
   case object Kind extends SingleValuedField[EtKind] with EtField { override val implicits = FieldImplicits() }
+
+  /** Child documents. */
+  case object Children extends ChildrenField[TheoryEt] with EtField { override val implicits = FieldImplicits() }
 
   /** Source theory file containing the entity. */
   case object SourceFile extends SingleValuedField[String] with EtField { override val implicits = FieldImplicits() }
@@ -31,7 +35,7 @@ object EtField extends DefaultEnum[EtField] {
   case object Proposition extends SingleValuedField[String] with EtField { override val implicits = FieldImplicits() }
 
   /** Source text in isabelle thy. */
-  case object SourceText extends OptionalField[String] with EtField { override val implicits = FieldImplicits() }
+  case object SourceText extends SingleValuedField[String] with EtField { override val implicits = FieldImplicits() }
 
   /** Type of a constant entity. */
   case object ConstantType extends SingleValuedField[String] with EtField { override val implicits = FieldImplicits() }
@@ -43,9 +47,6 @@ object EtField extends DefaultEnum[EtField] {
 
   /** Other entities that this entity uses in its types. */
   case object TypeUses extends MultiValuedField[String] with EtField { override val implicits = FieldImplicits() }
-
-  /** Other entities that are generated from the same source position as this entity. */
-  case object Related extends MultiValuedField[String] with EtField { override val implicits = FieldImplicits() }
 
   /** Other entities that this entity uses in its proofs. */
   case object ProofUses extends MultiValuedField[String] with EtField { override val implicits = FieldImplicits() }

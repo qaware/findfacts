@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <enumsConfig>
     <enum name="EntityKind">
+        <value>Block</value>
         <value>Type</value>
         <value>Constant</value>
         <value>Fact</value>

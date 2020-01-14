@@ -248,6 +248,7 @@ object Theory
 
   implicit class Source_Wrapper(val inner: Markup_Blocks) extends AnyVal with TheoryView.Source
   {
+    override def blocks: List[TheoryView.Block] = inner.blocks.map(Block_wrapper)
     override def get(position: TheoryView.Position): Option[TheoryView.Block] =
       inner.get_containing(Text.Range(position.offset, position.endOffset)).map(Block_wrapper)
   }

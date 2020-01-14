@@ -17,7 +17,11 @@ object TheoryView {
   }
 
   trait Source extends Any {
+    def blocks: List[Block]
     def get(position: Position): Option[Block]
+  }
+  object Source {
+    def unapply(arg: Source): Option[List[Block]] = Some(arg.blocks)
   }
 
   trait Prop extends Any {

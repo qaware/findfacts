@@ -18,6 +18,9 @@ object EtKind extends DefaultEnum[EtKind] {
   /** Some propositions. */
   case object Fact extends Value
 
+  /** Source text. */
+  case object Block extends Value
+
   /** Comments, sections, titles etc. */
   case object Documentation extends Value
 }

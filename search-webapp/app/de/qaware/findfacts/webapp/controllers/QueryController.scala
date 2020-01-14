@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.{BaseEt, EtField}
 import de.qaware.findfacts.core.{FacetQuery, Filter, FilterQuery, Id, Query, QueryService, UntypedShortEntry}
 import de.qaware.findfacts.webapp.utils.JsonUrlCodec
-import io.circe.KeyEncoder
 // scalastyle:off
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -83,9 +82,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
   protected def executeQuery(query: Query): Result = {
     val json: Try[Json] = query match {
       case query: FilterQuery => queryService.getShortResults(query).map(_.map(_.asUntyped).toList.asJson)
-      case query: FacetQuery =>
-        implicit val keyEnc: KeyEncoder[query.field.BaseType] = query.field.implicits.jsonKeyEncoder
-        queryService.getFacetResults(query).map(_.asJson)
+      case query: FacetQuery => queryService.getFacetResults(query).map(_.asJson)
     }
     json match {
       case Failure(exception) =>

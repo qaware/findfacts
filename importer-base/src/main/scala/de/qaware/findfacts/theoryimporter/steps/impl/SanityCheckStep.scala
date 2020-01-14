@@ -19,7 +19,7 @@ class SanityCheckStep extends ImportStep {
     }
 
     // Check that names of each kind are unique
-    val duplicateNames = ctx.theoryEntities.groupBy(e => (e.name, e.kind)).filter(_._2.size > 1)
+    val duplicateNames = ctx.theoryEntities.groupBy(e => (e.name, e.getClass)).filter(_._2.size > 1)
     logger.whenDebugEnabled {
       if (duplicateNames.nonEmpty) {
         logger.debug(s"Duplicate names: \n\t${duplicateNames.mkString("\n\t")}")

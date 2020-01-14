@@ -92,7 +92,7 @@ lazy val `search-webapp-ui` = project
 
 // Common data types
 lazy val `common-dt` = project
-  .settings(libraryDependencies ++= Seq(shapeless, circeCore, playJson))
+  .settings(libraryDependencies ++= circe :+ shapeless)
   .dependsOn(`common-utils`)
 
 // Common solr entities and data access
