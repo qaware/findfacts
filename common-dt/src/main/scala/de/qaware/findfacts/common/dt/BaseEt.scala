@@ -39,6 +39,8 @@ final case class BlockEt private (
     entities: Children.FieldType
 ) extends BaseEt
     with Tagged[EtKind.Block.type] {
+  require(id == s"$sourceFile.$startPosition")
+
   def this(
       sourceFile: SourceFile.FieldType,
       startPosition: StartPosition.FieldType,
@@ -62,6 +64,8 @@ final case class ConstantEt private (
     constantType: ConstantType.FieldType
 ) extends TheoryEt
     with Tagged[EtKind.Constant.type] {
+  require(id == s"${EtKind.Constant}.$name")
+
   def this(
       name: Name.FieldType,
       proposition: Proposition.FieldType,
@@ -84,6 +88,8 @@ final case class DocumentationEt private (
     documentationKind: DocumentationKind.FieldType)
     extends BaseEt
     with Tagged[EtKind.Documentation.type] {
+  require(id == s"$sourceFile.$startPosition.$documentationKind")
+
   def this(
       sourceFile: SourceFile.FieldType,
       startPosition: StartPosition.FieldType,
@@ -112,6 +118,8 @@ final case class FactEt private (
     proofUses: ProofUses.FieldType
 ) extends TheoryEt
     with Tagged[EtKind.Fact.type] {
+  require(id == s"${EtKind.Fact}.$name")
+
   def this(
       name: Name.FieldType,
       proposition: Proposition.FieldType,
@@ -128,6 +136,8 @@ final case class TypeEt private (
     override val propositionUses: PropositionUses.FieldType,
 ) extends TheoryEt
     with Tagged[EtKind.Type.type] {
+  require(id == s"${EtKind.Type}.$name")
+
   def this(
       name: Name.FieldType,
       proposition: Proposition.FieldType,

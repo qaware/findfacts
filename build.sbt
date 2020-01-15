@@ -13,7 +13,7 @@ ThisBuild / Test / parallelExecution := false
 // Enable deprecation warnings
 ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature")
 // Project-wide dependencies (intersection from all modules that can be run on their own)
-ThisBuild / libraryDependencies ++= Seq(logging, wire, enum, files, scalaTest % "test")
+ThisBuild / libraryDependencies ++= scalaTests ++ Seq(logging, wire, enum, files)
 // Don't run tests in assembly
 ThisBuild / assembly / test := {}
 
@@ -64,7 +64,7 @@ lazy val `search-core` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
-    libraryDependencies ++= loggingBackend.map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it,test")
+    libraryDependencies ++= loggingBackend.map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it")
   )
   .dependsOn(`common-dt`, `common-solr`, `common-utils`)
 
@@ -75,7 +75,7 @@ lazy val `search-webapp` = project
     javaOptions in Runtime += "-Dlog4j.configurationFile=" + (file("`search-webapp`") / "conf" / "log4j2.properties").getPath,
     libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
       playGuice, playCirce, playSwagger, swaggerUi, playTestPlus % "test"
-    )),
+    ))
   )
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLogback, SbtElm)

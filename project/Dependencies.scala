@@ -12,6 +12,7 @@ object Dependencies {
 
   val log4jVersion = "2.12.1"
   val scalaTestVersion = "3.0.8"
+  val scalaMockVersion = "4.4.0"
   val scalaLoggingVersion = "3.9.2"
 
   val enumVersion = "1.5.13"
@@ -36,8 +37,9 @@ object Dependencies {
   val files = "com.github.pathikrit" %% "better-files" % betterFilesVersion
   // Wire is only needed at compile-time
   val wire = "com.softwaremill.macwire" %% "macros" % wireVersion % "provided"
-  val scalaTestBase = "org.scalatest" %% "scalatest" % scalaTestVersion
-  val scalaTest = scalaTestBase
+  val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
+  val scalaMock = "org.scalamock" %% "scalamock" % scalaMockVersion
+  val scalaTests = Seq(scalaTest, scalaMock).map(_ % "test")
   val shapeless = "com.chuusai" %% "shapeless" % shapelessVersion
   val cats = "org.typelevel" %% "cats-core" % catsVersion
   val cmdOpts = "com.github.scopt" %% "scopt" % scoptsVersion

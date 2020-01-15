@@ -8,22 +8,22 @@ import de.qaware.findfacts.common.dt._
 final class StepContext private (
     private val _blocks: mutable.Set[BlockEt] = mutable.Set.empty,
     private val _docs: mutable.Set[DocumentationEt] = mutable.Set.empty,
-    private val _consts: mutable.Map[ConstantEt, String] = mutable.Map.empty,
-    private val _types: mutable.Map[TypeEt, String] = mutable.Map.empty,
-    private val _facts: mutable.Map[FactEt, String] = mutable.Map.empty) {
+    private val _consts: mutable.Set[(ConstantEt, String)] = mutable.Set.empty,
+    private val _types: mutable.Set[(TypeEt, String)] = mutable.Set.empty,
+    private val _facts: mutable.Set[(FactEt, String)] = mutable.Set.empty) {
 
   private def addToMap(entity: TheoryEt, blockId: String): Unit = entity match {
-    case c: ConstantEt => _consts.put(c, blockId)
-    case f: FactEt => _facts.put(f, blockId)
-    case t: TypeEt => _types.put(t, blockId)
+    case c: ConstantEt => _consts.add((c, blockId))
+    case f: FactEt => _facts.add((f, blockId))
+    case t: TypeEt => _types.add((t, blockId))
   }
 
   private def remove(entity: BaseEt): Unit = entity match {
     case d: DocumentationEt => _docs.remove(d)
     case b: BlockEt => _blocks.remove(b)
-    case c: ConstantEt => _consts.remove(c)
-    case f: FactEt => _facts.remove(f)
-    case t: TypeEt => _types.remove(t)
+    case c: ConstantEt => _consts.filter(_._1 == c).map(_consts.remove)
+    case f: FactEt => _facts.filter(_._1 == f).map(_facts.remove)
+    case t: TypeEt => _types.filter(_._1 == t).map(_types.remove)
   }
 
   /** Adds an entity to the context.
@@ -47,26 +47,34 @@ final class StepContext private (
     *
     * @param old entity object
     * @param entity updated
-    * @tparam A type of the entity
     */
-  def updateEntity[A <: BaseEt](old: A, entity: A): Unit = {
-    // Id has to remain stable!
+  def updateEntity(old: BaseEt, entity: BaseEt): Unit = {
+    // Id and Kind have to remain stable!
     if (old.id != entity.id) {
-      throw new IllegalArgumentException("Id must not change when updating entities!")
+      throw new IllegalArgumentException(s"Id must not change when updating entities! $old, $entity")
+    }
+    if (old.getClass != entity.getClass) {
+      throw new IllegalArgumentException(s"Type must not change when updating entities! $old, $entity")
     }
 
     old match {
       case et: TheoryEt =>
-        val blockId = et match {
-          case c: ConstantEt => _consts(c)
-          case f: FactEt => _facts(f)
-          case t: TypeEt => _types(t)
+        val containingBlocks = et match {
+          case c: ConstantEt =>
+            _consts.filter(_._1 == c).map(_._2)
+          case f: FactEt =>
+            _facts.filter(_._1 == f).map(_._2)
+          case t: TypeEt =>
+            _types.filter(_._1 == t).map(_._2)
+        }
+        if (containingBlocks.isEmpty) {
+          throw new IllegalArgumentException(s"Entity $old to update does not exist")
         }
         remove(old)
-        addToMap(entity.asInstanceOf[TheoryEt], blockId)
+        containingBlocks.foreach(addToMap(entity.asInstanceOf[TheoryEt], _))
       case _ =>
         remove(old)
-        entity match {
+        (entity: @unchecked) match {
           case b: BlockEt => _blocks.add(b)
           case d: DocumentationEt => _docs.add(d)
         }
@@ -78,27 +86,27 @@ final class StepContext private (
     * @return immutable blocks set
     */
   def blocks: Set[BlockEt] = {
-    val groupedTEs = (_consts ++ _types ++ _facts).groupBy(_._2).mapValues(_.keySet)
-    _blocks.to[Set].map(block => block.copy(entities = groupedTEs(block.id).toList))
+    val entitiesByBlock = (_consts ++ _facts ++ _types).groupBy(_._2).mapValues(_.map(_._1))
+    _blocks.to[Set].map(block => block.copy(entities = entitiesByBlock(block.id).toList))
   }
 
   /** Accessor for immutable view on consts.
     *
     * @return immutable consts set
     */
-  def consts: Set[ConstantEt] = _consts.keys.to[Set]
+  def consts: Set[ConstantEt] = _consts.map(_._1).to[Set]
 
   /** Accessor for immutable view on types.
     *
     * @return immutable types set
     */
-  def types: Set[TypeEt] = _types.keys.to[Set]
+  def types: Set[TypeEt] = _types.map(_._1).to[Set]
 
   /** Accessor for immutable view on facts.
     *
     * @return immutable facts set
     */
-  def facts: Set[FactEt] = _facts.keys.to[Set]
+  def facts: Set[FactEt] = _facts.map(_._1).to[Set]
 
   /** Accessor for immutable view on docs.
     *

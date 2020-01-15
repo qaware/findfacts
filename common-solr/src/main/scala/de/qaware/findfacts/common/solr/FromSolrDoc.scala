@@ -15,6 +15,8 @@ import de.qaware.findfacts.common.dt.{
   OptionalField,
   SingleValuedField
 }
+import io.circe.Decoder.Result
+import io.circe.Json
 import org.apache.solr.common.SolrDocument
 import shapeless.labelled.FieldType
 import shapeless.tag.{@@, Tagged}
@@ -46,21 +48,22 @@ object FromSolrDoc {
 
   /** HList impls. */
   def hlistFromSolrDoc[F <: EtField, K, H, T <: HList](witness: Witness.Aux[F], tMapper: FromSolrDoc[T])(
-      mapFn: (SolrDocument, String) => FieldType[K, H @@ F]): FromSolrDoc[FieldType[K, H @@ F] :: T] = instance { doc =>
-    // Get field anme
-    val fieldWitness: EtField = witness.value
+      mapFn: (SolrDocument, F, String) => FieldType[K, H @@ F]): FromSolrDoc[FieldType[K, H @@ F] :: T] =
+    instance { doc =>
+      // Get field anme
+      val field = witness.value
 
-    // Extract information
-    Try {
-      val fieldName = SolrSchema.getFieldName(fieldWitness)
+      // Extract information
+      Try {
+        val fieldName = SolrSchema.getFieldName(field)
 
-      // Map field to typed representation
-      val head = mapFn(doc, fieldName)
+        // Map field to typed representation
+        val head = mapFn(doc, field, fieldName)
 
-      // Build complete product type
-      tMapper.fromSolrDoc(doc).map(head :: _)
-    }.flatten
-  }
+        // Build complete product type
+        tMapper.fromSolrDoc(doc).map(head :: _)
+      }.flatten
+    }
 
   /** Single-valued field impl. */
   implicit def hlistSingleValueFromSolrDoc[F <: EtField with SingleValuedField[_], K, H, T <: HList](
@@ -68,12 +71,12 @@ object FromSolrDoc {
       witness: Witness.Aux[F],
       tMapper: FromSolrDoc[T]
   ): FromSolrDoc[FieldType[K, H @@ F] :: T] = hlistFromSolrDoc(witness, tMapper) {
-    case (doc, fieldName) =>
+    case (doc, field, fieldName) =>
       (doc.get(fieldName) match {
         case null => throw new IllegalArgumentException(s"Doc did not contain field $fieldName")
         case _: util.List[_] =>
           throw new IllegalArgumentException(s"Got multi-valued result for single-valued field $fieldName")
-        case solrField => solrField
+        case solrField => field.fromJsonString(solrField.toString)
       }).asInstanceOf[FieldType[K, H @@ F]]
   }
 
@@ -83,12 +86,12 @@ object FromSolrDoc {
       witness: Witness.Aux[F],
       tMapper: FromSolrDoc[T]
   ): FromSolrDoc[FieldType[K, Option[B] @@ F] :: T] = hlistFromSolrDoc(witness, tMapper) {
-    case (doc, fieldName) =>
+    case (doc, field, fieldName) =>
       (doc.get(fieldName) match {
         case null => None
         case _: util.List[_] =>
           throw new IllegalArgumentException(s"Got multi-valued result for single-valued field $fieldName")
-        case solrField => Some(solrField)
+        case solrField => Some(field.fromJsonString(solrField.toString))
       }).asInstanceOf[FieldType[K, Option[B] @@ F]]
   }
 
@@ -98,10 +101,10 @@ object FromSolrDoc {
       witness: Witness.Aux[F],
       tMapper: FromSolrDoc[T]
   ): FromSolrDoc[FieldType[K, List[B] @@ F] :: T] = hlistFromSolrDoc(witness, tMapper) {
-    case (doc, fieldName) =>
+    case (doc, field, fieldName) =>
       (doc.get(fieldName) match {
         case null => List.empty
-        case solrField: util.List[_] => solrField.asScala.toList
+        case solrField: util.List[_] => solrField.asScala.toList.map(_.toString).map(field.fromJsonString)
         case _ =>
           throw new IllegalArgumentException(s"Got single-valued result for multi-valued field $fieldName")
       }).asInstanceOf[FieldType[K, List[B] @@ F]]
@@ -114,7 +117,7 @@ object FromSolrDoc {
       cMapper: FromSolrDoc[C],
       tMapper: FromSolrDoc[T]
   ): FromSolrDoc[FieldType[K, List[C] @@ F] :: T] = hlistFromSolrDoc(witness, tMapper) {
-    case (doc, _) =>
+    case (doc, _, _) =>
       doc.getChildDocuments.asScala.map(cMapper.fromSolrDoc(_).get).toList.asInstanceOf[FieldType[K, List[C] @@ F]]
   }
 
