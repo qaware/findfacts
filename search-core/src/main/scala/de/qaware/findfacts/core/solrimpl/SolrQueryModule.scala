@@ -1,14 +1,14 @@
 package de.qaware.findfacts.core.solrimpl
 
 import com.softwaremill.macwire.wire
-import de.qaware.findfacts.common.solr.SolrRepository
 import de.qaware.findfacts.core.QueryModule
+import org.apache.solr.client.solrj.SolrClient
 
 /** Solr impl of the query module. */
 trait SolrQueryModule extends QueryModule {
 
   /** Solr repository has to be provided. */
-  def repository: SolrRepository
+  def solrClient: SolrClient
 
   // Internal modules
   private lazy val solrTermMapper: SolrFilterTermMapper = wire[SolrFilterTermMapper]

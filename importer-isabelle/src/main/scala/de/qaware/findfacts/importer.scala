@@ -9,8 +9,9 @@ package de.qaware.findfacts
 
 import de.qaware.findfacts.Theory._
 import de.qaware.findfacts.common.solr.{LocalSolr, RemoteSolr, SolrRepository}
-import de.qaware.findfacts.theoryimporter.solrimpl.SolrImporterModule
 import de.qaware.findfacts.theoryimporter.ImporterModule
+import de.qaware.findfacts.theoryimporter.solrimpl.SolrImporterModule
+import org.apache.solr.client.solrj.SolrClient
 import isabelle._
 
 
@@ -23,11 +24,11 @@ object Importer
     provider: Export.Provider,
     session_name: String,
     theory_names: List[String],
-    solr: SolrRepository,
+    solr: SolrClient,
     progress: Progress = No_Progress)
   {
     val importer = new SolrImporterModule {
-      override def repository: SolrRepository = solr
+      override def solrClient: SolrClient = solr
     }
     import_session(provider, session_name, theory_names, importer, progress)
   }
@@ -90,7 +91,7 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR
   Import isabelle dump from DUMPDIR into solr db.
   Only one solr connection may be specified.
 """,
-      "l:" -> (arg => export_db = export_db ::: List(LocalSolr(better.files.File(arg)))),
+      "l:" -> (arg => export_db = export_db ::: List(LocalSolr(Path.explode(arg).canonical_file))),
       "e:" -> (arg => export_db = export_db ::: List(RemoteSolr(Url(arg)))),
       "B:" -> (arg => sessions = sessions ::: List(arg)))
 
@@ -99,33 +100,37 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR
       case _ => getopts.usage()
     }
 
-    val importer_module = export_db match {
-      case List(solr) => new SolrImporterModule { override def repository: SolrRepository = solr }
+    val solr_repository = export_db match {
+      case List(solr) => solr
       case _ => getopts.usage()
     }
 
-    val progress = new Console_Progress()
+    using(solr_repository.solrConnection()) { solr =>
+      val importer_module = new SolrImporterModule { override def solrClient: SolrClient = solr }
 
-    // find all sessions written by 'isabelle dump'
+      val progress = new Console_Progress()
 
-    val dump_theory_dirs = File.read_dir(dump_dir)
+      // find all sessions written by 'isabelle dump'
 
-    if (sessions.isEmpty) {
-      sessions = dump_theory_dirs.map(_.split('.').head).distinct
-    }
+      val dump_theory_dirs = File.read_dir(dump_dir)
 
-    // run import
-
-    sessions map { session =>
-      Future.fork {
-        val theory_dirs = dump_theory_dirs.filter(dir => dir == session || dir.startsWith(session + "."))
-        val theory_names = theory_dirs map { theory_dir =>
-          if (theory_dir.length > session.length) theory_dir else session
-        }
-        val provider = Export.Provider.directory(dump_dir, session, "dummy")
-
-        import_session(provider, session, theory_names, importer_module, progress)
+      if (sessions.isEmpty) {
+        sessions = dump_theory_dirs.map(_.split('.').head).distinct
       }
-    } foreach(_.join)
+
+      // run import
+
+      sessions map { session =>
+        Future.fork {
+          val theory_dirs = dump_theory_dirs.filter(dir => dir == session || dir.startsWith(session + "."))
+          val theory_names = theory_dirs map { theory_dir =>
+            if (theory_dir.length > session.length) theory_dir else session
+          }
+          val provider = Export.Provider.directory(dump_dir, session, "dummy")
+
+          import_session(provider, session, theory_names, importer_module, progress)
+        }
+      } foreach (_.join)
+    }
   })
 }

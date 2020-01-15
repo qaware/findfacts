@@ -2,44 +2,27 @@ package de.qaware.findfacts.core
 
 import de.qaware.findfacts.common.dt.EtField.{Kind, Name, PropositionUses, StartPosition}
 import de.qaware.findfacts.common.dt.{EtField, EtKind, FactEt}
-import de.qaware.findfacts.common.solr.{ConstRecord, FactRecord}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite, Matchers, TryValues}
+import de.qaware.findfacts.common.solr.ITSolr
+import de.qaware.findfacts.core.solrimpl.SolrQueryModule
+import org.apache.solr.client.solrj.SolrClient
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, DoNotDiscover, FunSuite, Matchers, TryValues}
 
+@DoNotDiscover
 class QueryIT extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll with Matchers with TryValues {
-  val queryModule: ITSolrQueryModule = new ITSolrQueryModule {}
+  final val solr = ITSolr.apply().solrConnection()
+  final val queryModule: QueryModule = new SolrQueryModule { override lazy val solrClient: SolrClient = solr }
 
   override def beforeEach(): Unit = {
-    // Reset solr data
-    val solr = queryModule.repository.solrConnection()
     // First delete all
     solr.deleteByQuery("*:*")
     var status = solr.commit()
     status.getStatus should (be(200) or be(0))
 
     // Then add integration test data set
-    val const1 = ConstRecord(
-      "Example",
-      1,
-      11,
-      "Const1",
-      "'a => 'b",
-      Array(),
-      "prop",
-      Array(),
-      Array(),
-      "fun Const1 = ..."
-    )
-    val fact1 =
-      FactRecord("Example", 20, 22, "ConstIsFact", "IsFact Const1", Array(const1.id), Array(), Array(), "lemma ...")
-    solr.addBean(const1)
-    solr.addBean(fact1)
-    status = solr.commit()
-    status.getStatus should (be(200) or be(0))
+    // TODO
   }
 
-  override def afterAll(): Unit = {
-    queryModule.repository.solrConnection().close()
-  }
+  override def afterAll(): Unit = solr.close()
 
   test("Filter query") {
     val query = FilterQuery(Filter(Map(StartPosition -> InRange(10, 30))))
@@ -53,9 +36,7 @@ class QueryIT extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll wi
     resList match {
       case Vector(f: FactEt) =>
         f.name should equal("ConstIsFact")
-        f.startPosition should equal(20)
         f.propositionUses should have size 1
-        f.related should have size 0
     }
   }
 

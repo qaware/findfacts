@@ -14,7 +14,7 @@ object IsabelleToolPlugin extends AutoPlugin {
   object autoImport {
     lazy val isabelleExecutable: SettingKey[File] = SettingKey[File]("isabelle executable")
     lazy val isabelleTool: SettingKey[String] = SettingKey[String]("isabelle tool defined by project")
-    lazy val isabelleComponentAssembly: TaskKey[File] = TaskKey[File]("isabelle component assembyl task")
+    lazy val isabelleComponentAssembly: TaskKey[File] = TaskKey[File]("isabelle component assembly task")
   }
 
   import autoImport._

@@ -2,6 +2,8 @@ package de.qaware.findfacts.common.solr
 
 import java.net.URL
 import java.nio.file.{Files, StandardCopyOption}
+import java.util.UUID
+import java.io.{File => JFile}
 
 import better.files.{File, Resource}
 import com.typesafe.scalalogging.Logger
@@ -9,7 +11,6 @@ import de.qaware.findfacts.scala.Using
 import org.apache.solr.client.solrj.SolrClient
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
 import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}
-
 import scala.collection.JavaConverters._
 
 /** Repository to provide connections to different types of solr instances. */
@@ -17,7 +18,7 @@ sealed trait SolrRepository {
 
   /** Creates a configured and initialized client to the repositories' solr instance.
     *
-    * @return a configured, initialized client to a solr instance
+    * @return a configured, freshly initialized client to a solr instance
     */
   def solrConnection(): SolrClient
 }
@@ -26,7 +27,7 @@ sealed trait SolrRepository {
   *
   * @param solrHome sole home directory to read config from/write data to
   */
-final case class LocalSolr(solrHome: File) extends SolrRepository {
+final class LocalSolr private (solrHome: File) extends SolrRepository {
 
   /** Name of the default core for embedded solr. */
   final val EmbeddedCoreName = "theorydata"
@@ -45,12 +46,14 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
   require(solrHome.isDirectory, s"Solr home $solrHome does not exist")
   require(solrHome.isWriteable, s"No write access to solr home directory $solrHome")
 
-  override lazy val solrConnection: SolrClient = {
-    logger.info("Starting up embedded solr server...")
+  override def solrConnection(): SolrClient = {
+    val id = UUID.randomUUID().toString
+
+    logger.info(s"Starting up embedded solr server $id...")
     // Unpack solr resources
-    SolrConfFiles.map(res =>
-      Using.resource(Resource.getAsStream("solr/" + res)) { stream =>
-        val file = solrHome.canonicalFile / res
+    SolrConfFiles foreach { res =>
+      Using.resource(Resource.getAsStream(s"solr/$res")) { stream =>
+        val file = solrHome.canonicalFile / id / res
 
         if (stream == null) {
           throw new IllegalStateException("Could not find config file " + file)
@@ -59,10 +62,14 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
         logger.info("Writing solr config file {}", file)
         file.createDirectoryIfNotExists()
         Files.copy(stream, file.path, StandardCopyOption.REPLACE_EXISTING)
-    })
+      }
+    }
 
-    new EmbeddedSolrServer(solrHome.path, EmbeddedCoreName)
+    new EmbeddedSolrServer((solrHome / id).path, EmbeddedCoreName)
   }
+}
+object LocalSolr {
+  def apply(solrHome: JFile): LocalSolr = new LocalSolr(File(solrHome.getCanonicalPath))
 }
 
 /** Remote http solr client.
@@ -70,11 +77,12 @@ final case class LocalSolr(solrHome: File) extends SolrRepository {
   * @param url to solr instance
   */
 final case class RemoteSolr(url: URL) extends SolrRepository {
-  override lazy val solrConnection: SolrClient = new HttpSolrClient.Builder()
-    .withBaseSolrUrl(url.toString)
-    .withConnectionTimeout(5 * 60 * 1000)
-    .withSocketTimeout(5 * 60 * 1000)
-    .build
+  override def solrConnection(): SolrClient =
+    new HttpSolrClient.Builder()
+      .withBaseSolrUrl(url.toString)
+      .withConnectionTimeout(5 * 60 * 1000)
+      .withSocketTimeout(5 * 60 * 1000)
+      .build
 }
 
 /** Remote solr cloud.
@@ -84,7 +92,7 @@ final case class RemoteSolr(url: URL) extends SolrRepository {
 final case class CloudSolr(zkhosts: Seq[ZKHost]) extends SolrRepository {
   require(zkhosts.nonEmpty, "must have at least one zookeeper")
 
-  override lazy val solrConnection: SolrClient = {
+  override def solrConnection: SolrClient = {
     val hosts: java.util.List[String] = zkhosts.map(zkhost => zkhost.host + zkhost.port.toString).toBuffer.asJava
     new CloudSolrClient.Builder(hosts).build
   }

@@ -1,4 +1,4 @@
-package de.qaware.findfacts.common.solr
+package de.qaware.findfacts.common.solr.mapper
 
 import scala.collection.JavaConverters._
 
@@ -10,6 +10,7 @@ import de.qaware.findfacts.common.dt.{
   OptionalField,
   SingleValuedField
 }
+import de.qaware.findfacts.common.solr.SolrSchema
 import org.apache.solr.common.SolrInputDocument
 import shapeless.labelled.FieldType
 import shapeless.tag.{@@, Tagged}

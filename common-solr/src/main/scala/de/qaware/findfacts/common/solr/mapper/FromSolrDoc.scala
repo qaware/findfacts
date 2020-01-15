@@ -1,6 +1,6 @@
-package de.qaware.findfacts.common.solr
+package de.qaware.findfacts.common.solr.mapper
 
-import java.util
+import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -15,8 +15,7 @@ import de.qaware.findfacts.common.dt.{
   OptionalField,
   SingleValuedField
 }
-import io.circe.Decoder.Result
-import io.circe.Json
+import de.qaware.findfacts.common.solr.SolrSchema
 import org.apache.solr.common.SolrDocument
 import shapeless.labelled.FieldType
 import shapeless.tag.{@@, Tagged}
@@ -74,7 +73,7 @@ object FromSolrDoc {
     case (doc, field, fieldName) =>
       (doc.get(fieldName) match {
         case null => throw new IllegalArgumentException(s"Doc did not contain field $fieldName")
-        case _: util.List[_] =>
+        case _: JList[_] =>
           throw new IllegalArgumentException(s"Got multi-valued result for single-valued field $fieldName")
         case solrField => field.fromJsonString(solrField.toString)
       }).asInstanceOf[FieldType[K, H @@ F]]
@@ -89,7 +88,7 @@ object FromSolrDoc {
     case (doc, field, fieldName) =>
       (doc.get(fieldName) match {
         case null => None
-        case _: util.List[_] =>
+        case _: JList[_] =>
           throw new IllegalArgumentException(s"Got multi-valued result for single-valued field $fieldName")
         case solrField => Some(field.fromJsonString(solrField.toString))
       }).asInstanceOf[FieldType[K, Option[B] @@ F]]
@@ -104,7 +103,7 @@ object FromSolrDoc {
     case (doc, field, fieldName) =>
       (doc.get(fieldName) match {
         case null => List.empty
-        case solrField: util.List[_] => solrField.asScala.toList.map(_.toString).map(field.fromJsonString)
+        case solrField: JList[_] => solrField.asScala.toList.map(_.toString).map(field.fromJsonString)
         case _ =>
           throw new IllegalArgumentException(s"Got single-valued result for multi-valued field $fieldName")
       }).asInstanceOf[FieldType[K, List[B] @@ F]]
@@ -118,7 +117,10 @@ object FromSolrDoc {
       tMapper: FromSolrDoc[T]
   ): FromSolrDoc[FieldType[K, List[C] @@ F] :: T] = hlistFromSolrDoc(witness, tMapper) {
     case (doc, _, _) =>
-      doc.getChildDocuments.asScala.map(cMapper.fromSolrDoc(_).get).toList.asInstanceOf[FieldType[K, List[C] @@ F]]
+      (doc.getChildDocuments match {
+        case null => List.empty
+        case children: JList[SolrDocument] => children.asScala.map(cMapper.fromSolrDoc(_).get).toList
+      }).asInstanceOf[FieldType[K, List[C] @@ F]]
   }
 
   /** CNil impl. */

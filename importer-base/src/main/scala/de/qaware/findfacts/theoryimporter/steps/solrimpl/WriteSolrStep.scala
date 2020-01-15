@@ -5,16 +5,16 @@ import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.BaseEt
-import de.qaware.findfacts.common.solr.{SolrRepository, ToSolrDoc}
+import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
 import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
-import org.apache.solr.client.solrj.SolrServerException
+import org.apache.solr.client.solrj.{SolrClient, SolrServerException}
 
 /** Step to write entities to solr.
   *
-  * @param solrRepository connection of the importer
+  * @param solrClient connection of the importer
   */
-class WriteSolrStep(solrRepository: SolrRepository) extends ImportStep {
+class WriteSolrStep(solrClient: SolrClient) extends ImportStep {
 
   /** HTTP status ok code */
   final val STATUS_OK = 200
@@ -32,14 +32,12 @@ class WriteSolrStep(solrRepository: SolrRepository) extends ImportStep {
 
     // Add all entities
     Try {
-      val solr = solrRepository.solrConnection()
-
       val mapper = ToSolrDoc[BaseEt]
 
-      solr.add(entities.map(mapper.toSolrDoc).asJava)
+      solrClient.add(entities.map(mapper.toSolrDoc).asJava)
 
       // Commit, wait for response and check if it is ok
-      val res = solr.commit()
+      val res = solrClient.commit()
       if (res.getStatus != 0 && res.getStatus != STATUS_OK) {
         throw new SolrServerException(s"Error ${res.getStatus} while writing to solr")
       }

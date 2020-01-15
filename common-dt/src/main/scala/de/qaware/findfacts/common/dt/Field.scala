@@ -39,16 +39,20 @@ trait Field {
   }
 
   /** Decoder for field values. */
-  implicit def valueDecoder: Decoder[FieldType] = implicitly[Decoder[FieldType]]
+  implicit lazy val valueDecoder: Decoder[FieldType] = implicitly[Decoder[FieldType]]
 
   /** Encoder for field values. */
-  implicit def valueEncoder: Encoder[FieldType] = implicitly[Encoder[FieldType]]
+  implicit def valueEncoder: Encoder[FieldType]
 }
 
 /** Single-valued fields. */
 trait SingleValuedField[A] extends Field {
   type BaseType = A
   type FieldType = BaseType @@ this.type
+
+  override implicit lazy val valueEncoder: Encoder[FieldType] = {
+    implicitly[Encoder[BaseType]](implicits.jsonEncoder).contramap(apply)
+  }
 
   implicit def apply(elem: BaseType): FieldType = elem.asInstanceOf[FieldType]
 }
@@ -58,6 +62,11 @@ trait OptionalField[A] extends Field {
   type BaseType = A
   type FieldType = Option[BaseType] @@ this.type
 
+  override implicit lazy val valueEncoder: Encoder[FieldType] = {
+    implicit val enc: Encoder[BaseType] = implicits.jsonEncoder
+    implicitly[Encoder[Option[BaseType]]].contramap(apply)
+  }
+
   implicit def apply(elem: Option[BaseType]): FieldType = elem.asInstanceOf[FieldType]
 }
 
@@ -66,6 +75,11 @@ trait MultiValuedField[A] extends Field {
   type BaseType = A
   type FieldType = List[BaseType] @@ this.type
 
+  override implicit lazy val valueEncoder: Encoder[FieldType] = {
+    implicit val enc: Encoder[BaseType] = implicits.jsonEncoder
+    implicitly[Encoder[List[BaseType]]].contramap(apply)
+  }
+
   implicit def apply(elem: List[BaseType]): FieldType = elem.asInstanceOf[FieldType]
 }
 
@@ -73,6 +87,11 @@ trait MultiValuedField[A] extends Field {
 trait ChildrenField[A] extends Field {
   type BaseType = A
   type FieldType = List[BaseType] @@ this.type
+
+  override implicit lazy val valueEncoder: Encoder[FieldType] = {
+    implicit val enc: Encoder[BaseType] = implicits.jsonEncoder
+    implicitly[Encoder[List[BaseType]]].contramap(apply)
+  }
 
   implicit def apply(elem: List[BaseType]): FieldType = elem.asInstanceOf[FieldType]
 }

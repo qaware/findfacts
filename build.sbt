@@ -66,7 +66,7 @@ lazy val `search-core` = project
     Defaults.itSettings,
     libraryDependencies ++= loggingBackend.map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it")
   )
-  .dependsOn(`common-dt`, `common-solr`, `common-utils`)
+  .dependsOn(`common-dt`, `common-solr`, `common-utils`, `common-solr` % "it->it")
 
 // Play web application backend
 lazy val `search-webapp` = project
@@ -95,9 +95,13 @@ lazy val `common-dt` = project
   .settings(libraryDependencies ++= circe :+ shapeless)
   .dependsOn(`common-utils`)
 
-// Common solr entities and data access
+// Common solr entities, data access, and mappings
 lazy val `common-solr` = project
-  .settings(libraryDependencies += solr)
+  .configs(IntegrationTest)
+  .settings(
+    Defaults.itSettings,
+    libraryDependencies ++= Seq(solr, scalaTest % "it") ++ loggingBackend.map(_ % "it")
+  )
   .dependsOn(`common-dt`, `common-utils`)
 
 // Common utility

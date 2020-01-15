@@ -4,10 +4,11 @@ import java.net.URL
 
 import _root_.controllers.{ApiHelpController, AssetsComponents}
 import com.softwaremill.macwire.wire
-import de.qaware.findfacts.common.solr.{RemoteSolr, SolrRepository}
+import de.qaware.findfacts.common.solr.RemoteSolr
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
 import de.qaware.findfacts.webapp.utils.JsonUrlCodec
+import org.apache.solr.client.solrj.SolrClient
 import play.api.ApplicationLoader.Context
 import play.api.mvc.EssentialFilter
 import play.api.routing.Router
@@ -37,7 +38,8 @@ class WebappModule(context: Context)
   }
 
   // Connect to remote solr.
-  override lazy val repository: SolrRepository = RemoteSolr(new URL("http://localhost:8983/solr/theorydata"))
+  override lazy val solrClient: SolrClient =
+    RemoteSolr(new URL("http://localhost:8983/solr/theorydata")).solrConnection()
 
   private val urlEncoder: JsonUrlCodec = wire[JsonUrlCodec]
 
