@@ -5,13 +5,23 @@ import de.qaware.findfacts.common.dt.{DocKind, DocumentationEt}
 import de.qaware.findfacts.theoryimporter.TheoryView
 import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
 
+/** Import stap that loads documentation comments. */
 class LoadDocumentationStep extends ImportStep {
+
+  /** Keywords identifying latex documentation cartouches. */
   final val LatexKeywords =
     Set("chapter", "section", "subsection", "subsubsection", "paragraph", "subparagraph", "text", "txt", "text_raw")
+
+  /** Cartouche opening isabelle character. */
   final val CartoucheOpen = "\\<open>"
+
+  /** Cartouche closing isabelle character. */
   final val CartoucheClose = "\\<close>"
 
+  /** Comment opening sequence. */
   final val CommentOpen = "(*"
+
+  /** Comment clsoing sequence. */
   final val CommentClose = "*)"
 
   private val logger = Logger[LoadDocumentationStep]

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="testdata" version="1.6">
+    <fields>
+        <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
+        <field name="_nest_parent_" type="string" indexed="true" stored="true"/>
+        <field name="id" type="string" required="true"/>
+        <field name="multi" type="plong" multivalued="true"/>
+        <field name="opt" type="string" required="false"/>
+        <field name="kind" type="kind" required="true"/>
+        <field name="_version_" type="plong" indexed="false" stored="false"/>
+    </fields>
+
+    <uniqueKey>id</uniqueKey>
+
+    <types>
+        <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+        <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
+        <fieldType name="kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
+                   enumName="Kind"/>
+    </types>
+</schema>

@@ -7,7 +7,10 @@ import org.apache.solr.client.solrj.SolrClient
 /** Solr impl of the query module. */
 trait SolrQueryModule extends QueryModule {
 
-  /** Solr repository has to be provided. */
+  /** Solr repository has to be provided.
+    *
+    * @return instantiated solr client
+    */
   def solrClient: SolrClient
 
   // Internal modules

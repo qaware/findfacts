@@ -1,8 +1,7 @@
 package de.qaware.findfacts.core
 
 import de.qaware.findfacts.common.dt.EtField.{Kind, Name, PropositionUses, StartPosition}
-import de.qaware.findfacts.common.dt.{EtField, EtKind, FactEt}
-import de.qaware.findfacts.common.solr.ITSolr
+import de.qaware.findfacts.common.dt.{EtField, EtKind, FactEt, ITSolr}
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import org.apache.solr.client.solrj.SolrClient
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, DoNotDiscover, FunSuite, Matchers, TryValues}

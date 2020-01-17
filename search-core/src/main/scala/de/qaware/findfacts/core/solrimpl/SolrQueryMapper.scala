@@ -1,15 +1,30 @@
 package de.qaware.findfacts.core.solrimpl
 
-import de.qaware.findfacts.common.solr.SolrSchema
 import de.qaware.findfacts.core.solrimpl.SolrQuery.BiConnective
-import de.qaware.findfacts.core.{AbstractFQ, AllInResult, AnyInResult, FacetQuery, Filter, FilterComplement, FilterIntersection, FilterQuery, FilterTerm, FilterUnion, Id, InRange, Number, Query, StringExpression}
+import de.qaware.findfacts.core.{
+  AbstractFQ,
+  AllInResult,
+  AnyInResult,
+  FacetQuery,
+  Filter,
+  FilterComplement,
+  FilterIntersection,
+  FilterQuery,
+  FilterTerm,
+  FilterUnion,
+  Id,
+  InRange,
+  Number,
+  Query,
+  StringExpression
+}
 // scalastyle:off
 import de.qaware.findfacts.common.utils.TryUtils._
 // scalastyle:on
-import org.apache.solr.client.solrj
-
 import scala.language.postfixOps
 import scala.util.Try
+
+import org.apache.solr.client.solrj
 
 /** Solr-specific query constants. */
 object SolrQuery {
@@ -50,16 +65,17 @@ object SolrQuery {
 
 /** Maps abstract filter terms to solr query strings. */
 class SolrFilterTermMapper {
+  final val DefaultMaxResults = 10
 
   /** Builds nested query by executing inner one */
   private def buildInnerQuery(queryService: SolrQueryService, fq: AbstractFQ, connective: BiConnective) = {
-    queryService.getShortResults(FilterQuery(fq)) map {
+    queryService.getShortResults(FilterQuery(fq, DefaultMaxResults)) map {
       case Vector() =>
         connective match {
           case SolrQuery.And => s"${SolrQuery.All}"
           case SolrQuery.Or => s"(${SolrQuery.Not}${SolrQuery.All})"
         }
-      case elems => s"(${elems.map(_.id).mkString(connective.str)})"
+      case elems: Any => s"(${elems.map(_.id).mkString(connective.str)})"
     }
   }
 
@@ -98,7 +114,7 @@ class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
         (field, filter) <- fieldTerms.toSeq
       } yield for {
         solrFilters <- termMapper.buildFilterQuery(queryService, filter)
-      } yield s"${SolrSchema.getFieldName(field)}:$solrFilters"
+      } yield s"${field.name}:$solrFilters"
     // TODO utilize filter caches better by breaking fqs into proper chunks
     case FilterIntersection(f1, f2, fn @ _*) =>
       for {
@@ -136,7 +152,7 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
         new solrj.SolrQuery()
           .setQuery(SolrQuery.QueryAll)
           .setFilterQueries(fqs: _*)
-          .addFacetField(SolrSchema.getFieldName(field))
+          .addFacetField(field.name)
           .setFacetMinCount(1)
           .setFacetLimit(Int.MaxValue)
           .setRows(0)

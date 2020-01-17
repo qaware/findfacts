@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<enumsConfig>
+    <enum name="Kind">
+        <value>Parent</value>
+        <value>Child</value>
+    </enum>
+</enumsConfig>

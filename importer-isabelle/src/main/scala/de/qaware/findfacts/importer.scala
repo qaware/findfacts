@@ -77,32 +77,27 @@ object Importer
   {
     /* arguments */
 
-    var export_db: List[SolrRepository] = Nil
+    var solr_core = "theorydata"
     var sessions: List[String] = Nil
 
     val getopts = Getopts("""
-Usage: isabelle dump_importer [OPTIONS] DUMPDIR
+Usage: isabelle dump_importer [OPTIONS] DUMPDIR HOST PORT
 
   Options are:
-    -l DIR       directory for local solr to write in
-    -e URL       http url for external solr
-    -B NAME      import session NAME
+    -B NAME       import session NAME
+    -C NAME       sorl core NAME
 
   Import isabelle dump from DUMPDIR into solr db.
   Only one solr connection may be specified.
 """,
-      "l:" -> (arg => export_db = export_db ::: List(LocalSolr(Path.explode(arg).canonical_file))),
-      "e:" -> (arg => export_db = export_db ::: List(RemoteSolr(Url(arg)))),
-      "B:" -> (arg => sessions = sessions ::: List(arg)))
+      "B:" -> (arg => sessions = sessions ::: List(arg)),
+      "C:" -> (arg => solr_core = arg))
 
-    val dump_dir = getopts(args) match {
-      case List(dump) => Path.explode(dump)
-      case _ => getopts.usage()
-    }
+    val more_args = getopts(args)
 
-    val solr_repository = export_db match {
-      case List(solr) => solr
-      case _ => getopts.usage()
+    val (dump_dir, solr_repository) = more_args match {
+      case dump :: host :: port :: Nil => (Path.explode(dump), RemoteSolr(host,  Value.Int.parse(port), solr_core))
+      case _ => getopts.usage
     }
 
     using(solr_repository.solrConnection()) { solr =>

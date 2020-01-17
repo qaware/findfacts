@@ -17,29 +17,32 @@ ThisBuild / libraryDependencies ++= scalaTests ++ Seq(logging, wire, enum, files
 // Don't run tests in assembly
 ThisBuild / assembly / test := {}
 
+// Virtual sub-projects
+
 // Root project aggregates all
 lazy val root = (project in file("."))
   .settings(
     publish / skip := true,
-    sonarProjects := Seq(
-    `common-dt`,
-    `common-solr`,
+  sonarProjects := Seq(
     `common-utils`,
+    `common-da-api`,
+    `common-da-solr`,
+    `common-dt`,
+    `importer-base`,
     `search-core`,
-    `search-webapp`,
-    `importer-base`
+    `search-webapp`
   ))
   // Aggregate all modules
   .aggregate(
-    `common-dt`,
-    `common-solr`,
     `common-utils`,
-    `search-core`,
-    `search-webapp`,
-    ui,
+    `common-da-api`,
+    `common-da-solr`,
+    `common-dt`,
     `importer-base`,
     loaders,
-    `yxml-parser`
+    `search-core`,
+    `search-webapp`,
+    ui
   )
   .enablePlugins(SonarConfiguration)
 
@@ -60,13 +63,75 @@ lazy val loaders = project
   .aggregate(`isabelle`, `importer-isabelle`)
 
 // Real sub-projects
+
+// Common utility
+lazy val `common-utils` = project
+  .settings(
+    scapegoatIgnoredFiles += ".*scala.Using.scala",
+    coverageExcludedFiles := "*.*scala.Using.scala",
+    libraryDependencies += circeCore
+  )
+// Common api for data access
+lazy val `common-da-api` = project
+  .settings(libraryDependencies ++= Seq(shapeless, circeCore, circeGeneric % "test"))
+
+// Common solr data access/bindings
+lazy val `common-da-solr` = project
+  .settings(
+    libraryDependencies ++= Seq(circeCore, solr, circeGeneric % "test") ++ loggingBackend.map(_ % "test")
+  )
+  .dependsOn(`common-da-api`, `common-utils`)
+
+// Common business logic data types
+lazy val `common-dt` = project
+  .configs(IntegrationTest)
+  .settings(
+    Defaults.itSettings,
+    libraryDependencies ++= circe ++ Seq(shapeless, scalaTest % "it") ++ loggingBackend.map(_ % "it")
+  )
+  .dependsOn(`common-da-api`, `common-utils`, `common-da-solr` % "it")
+
+// Importer for isabelle dumps
+lazy val `importer-base` = project
+  .configs(IntegrationTest)
+  .settings(
+    fork in run := true,
+    javaOptions ++= Seq("-Xmx24G", "-Xss512m"),
+    libraryDependencies ++= Seq(cmdOpts, cats),
+  )
+  .dependsOn(`common-dt`, `common-da-solr`, `common-utils`)
+
+// Importer
+
+// Isabelle project dependency
+lazy val isabelle = project
+  .settings(
+    publish / skip := true,
+    unmanagedJars in Compile ++= (baseDirectory.value / "lib" / "classes" ** "*.jar").get(),
+    libraryDependencies ++= isabelleDependencies
+  )
+
+// Importer isabelle projects. Follows isabelle conventions.
+lazy val `importer-isabelle` = project
+  .settings(
+    publish / skip := true,
+    isabelleTool := "dump_importer",
+    isabelleExecutable := (baseDirectory in isabelle).value / "bin" / "isabelle",
+    libraryDependencies ++= loggingBackend
+  )
+  .dependsOn(`importer-base`, `isabelle`)
+  .enablePlugins(IsabelleToolPlugin)
+
+// Search application
+
+// Core search module
 lazy val `search-core` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
     libraryDependencies ++= loggingBackend.map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it")
   )
-  .dependsOn(`common-dt`, `common-solr`, `common-utils`, `common-solr` % "it->it")
+  .dependsOn(`common-dt`, `common-da-solr`, `common-utils`, `common-dt` % "it->it")
 
 // Play web application backend
 lazy val `search-webapp` = project
@@ -89,57 +154,3 @@ lazy val `search-webapp-ui` = project
     unmanagedSourceDirectories in Assets += baseDirectory.value / "src" / "elm",
   )
   .enablePlugins(SbtWeb)
-
-// Common data types
-lazy val `common-dt` = project
-  .settings(libraryDependencies ++= circe :+ shapeless)
-  .dependsOn(`common-utils`)
-
-// Common solr entities, data access, and mappings
-lazy val `common-solr` = project
-  .configs(IntegrationTest)
-  .settings(
-    Defaults.itSettings,
-    libraryDependencies ++= Seq(solr, scalaTest % "it") ++ loggingBackend.map(_ % "it")
-  )
-  .dependsOn(`common-dt`, `common-utils`)
-
-// Common utility
-lazy val `common-utils` = project
-  .settings(
-    scapegoatIgnoredFiles += ".*scala.Using.scala",
-    coverageExcludedFiles := "*.*scala.Using.scala",
-  )
-
-// Importer for isabelle dumps
-lazy val `importer-base` = project
-  .configs(IntegrationTest)
-  .settings(
-    fork in run := true,
-    javaOptions ++= Seq("-Xmx24G", "-Xss512m"),
-    libraryDependencies ++= Seq(cmdOpts, cats),
-  )
-  .dependsOn(`common-dt`, `common-solr`, `common-utils`)
-
-// Isabelle project dependency
-lazy val isabelle = project
-  .settings(
-    publish / skip := true,
-    unmanagedJars in Compile ++= (baseDirectory.value / "lib" / "classes" ** "*.jar").get(),
-    libraryDependencies ++= isabelleDependencies
-  )
-
-// Importer isabelle projects. Follows isabelle conventions.
-lazy val `importer-isabelle` = project
-  .settings(
-    publish / skip := true,
-    isabelleTool := "dump_importer",
-    isabelleExecutable := (baseDirectory in isabelle).value / "bin" / "isabelle",
-    libraryDependencies ++= loggingBackend
-  )
-  .dependsOn(`importer-base`, `isabelle`)
-  .enablePlugins(IsabelleToolPlugin)
-
-// Parser for yxml
-lazy val `yxml-parser` = project
-  .settings(libraryDependencies ++= loggingBackend ++ Seq(cmdOpts, scalaParserCombinators, fastParse))

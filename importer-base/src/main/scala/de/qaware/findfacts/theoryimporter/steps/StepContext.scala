@@ -2,9 +2,16 @@ package de.qaware.findfacts.theoryimporter.steps
 
 import scala.collection.mutable
 
-import de.qaware.findfacts.common.dt._
+import de.qaware.findfacts.common.dt.{BaseEt, BlockEt, ConstantEt, DocumentationEt, FactEt, TheoryEt, TypeEt}
 
-/** Holds mutable context shared throughout the steps. Stores parent-child relation and keeps it consistent. */
+/** Holds mutable context shared throughout the steps. Stores parent-child relation and keeps it consistent.
+  *
+  * @param _blocks block entities, without children
+  * @param _docs documentation entities
+  * @param _consts pairs of constants and the block it is in
+  * @param _types pairs of types and the block it is in
+  * @param _facts pairs of facts and the block it is in
+  */
 final class StepContext private (
     private val _blocks: mutable.Set[BlockEt] = mutable.Set.empty,
     private val _docs: mutable.Set[DocumentationEt] = mutable.Set.empty,
@@ -29,6 +36,7 @@ final class StepContext private (
   /** Adds an entity to the context.
     *
     * @param entity to add
+    * @param blockEt parent block
     */
   def addEntity(entity: TheoryEt, blockEt: BlockEt): Unit = {
     _blocks.add(blockEt)
@@ -57,8 +65,8 @@ final class StepContext private (
       throw new IllegalArgumentException(s"Type must not change when updating entities! $old, $entity")
     }
 
-    old match {
-      case et: TheoryEt =>
+    (old, entity) match {
+      case (et: TheoryEt, newEt: TheoryEt) =>
         val containingBlocks = et match {
           case c: ConstantEt =>
             _consts.filter(_._1 == c).map(_._2)
@@ -71,7 +79,7 @@ final class StepContext private (
           throw new IllegalArgumentException(s"Entity $old to update does not exist")
         }
         remove(old)
-        containingBlocks.foreach(addToMap(entity.asInstanceOf[TheoryEt], _))
+        containingBlocks.foreach(addToMap(newEt, _))
       case _ =>
         remove(old)
         (entity: @unchecked) match {

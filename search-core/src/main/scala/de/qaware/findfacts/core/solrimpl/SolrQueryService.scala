@@ -6,7 +6,6 @@ import scala.util.Try
 
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.BaseEt
-import de.qaware.findfacts.common.solr.SolrSchema
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.common.utils.TryUtils.flattenTryFailFirst
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService, ShortEntry}
@@ -40,7 +39,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
       solrResult <- getSolrResult(solrQuery)
       result <- Try {
         solrResult
-          .getFacetField(SolrSchema.getFieldName(facetQuery.field))
+          .getFacetField(facetQuery.field.name)
           .getValues
           .asScala
           .groupBy(_.getName)
@@ -54,7 +53,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     val results = for {
       query <- mapper.buildQuery(this, filterQuery)
       solrRes <- getSolrResult(query)
-    } yield solrRes.getResults.asScala.toSeq.map(docMapper.fromSolrDoc)
+    } yield solrRes.getResults.asScala.map(docMapper.fromSolrDoc)
 
     (results: Try[Seq[A]]).map(_.toVector)
   }

@@ -10,14 +10,16 @@ import de.qaware.findfacts.theoryimporter.TheoryView.Theory
   * @param debugInfo lazy string for more involved debug information
   */
 class ImportError(val step: ImportStep, val causeEntity: String, val errorMsg: String, debugInfo: => String) {
-  val getDebugInfo: String = debugInfo
-
   override def toString: String = s"Error at $step, $causeEntity: $errorMsg. Additional info: $debugInfo"
 }
+
+/** Companion object, since case clases can't have by-name params. */
 object ImportError {
-  // scalastyle:ignore
+
+  // scalastyle:off scaladoc
   def apply(step: ImportStep, causeEntity: String, errorMsg: String, debugInfo: => String): ImportError =
     new ImportError(step, causeEntity, errorMsg, debugInfo)
+  // scalastyle:on scaladoc
 }
 
 /** Step of the import process. */

@@ -1,5 +1,6 @@
 package de.qaware.findfacts.common.dt
 
+import de.qaware.findfacts.common.utils.DefaultEnum
 import enumeratum.EnumEntry
 
 /** Union type for entity kinds. */

@@ -5,13 +5,15 @@ import java.util.Base64
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import io.circe.Json
+// scalastyle:off
 import io.circe.parser._
+// scalastyle:on
 
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.Try
 
-/*** Codec to write json into urls. */
+/** Codec to write json into urls. */
 class JsonUrlCodec {
 
   /** Compresses and encodes json.

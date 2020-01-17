@@ -29,11 +29,15 @@ import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponent
 /** Controller for the query api.
   *
   * @param cc injected components
+  * @param queryService query service component
+  * @param urlCodec url encoding component
   */
 @Api(value = "/")
 class QueryController(cc: ControllerComponents, queryService: QueryService, urlCodec: JsonUrlCodec)
     extends AbstractController(cc)
     with Circe {
+  // scalastyle:scaladoc off
+  // scalastyle:magic.number off
   private final val ExampleFilterQuery =
     """
 {

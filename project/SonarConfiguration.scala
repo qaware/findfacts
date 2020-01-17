@@ -3,7 +3,7 @@ import com.sksamuel.scapegoat.sbt.ScapegoatSbtPlugin.autoImport._
 import sbt.Def.Setting
 import sbt.Keys.{aggregate, name, sourceDirectory, target}
 import sbt.io.syntax._
-import sbt.{AutoPlugin, Compile, Def, Plugins, ProjectReference, SettingKey, Test}
+import sbt.{AutoPlugin, Compile, Def, IntegrationTest, Plugins, ProjectReference, SettingKey, Test}
 import sbtsonar.SonarPlugin
 import sbtsonar.SonarPlugin.autoImport._
 
@@ -32,18 +32,24 @@ object SonarConfiguration extends AutoPlugin {
         // Read out paths, as the plugin doesn't to that correctly
         val projectName = name.in(project).value
         val sourceDir = (project / Compile / sourceDirectory).value.getPath
-        val testDir = (project / Test / sourceDirectory).value.getPath
+        val testSources =
+          Seq((project / Test / sourceDirectory).value, (project / IntegrationTest / sourceDirectory).value)
+            .filter(_.exists)
+            .map(_.getPath)
+            .filterNot(sourceDir.contains(_))
+            .mkString(",")
+
         val targetDir = (project / Compile / target).value
         // Build sonar config map
         Seq(
-          (s"$projectName.sonar.sources", sourceDir),
-          (s"$projectName.sonar.tests" -> testDir),
-          (s"$projectName.sonar.junit.reportPaths" -> (targetDir / "test-reports").getPath),
-          (s"$projectName.sonar.scala.coverage.reportPaths" ->
-            (targetDir / "scala-2.12" / "scoverage-report" / "scoverage.xml").getPath),
-          (s"$projectName.sonar.scala.scapegoat.reportPaths" ->
-            (targetDir / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath),
-          (s"$projectName.sonar.scala.scalastyle.reportPaths" -> (targetDir / "scalastyle-result.xml").getPath)
+          s"$projectName.sonar.sources" -> sourceDir,
+          s"$projectName.sonar.tests" -> testSources,
+          s"$projectName.sonar.junit.reportPaths" -> (targetDir / "test-reports").getPath,
+          s"$projectName.sonar.scala.coverage.reportPaths" ->
+            (targetDir / "scala-2.12" / "scoverage-report" / "scoverage.xml").getPath,
+          s"$projectName.sonar.scala.scapegoat.reportPaths" ->
+            (targetDir / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath,
+          s"$projectName.sonar.scala.scalastyle.reportPaths" -> (targetDir / "scalastyle-result.xml").getPath
         )
       }
     }
@@ -55,7 +61,8 @@ object SonarConfiguration extends AutoPlugin {
       "sonar.projectName" -> "Isabelle AFP Search",
       "sonar.projectKey" -> "de.qaware.isabelle-afp-search:root",
       "sonar.exclusions" -> "**/scala/Using*",
-      "sonar.modules" -> sonarModules.value) ++ sonarModuleSettings.value,
+      "sonar.modules" -> sonarModules.value
+    ) ++ sonarModuleSettings.value,
     aggregate in sonarScan := false
   )
 

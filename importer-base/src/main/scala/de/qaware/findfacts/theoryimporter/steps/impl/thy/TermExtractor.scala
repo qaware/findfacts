@@ -4,13 +4,18 @@ import de.qaware.findfacts.theoryimporter.TheoryView
 import de.qaware.findfacts.theoryimporter.TheoryView.{Abs, App, Bound, ConstTerm, Free, Term, Typ, Var}
 import de.qaware.findfacts.theoryimporter.pure.PureSyntax
 
-class TermExtractor(typExtractor: TypExtractor) {
+/** Helper to extract term content and pretty-print terms.
+  *
+  * @param nameExtractor to pretty-print names
+  */
+class TermExtractor(nameExtractor: NameExtractor) {
 
   private def replace(body: Term, _name: String, _typ: Typ, absDepth: Int): Term = body match {
     // Correct bounds that reference abstractions before the replaced one, since now there is one less lambda in between
-    case Bound(depth) if depth > absDepth => new Bound {
-      override def index: Int = depth - 1
-    }
+    case Bound(depth) if depth > absDepth =>
+      new Bound {
+        override def index: Int = depth - 1
+      }
     // Replace bound by free variable if we hit
     case Bound(depth) if depth == absDepth =>
       new Free {
@@ -48,6 +53,11 @@ class TermExtractor(typExtractor: TypExtractor) {
     case _ => term
   }
 
+  /** Finds consts referenced in the term.
+    *
+    * @param term to find consts in
+    * @return set of const names referenced in the term
+    */
   def referencedConsts(term: Term): Set[String] = term match {
     case ConstTerm(name, _) => Set(name)
     case Abs(_, _, body) => referencedConsts(body)
@@ -55,13 +65,18 @@ class TermExtractor(typExtractor: TypExtractor) {
     case _ => Set.empty
   }
 
+  /** Pretty-prints a term.
+    *
+    * @param term to pretty-print
+    * @return pretty term string
+    */
   def prettyPrint(term: Term): String = prettyPrintRec(minimize(term), Vector.empty)
 
   private def prettyPrintRec(term: Term, vars: IndexedSeq[String]): String = term match {
     case ConstTerm(PureSyntax.Type.name, _) => "Γ"
     case ConstTerm(name, _) => s"<$name>"
     case Free(name, _) => s"'$name'"
-    case Var(indexname, _) => s"?${typExtractor.prettyPrint(indexname)}"
+    case Var(indexname, _) => s"?${nameExtractor.prettyPrint(indexname)}"
     case Bound(index) => vars(index)
     case abs: Abs => s"(λ ${chainAbs(abs, vars)})"
     case App(ConstTerm(PureSyntax.Eq.name, _), arg) => s"${prettyPrintRec(arg, vars)} ≡"
@@ -76,6 +91,12 @@ class TermExtractor(typExtractor: TypExtractor) {
     case _ => s"${abs.name}. ${prettyPrintRec(abs.body, abs.name +: vars)}"
   }
 
+  /** Loosely checks if two terms are semantically equal.
+    *
+    * @param t1 first term
+    * @param t2 second term
+    * @return true if they are semantically equal, and false if they are not or too complex to unify
+    */
   def semanticEqual(t1: Term, t2: Term): Boolean = {
     (minimize(t1), minimize(t2)) match {
       case (Abs(_, typ1, term1), Abs(_, typ2, term2)) => typ1 == typ2 && semanticEqual(term1, term2)

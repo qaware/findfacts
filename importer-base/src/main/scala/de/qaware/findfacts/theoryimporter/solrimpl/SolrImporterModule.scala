@@ -9,7 +9,10 @@ import org.apache.solr.client.solrj.SolrClient
 /** Solr impl of the importer module. */
 trait SolrImporterModule extends ImporterModule {
 
-  /** Solr client has to be provided. */
+  /** Solr client has to be provided.
+    *
+    * @return the provided solr client
+    */
   def solrClient: SolrClient
 
   override val indexWriterStep: ImportStep = wire[WriteSolrStep]

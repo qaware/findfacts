@@ -1,9 +1,9 @@
 package de.qaware.findfacts.theoryimporter
 
+// scalastyle:off
 /** Importer's view on isabelle theories. Should be implemented by value classes wrapping isabelle types. */
 object TheoryView {
 
-  // scalastyle:off
   trait Block extends Any {
     def start: Int
     def stop: Int

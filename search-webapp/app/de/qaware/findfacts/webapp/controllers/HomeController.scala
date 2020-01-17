@@ -9,12 +9,18 @@ import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponent
   */
 final class HomeController(cc: ControllerComponents) extends AbstractController(cc) {
 
-  /** Deliver application. */
+  /** Deliver application.
+    *
+    * @return index action
+    */
   def index(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
     Ok(views.html.index())
   }
 
-  /** Redirects to swagger webjar index. */
+  /** Redirects to swagger webjar index.
+    *
+    * @return redirect to swagger doc
+    */
   def redirectDocs(): Action[AnyContent] =
     Action { implicit request: Request[AnyContent] =>
       Redirect("docs/index.html", Map("url" -> Seq("/swagger.json")))

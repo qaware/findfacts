@@ -1,16 +1,19 @@
 package de.qaware.findfacts.theoryimporter.steps.impl.thy
 
-import de.qaware.findfacts.theoryimporter.TheoryView.{Indexname, TFree, TVar, Typ, TypeTyp}
+import de.qaware.findfacts.theoryimporter.TheoryView.{TFree, TVar, Typ, TypeTyp}
 import de.qaware.findfacts.theoryimporter.pure.PureSyntax
 
-class TypExtractor {
-  def prettyPrint(idxName: Indexname): String = {
-    if (!idxName.name.endsWith("[0-9]"))
-      if (idxName.index == 0) idxName.name else s"${idxName.name}${idxName.index}"
-    else
-      s"${idxName.name}.${idxName.index}"
-  }
+/** Extracts and pretty-print types.
+  *
+  * @param nameExtractor to pretty-print names
+  */
+class TypExtractor(nameExtractor: NameExtractor) {
 
+  /** Pretty-prints types.
+    *
+    * @param typ to pretty-print
+    * @return pretty string
+    */
   def prettyPrint(typ: Typ): String = typ match {
     case TypeTyp(PureSyntax.Fun.name, args) => s"(${args.map(prettyPrint).mkString(" ⇒ ")})"
     case TypeTyp(name, List()) => name
@@ -21,11 +24,16 @@ class TypExtractor {
     case TFree(name, List(single)) => s"($name::$single)"
     case TFree(name, args) => s"($name::{${args.mkString(",")}})"
 
-    case TVar(name, List()) => prettyPrint(name)
-    case TVar(name, List(single)) => s"(${prettyPrint(name)}::$single)"
-    case TVar(name, sort) => s"(${prettyPrint(name)}::{${sort.mkString(",")}})"
+    case TVar(name, List()) => nameExtractor.prettyPrint(name)
+    case TVar(name, List(single)) => s"(${nameExtractor.prettyPrint(name)}::$single)"
+    case TVar(name, sort) => s"(${nameExtractor.prettyPrint(name)}::{${sort.mkString(",")}})"
   }
 
+  /** Finds types referenced by this type.
+    *
+    * @param typ to find referenced types for
+    * @return set of referenced type names
+    */
   def referencedTypes(typ: Typ): Set[String] = typ match {
     case TypeTyp(name, args) => args.toSet.flatMap(referencedTypes) + name
     case TFree(_, sort) => sort.toSet

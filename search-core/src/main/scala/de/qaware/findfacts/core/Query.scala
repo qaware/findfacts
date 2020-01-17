@@ -92,4 +92,4 @@ final case class FacetQuery(filter: AbstractFQ, field: EtField) extends Query
   * @param filter to apply
   * @param maxResults maximum number of results to stream back
   */
-final case class FilterQuery(filter: AbstractFQ, maxResults: Int = 100) extends Query
+final case class FilterQuery(filter: AbstractFQ, maxResults: Int) extends Query

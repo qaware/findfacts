@@ -32,6 +32,7 @@ class WebappModule(context: Context)
     with SolrQueryModule
     with AssetsComponents
     with HttpFiltersComponents {
+
   // Disable CSRF, as it is not needed in this application
   override def httpFilters: Seq[EssentialFilter] = {
     super.httpFilters.filterNot(_.getClass == classOf[CSRFFilter])
@@ -39,7 +40,7 @@ class WebappModule(context: Context)
 
   // Connect to remote solr.
   override lazy val solrClient: SolrClient =
-    RemoteSolr(new URL("http://localhost:8983/solr/theorydata")).solrConnection()
+    RemoteSolr(WebappModule.SolrHost, WebappModule.SolrPort, WebappModule.SolrCore).solrConnection()
 
   private val urlEncoder: JsonUrlCodec = wire[JsonUrlCodec]
 
@@ -54,4 +55,17 @@ class WebappModule(context: Context)
   // Wire up router, which provides the main entry point for play
   private lazy val routesPrefix = "/"
   override lazy val router: Router = wire[Routes]
+}
+
+/** Companion object. */
+object WebappModule {
+
+  /** Solr instance host. */
+  final val SolrHost = "localhost"
+
+  /** Solr instance port. */
+  final val SolrPort = 8983
+
+  /** Solr instance core. */
+  final val SolrCore = "theorydata"
 }
