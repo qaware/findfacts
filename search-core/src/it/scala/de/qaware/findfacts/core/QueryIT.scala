@@ -24,7 +24,7 @@ class QueryIT extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll wi
   override def afterAll(): Unit = solr.close()
 
   test("Filter query") {
-    val query = FilterQuery(Filter(Map(StartPosition -> InRange(10, 30))))
+    val query = FilterQuery(Filter(Map(StartPosition -> InRange(10, 30))), 10)
     val result = queryModule.service.getResults(query)
 
     val resList = result.success.value
@@ -40,7 +40,7 @@ class QueryIT extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll wi
   }
 
   test("Filter query shortlist") {
-    val query = FilterQuery(Filter(Map(Kind -> StringExpression(EtKind.Constant.toString))))
+    val query = FilterQuery(Filter(Map(Kind -> StringExpression(EtKind.Constant.toString))), 10)
     val result = queryModule.service.getShortResults(query)
 
     val resList = result.success.value
@@ -55,7 +55,7 @@ class QueryIT extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll wi
 
   test("Recursive query") {
     val innerQuery = Filter(Map(Kind -> StringExpression(EtKind.Constant.toString)))
-    val query = FilterQuery(Filter(Map(PropositionUses -> AnyInResult(innerQuery))))
+    val query = FilterQuery(Filter(Map(PropositionUses -> AnyInResult(innerQuery))), 10)
     val result = queryModule.service.getShortResults(query)
 
     result.success.value should have size 1
@@ -66,7 +66,7 @@ class QueryIT extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll wi
     val noMatchQuery = Filter(Map(Name -> StringExpression("does not exist")))
     val query1 = Filter(Map(Kind -> AllInResult(noMatchQuery)))
     val query2 = Filter(Map(Kind -> StringExpression(EtKind.Constant.toString)))
-    val query = FilterQuery(FilterIntersection(query1, query2))
+    val query = FilterQuery(FilterIntersection(query1, query2), 10)
     val result = queryModule.service.getShortResults(query)
 
     result.success.value should have size 1
