@@ -263,13 +263,13 @@ object Theory
     {
       override val name: String = isabelle_theory.name
       override val session: String = session_name
-      override def source: Source = markup_Blocks
-      override def types: List[TheoryView.Type] = isabelle_theory.types.map(Type_Wrapper)
-      override def consts: List[TheoryView.Const] = isabelle_theory.consts.map(Const_Wrapper)
-      override def axioms: List[TheoryView.Axiom] = isabelle_theory.axioms.map(Axiom_Wrapper)
-      override def thms: List[TheoryView.Thm] = isabelle_theory.thms.map(Thm_Wrapper)
-      override def constdefs: List[TheoryView.Constdef] = isabelle_theory.constdefs.map(Constdef_Wrapper)
-      override def typedefs: List[TheoryView.Typedef] = isabelle_theory.typedefs.map(Typedef_Wrapper)
+      override val source: Source = markup_Blocks
+      override val types: List[TheoryView.Type] = isabelle_theory.types.map(Type_Wrapper)
+      override val consts: List[TheoryView.Const] = isabelle_theory.consts.map(Const_Wrapper)
+      override val axioms: List[TheoryView.Axiom] = isabelle_theory.axioms.map(Axiom_Wrapper)
+      override val thms: List[TheoryView.Thm] = isabelle_theory.thms.map(Thm_Wrapper)
+      override val constdefs: List[TheoryView.Constdef] = isabelle_theory.constdefs.map(Constdef_Wrapper)
+      override val typedefs: List[TheoryView.Typedef] = isabelle_theory.typedefs.map(Typedef_Wrapper)
     }
   }
 }

@@ -114,7 +114,7 @@ object RemoteSolr {
     * @return configured remote solr repository
     */
   def apply(host: String, port: Int, core: String): RemoteSolr =
-    new RemoteSolr(new URL("http", host, port, s"solr/$core"))
+    new RemoteSolr(new URL("http", host, port, s"/solr/$core"))
 }
 
 /** Remote solr cloud.
