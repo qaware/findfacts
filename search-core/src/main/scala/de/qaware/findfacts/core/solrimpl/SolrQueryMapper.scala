@@ -1,6 +1,9 @@
 package de.qaware.findfacts.core.solrimpl
 
-import de.qaware.findfacts.core.solrimpl.SolrQuery.BiConnective
+import scala.collection.mutable
+
+import de.qaware.findfacts.common.dt.{EtField, IdEt}
+import de.qaware.findfacts.core.solrimpl.SolrMapper.BiConnective
 import de.qaware.findfacts.core.{
   AbstractFQ,
   AllInResult,
@@ -27,13 +30,13 @@ import scala.util.Try
 import org.apache.solr.client.solrj
 
 /** Solr-specific query constants. */
-object SolrQuery {
+object SolrMapper {
 
   /** Match all elements. */
-  val All = "*"
+  final val All = "*"
 
-  /** Match all documents. */
-  val QueryAll = "*:*"
+  // TODO real query {!parent which='-_nest_path_:* *:*'}
+  final val ParentFilter = "kind:Block"
 
   /** Query connective. */
   sealed trait Connective {
@@ -68,30 +71,30 @@ class SolrFilterTermMapper {
   final val DefaultMaxResults = 10
 
   /** Builds nested query by executing inner one */
-  private def buildInnerQuery(queryService: SolrQueryService, fq: AbstractFQ, connective: BiConnective) = {
-    queryService.getShortResults(FilterQuery(fq, DefaultMaxResults)) map {
+  private def buildInnerQuery(fq: AbstractFQ, connective: BiConnective)(implicit queryService: SolrQueryService) = {
+    queryService.getListResults[IdEt](FilterQuery(fq, DefaultMaxResults)) map {
       case Vector() =>
         connective match {
-          case SolrQuery.And => s"${SolrQuery.All}"
-          case SolrQuery.Or => s"(${SolrQuery.Not}${SolrQuery.All})"
+          case SolrMapper.And => s"${SolrMapper.All}"
+          case SolrMapper.Or => s"(${SolrMapper.Not}${SolrMapper.All})"
         }
-      case elems: Any => s"(${elems.map(_.id).mkString(connective.str)})"
+      case elems: Any => s"(${elems.flatMap(_.children.map(_.id)).mkString(connective.str)})"
     }
   }
 
   /** Builds a filter string.
     *
-    * @param queryService for recursive calls
     * @param filter term
+    * @param queryService for recursive calls
     * @return query string or exception if rescursive call failed
     */
-  def buildFilterQuery(queryService: SolrQueryService, filter: FilterTerm): Try[String] = filter match {
-    case Id(inner) => Try(inner)
+  def buildFilterQuery(filter: FilterTerm)(implicit queryService: SolrQueryService): Try[String] = filter match {
+    case Id(inner) => Try(inner) // TODO escaping
     case Number(inner) => Try(inner.toString)
-    case StringExpression(inner) => Try(s"($inner)")
+    case StringExpression(inner) => Try(s"($inner)") // TODO escaping
     case InRange(from, to) => Try(s"[$from TO $to]")
-    case AnyInResult(fq) => buildInnerQuery(queryService, fq, SolrQuery.Or)
-    case AllInResult(fq) => buildInnerQuery(queryService, fq, SolrQuery.And)
+    case AnyInResult(fq) => buildInnerQuery(fq, SolrMapper.Or)
+    case AllInResult(fq) => buildInnerQuery(fq, SolrMapper.And)
   }
 }
 
@@ -101,36 +104,61 @@ class SolrFilterTermMapper {
   */
 class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
 
+  private def buildFieldTerms(fieldTerm: (EtField, FilterTerm))(
+      implicit queryService: SolrQueryService): Try[String] = {
+    termMapper.buildFilterQuery(fieldTerm._2).map(filter => s"${fieldTerm._1.name}:$filter")
+  }
+
+  private def makeQueryString(parentTerms: Seq[String], childTerms: Seq[String])(
+      implicit qParams: mutable.Map[String, Seq[String]]): String = {
+    val parentF = if (parentTerms.isEmpty) "" else parentTerms.map(e => s" +$e").mkString
+    if (childTerms.isEmpty) {
+      s"$parentF +{!parent which=${SolrMapper.ParentFilter}}"
+    } else {
+      // Make unique name
+      val filter = s"childfq${qParams.size}"
+      // Add child filter query (needs to be query parameter as solr query parser can't handle complex queries otherwise)
+      qParams.put(filter, childTerms)
+      s"$parentF +{!parent which=${SolrMapper.ParentFilter} filters=" + "$" + s"$filter}"
+    }
+  }
+
   /** Builds filter query string. Solr filter caches can be configured to cache the result for each string.
     *
-    * @param queryService for recursive calls
     * @param filter query
+    * @param qParams additional query parameters
+    * @param queryService for recursive calls
     * @return query strings that can be cached individually
     */
-  def buildFilter(queryService: SolrQueryService, filter: AbstractFQ): Try[Seq[String]] = filter match {
-    // format: off
+  def buildFilter(filter: AbstractFQ)(
+      implicit qParams: mutable.Map[String, Seq[String]],
+      queryService: SolrQueryService): Try[String] = filter match {
     case Filter(fieldTerms) =>
+      val (parentFieldQuery, others) = fieldTerms.toSeq.partition(!_._1.isChild)
+      val (childFieldsQuery, bothFieldsQuery) = others.partition(!_._1.isParent)
+
+      val parentFieldTerms: Try[Seq[String]] = parentFieldQuery.map(buildFieldTerms)
+      val childFieldTerms: Try[Seq[String]] = childFieldsQuery.map(buildFieldTerms)
+      val bothFieldTerms: Try[Seq[String]] = bothFieldsQuery.map(buildFieldTerms)
+
       for {
-        (field, filter) <- fieldTerms.toSeq
-      } yield for {
-        solrFilters <- termMapper.buildFilterQuery(queryService, filter)
-      } yield s"${field.name}:$solrFilters"
-    // TODO utilize filter caches better by breaking fqs into proper chunks
+        parentQ <- parentFieldTerms
+        childQ <- childFieldTerms
+        bothQ <- bothFieldTerms
+      } yield {
+        if (bothQ.nonEmpty) {
+          s"(${makeQueryString(parentQ ++ bothQ, childQ)} OR${makeQueryString(parentQ, childQ ++ bothQ)})"
+        } else {
+          makeQueryString(parentQ, childQ)
+        }
+      }
     case FilterIntersection(f1, f2, fn @ _*) =>
-      for {
-        filter <- f1 +: f2 +: fn
-      } yield for {
-        solrFilters <- buildFilter(queryService, filter)
-      } yield solrFilters
+      val filters: Try[Seq[String]] = (f1 +: f2 +: fn).map(buildFilter)
+      filters.map(_.map(e => s"($e)").mkString(SolrMapper.And.str))
     case FilterUnion(f1, f2, fn @ _*) =>
-      val disjunctFilters: Try[Seq[String]] = for {
-        filter <- f1 +: f2 +: fn
-      } yield for {
-        filterQuery <- buildFilter(queryService, filter).map(_.mkString(SolrQuery.And.str))
-      } yield filterQuery
-      disjunctFilters.map(fs => Seq(fs.mkString(SolrQuery.Or.str)))
-    case FilterComplement(filter) => buildFilter(queryService, filter).map(f => Seq(s"(${SolrQuery.Not}$f)"))
-    // format: on
+      val filters: Try[Seq[String]] = (f1 +: f2 +: fn).map(buildFilter)
+      filters.map(_.map(e => s"($e)").mkString(SolrMapper.Or.str))
+    case FilterComplement(filter) => buildFilter(filter).map(f => s"(${SolrMapper.Not}$f")
   }
 }
 
@@ -146,24 +174,36 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
     * @param query to map
     * @return solrquery representation that can be fed to a solrJ client
     */
-  def buildQuery(queryService: SolrQueryService, query: Query): Try[solrj.SolrQuery] = query match {
-    case FacetQuery(filter, field) =>
-      filterMapper.buildFilter(queryService, filter) map { fqs =>
-        new solrj.SolrQuery()
-          .setQuery(SolrQuery.QueryAll)
-          .setFilterQueries(fqs: _*)
-          .addFacetField(field.name)
-          .setFacetMinCount(1)
-          .setFacetLimit(Int.MaxValue)
-          .setRows(0)
-      }
-    case FilterQuery(filter, max) =>
-      filterMapper.buildFilter(queryService, filter) map { fqs =>
-        new solrj.SolrQuery()
-          .setQuery(SolrQuery.QueryAll)
-          .setFilterQueries(fqs: _*)
-          .setFacet(false)
-          .setRows(max)
-      }
+  def buildQuery(queryService: SolrQueryService, query: Query): Try[solrj.SolrQuery] = {
+    // Make context impmlicit
+    implicit val queryParams: mutable.Map[String, Seq[String]] = mutable.Map.empty
+    implicit val qs: SolrQueryService = queryService
+
+    query match {
+      case FacetQuery(filter, field) =>
+        buildFilterQuery(filter).map(
+          _.addFacetField(field.name)
+            .setFacetMinCount(1)
+            .setFacetLimit(Int.MaxValue)
+            .setRows(0))
+      case FilterQuery(filter, max) =>
+        buildFilterQuery(filter).map(
+          _.setFacet(false)
+            .addField(s"[child parentFilter=${SolrMapper.ParentFilter}]")
+            .setRows(max)
+        )
+    }
+  }
+
+  private def buildFilterQuery(filter: AbstractFQ)(
+      implicit qParams: mutable.Map[String, Seq[String]],
+      queryService: SolrQueryService): Try[solrj.SolrQuery] = {
+    for {
+      fq <- filterMapper.buildFilter(filter)
+    } yield {
+      val solrQuery = new solrj.SolrQuery().setQuery(fq)
+      qParams.foreach(param => solrQuery.setParam(param._1, param._2: _*))
+      solrQuery
+    }
   }
 }

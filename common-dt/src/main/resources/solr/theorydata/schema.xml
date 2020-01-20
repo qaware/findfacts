@@ -2,17 +2,16 @@
 <schema name="theorydata" version="1.6">
     <fields>
         <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
-        <field name="_nest_parent_" type="string" indexed="true" stored="true"/>
         <field name="id" type="string" required="true" uninvertible="false" multiValued="false" omitTermFreqAndPositions="true"/>
-        <field name="kind" type="entity_kind" required="true" docValues="true" multiValued="false" omitNorms="true"/>
+        <field name="kind" type="entity_kind" required="true" docValues="true" multiValued="false"/>
         <field name="source_file" type="string" docValues="true" multiValued="false" omitNorms="true" omitTermFreqAndPositions="true"/>
         <field name="start_pos" type="pint" uninvertible="false" multiValued="false" omitNorms="true"/>
         <field name="end_pos" type="pint" uninvertible="false" multiValued="false" omitNorms="true"/>
         <field name="name" type="string" multiValued="false" omitNorms="true" omitTermFreqAndPositions="true"/>
         <field name="const_type" type="string" multiValued="false" omitNorms="true" omitTermFreqAndPositions="true"/>
         <field name="doc_kind" type="doc_kind" multiValued="false" omitNorms="true"/>
-        <field name="prop" type="text_general" uninvertible="false" multiValued="false" omitTermFreqAndPositions="true"/>
-        <field name="source_text" type="text_general" uninvertible="false" multiValued="false" omitTermFreqAndPositions="true"/>
+        <field name="prop" type="text_general" uninvertible="false" multiValued="false" omitNorms="true"/>
+        <field name="source_text" type="text_general" uninvertible="false" multiValued="false" omitNorms="true"/>
         <field name="uses" type="string" uninvertible="false" multiValued="true"  omitNorms="true" omitTermFreqAndPositions="true"/>
         <field name="type_uses" type="string" uninvertible="false" multiValued="true"  omitNorms="true" omitTermFreqAndPositions="true"/>
         <field name="proof_uses" type="string" uninvertible="false" multiValued="true" omitNorms="true" omitTermFreqAndPositions="true"/>

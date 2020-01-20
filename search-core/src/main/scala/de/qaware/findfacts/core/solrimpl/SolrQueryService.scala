@@ -5,10 +5,10 @@ import scala.language.{postfixOps, reflectiveCalls}
 import scala.util.Try
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.BaseEt
+import de.qaware.findfacts.common.dt.{BlockEt, ShortBlockEt}
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.common.utils.TryUtils.flattenTryFailFirst
-import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService, ShortEntry}
+import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
 import org.apache.solr.client.solrj
 import org.apache.solr.client.solrj.SolrClient
 import org.apache.solr.client.solrj.response.QueryResponse
@@ -29,6 +29,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
       if (resp.getStatus != 0 && resp.getStatus != 200) {
         throw new IllegalStateException(s"Query status was not ok: $resp")
       }
+      logger.info(s"Found ${resp.getResults.getNumFound} entries")
       resp
     }
   }
@@ -48,21 +49,29 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     } yield result
   }
 
-  /** Get result docs and map to entity. */
-  private def getListResults[A](filterQuery: FilterQuery)(implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] = {
+  /** Get result docs and map to entity.
+    *
+    * @param filterQuery fo execute
+    * @param docMapper for result types
+    * @tparam A type of result
+    * @return vector containing results or error
+    */
+  private[solrimpl] def getListResults[A](filterQuery: FilterQuery)(
+      implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] = {
     val results = for {
       query <- mapper.buildQuery(this, filterQuery)
+      () = docMapper.getSolrFields.foreach(f => query.addField(f.name))
       solrRes <- getSolrResult(query)
     } yield solrRes.getResults.asScala.map(docMapper.fromSolrDoc)
 
     (results: Try[Seq[A]]).map(_.toVector)
   }
 
-  override def getResults(filterQuery: FilterQuery): Try[Vector[BaseEt]] = {
-    getListResults(filterQuery)(FromSolrDoc[BaseEt])
+  override def getResults(filterQuery: FilterQuery): Try[Vector[BlockEt]] = {
+    getListResults(filterQuery)(FromSolrDoc[BlockEt])
   }
 
-  override def getShortResults(filterQuery: FilterQuery): Try[Vector[ShortEntry]] = {
-    getListResults(filterQuery)(FromSolrDoc[ShortEntry])
+  override def getShortResults(filterQuery: FilterQuery): Try[Vector[ShortBlockEt]] = {
+    getListResults(filterQuery)(FromSolrDoc[ShortBlockEt])
   }
 }

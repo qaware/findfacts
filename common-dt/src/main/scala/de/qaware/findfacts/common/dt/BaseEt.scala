@@ -1,10 +1,9 @@
 package de.qaware.findfacts.common.dt
 
-// scalastyle:off
 import de.qaware.findfacts.common.da.api.Variant.Discriminator
+// scalastyle:off
 import de.qaware.findfacts.common.dt.EtField._
 // scalastyle:on
-import shapeless.tag.Tagged
 
 /** Fields for all entities. */
 sealed trait BaseEt {
@@ -37,7 +36,7 @@ final case class BlockEt private (
     /** Source code of the entity. */
     sourceText: SourceText.FieldType,
     /** Entities from this bloock. */
-    entities: Children.FieldType,
+    entities: ChildEntities.FieldType
 ) extends BaseEt
     with Discriminator[EtKind, Kind.type, EtKind.Block.type] {
   require(id == s"$sourceFile.$startPosition")
@@ -62,7 +61,7 @@ final case class ConstantEt private (
     override val proposition: Proposition.FieldType,
     override val propositionUses: PropositionUses.FieldType,
     typeUses: TypeUses.FieldType,
-    constantType: ConstantType.FieldType,
+    constantType: ConstantType.FieldType
 ) extends TheoryEt
     with Discriminator[EtKind, Kind.type, EtKind.Constant.type] {
   require(id == s"${EtKind.Constant}.$name")
@@ -86,8 +85,8 @@ final case class DocumentationEt private (
     startPosition: StartPosition.FieldType,
     endPosition: EndPosition.FieldType,
     sourceText: SourceText.FieldType,
-    documentationKind: DocumentationKind.FieldType)
-    extends BaseEt
+    documentationKind: DocumentationKind.FieldType
+) extends BaseEt
     with Discriminator[EtKind, Kind.type, EtKind.Documentation.type] {
   require(id == s"$sourceFile.$startPosition.$documentationKind")
 
@@ -116,7 +115,7 @@ final case class FactEt private (
     override val name: Name.FieldType,
     override val proposition: Proposition.FieldType,
     override val propositionUses: PropositionUses.FieldType,
-    proofUses: ProofUses.FieldType,
+    proofUses: ProofUses.FieldType
 ) extends TheoryEt
     with Discriminator[EtKind, Kind.type, EtKind.Fact.type] {
   require(id == s"${EtKind.Fact}.$name")
@@ -134,7 +133,7 @@ final case class TypeEt private (
     override val id: Id.FieldType,
     override val name: Name.FieldType,
     override val proposition: Proposition.FieldType,
-    override val propositionUses: PropositionUses.FieldType,
+    override val propositionUses: PropositionUses.FieldType
 ) extends TheoryEt
     with Discriminator[EtKind, Kind.type, EtKind.Type.type] {
   require(id == s"${EtKind.Type}.$name")

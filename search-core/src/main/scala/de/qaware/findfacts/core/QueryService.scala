@@ -2,7 +2,7 @@ package de.qaware.findfacts.core
 
 import scala.util.Try
 
-import de.qaware.findfacts.common.dt.BaseEt
+import de.qaware.findfacts.common.dt.{BlockEt, ShortBlockEt}
 
 /** Query service interface. */
 trait QueryService {
@@ -12,7 +12,7 @@ trait QueryService {
     * @param filterQuery to execute
     * @return query result
     */
-  def getResults(filterQuery: FilterQuery): Try[Vector[BaseEt]]
+  def getResults(filterQuery: FilterQuery): Try[Vector[BlockEt]]
 
   /** Executes a facetquery and returns result.
     *
@@ -26,5 +26,5 @@ trait QueryService {
     * @param filterQuery to execute
     * @return query result as shortlist
     */
-  def getShortResults(filterQuery: FilterQuery): Try[Vector[ShortEntry]]
+  def getShortResults(filterQuery: FilterQuery): Try[Vector[ShortBlockEt]]
 }

@@ -33,33 +33,48 @@ trait FromSolrDoc[A] {
     * @return typed result
     */
   def fromSolrDoc(doc: SolrDocument): Try[A]
+
+  /** Gets the set of solr fields required for this mapping.
+    *
+    * @return set of required solr fields
+    */
+  def getSolrFields: Set[Field]
 }
 
 /** Typeclass object providing idiomatic typeclass members and implicits. */
 object FromSolrDoc {
   // scalastyle:off scaladoc Justification: idiomatic typeclass
   def apply[A](implicit mapper: FromSolrDoc[A]): FromSolrDoc[A] = mapper
-  def instance[A](mapFn: SolrDocument => Try[A]): FromSolrDoc[A] = (doc: SolrDocument) => mapFn(doc)
+  def instance[A](fields: Set[Field], mapFn: SolrDocument => Try[A]): FromSolrDoc[A] = new FromSolrDoc[A] {
+    override def fromSolrDoc(doc: SolrDocument): Try[A] = mapFn(doc)
+    override val getSolrFields: Set[Field] = fields
+  }
 
   /** HNil impl. */
-  implicit val hnilFromSolrDoc: FromSolrDoc[HNil] = instance(_ => Try(HNil))
+  implicit val hnilFromSolrDoc: FromSolrDoc[HNil] = instance(Set.empty, _ => Try(HNil))
 
   /** HList impls. */
-  def hlistFromSolrDoc[F <: Field, K, H, T <: HList](witness: Witness.Aux[F], tMapper: FromSolrDoc[T])(
+  def hlistFromSolrDoc[F <: Field, K, H, T <: HList](
+      witness: Witness.Aux[F],
+      tMapper: FromSolrDoc[T],
+      otherFields: Set[Field] = Set.empty)(
       mapFn: (SolrDocument, F) => FieldType[K, H @@ F]): FromSolrDoc[FieldType[K, H @@ F] :: T] =
-    instance { doc =>
-      // Get field anme
-      val field = witness.value
+    instance(
+      otherFields ++ tMapper.getSolrFields + witness.value,
+      doc => {
+        // Get field anme
+        val field = witness.value
 
-      // Extract information
-      Try {
-        // Map field to typed representation
-        val head = mapFn(doc, field)
+        // Extract information
+        Try {
+          // Map field to typed representation
+          val head = mapFn(doc, field)
 
-        // Build complete product type
-        tMapper.fromSolrDoc(doc).map(head :: _)
-      }.flatten
-    }
+          // Build complete product type
+          tMapper.fromSolrDoc(doc).map(head :: _)
+        }.flatten
+      }
+    )
 
   // scalastyle:off null
   /** Single-valued field impl. */
@@ -117,7 +132,7 @@ object FromSolrDoc {
       witness: Witness.Aux[F],
       cMapper: FromSolrDoc[C],
       tMapper: FromSolrDoc[T]
-  ): FromSolrDoc[FieldType[K, List[C] @@ F] :: T] = hlistFromSolrDoc(witness, tMapper) {
+  ): FromSolrDoc[FieldType[K, List[C] @@ F] :: T] = hlistFromSolrDoc(witness, tMapper, cMapper.getSolrFields) {
     case (doc, _) =>
       (doc.getChildDocuments match {
         case null => List.empty
@@ -126,9 +141,9 @@ object FromSolrDoc {
   }
 
   /** CNil impl. */
-  implicit val cnilFromSolrDoc: FromSolrDoc[CNil] = instance { doc =>
+  implicit val cnilFromSolrDoc: FromSolrDoc[CNil] = instance(Set.empty, doc => {
     Try { throw new IllegalStateException(s"Coproduct variant not handled: $doc") }
-  }
+  })
 
   /** Coproduct impl. */
   @SuppressWarnings(Array("AsInstanceOf", "BoundedByFinalType"))
@@ -143,24 +158,28 @@ object FromSolrDoc {
       fieldWitness: Witness.Aux[F],
       variantWitness: Witness.Aux[V],
       lMapper: Lazy[FromSolrDoc[L]],
-      rMapper: FromSolrDoc[R]): FromSolrDoc[FieldType[K, L with Discriminator[B, F, V]] :+: R] = instance { doc =>
-    Try {
-      val docVarField = fieldWitness.value
-      val docVariant: B = docVarField.fromJsonString(doc.getFieldValue(docVarField.name).toString)
-      val typeVariant: B = variantWitness.value
+      rMapper: FromSolrDoc[R]): FromSolrDoc[FieldType[K, L with Discriminator[B, F, V]] :+: R] = instance(
+    rMapper.getSolrFields ++ lMapper.value.getSolrFields + fieldWitness.value,
+    doc => {
+      Try {
+        val docVarField = fieldWitness.value
+        val docVariant: B = docVarField.fromJsonString(doc.getFieldValue(docVarField.name).toString)
+        val typeVariant: B = variantWitness.value
 
-      if (docVariant == typeVariant) {
-        // Right type of entity found (it is L)
-        lMapper.value.fromSolrDoc(doc).map(_.asInstanceOf[FieldType[K, L @@ Variant[_, F, V]]]).map(Inl(_))
-      } else {
-        // Type has to be in coproduct, or does not exist.
-        rMapper.fromSolrDoc(doc).map(Inr(_))
-      }
-    }.flatten
-  }
+        if (docVariant == typeVariant) {
+          // Right type of entity found (it is L)
+          lMapper.value.fromSolrDoc(doc).map(_.asInstanceOf[FieldType[K, L @@ Variant[_, F, V]]]).map(Inl(_))
+        } else {
+          // Type has to be in coproduct, or does not exist.
+          rMapper.fromSolrDoc(doc).map(Inr(_))
+        }
+      }.flatten
+    }
+  )
 
   /** Labelled generic impl. */
   implicit def genericFromSolrDoc[A, Repr](
       implicit generic: LabelledGeneric.Aux[A, Repr],
-      hlMapper: Lazy[FromSolrDoc[Repr]]): FromSolrDoc[A] = instance(hlMapper.value.fromSolrDoc(_).map(generic.from))
+      hlMapper: Lazy[FromSolrDoc[Repr]]): FromSolrDoc[A] =
+    instance(hlMapper.value.getSolrFields, hlMapper.value.fromSolrDoc(_).map(generic.from))
 }

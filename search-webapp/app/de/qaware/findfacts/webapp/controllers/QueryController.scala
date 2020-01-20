@@ -1,8 +1,8 @@
 package de.qaware.findfacts.webapp.controllers
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BaseEt, EtField}
-import de.qaware.findfacts.core.{FacetQuery, Filter, FilterQuery, Id, Query, QueryService, UntypedShortEntry}
+import de.qaware.findfacts.common.dt.{BaseEt, EtField, ShortBlockEt}
+import de.qaware.findfacts.core.{FacetQuery, Filter, FilterQuery, Id, Query, QueryService}
 import de.qaware.findfacts.webapp.utils.JsonUrlCodec
 // scalastyle:off
 import io.circe.generic.auto._
@@ -85,7 +85,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
 
   protected def executeQuery(query: Query): Result = {
     val json: Try[Json] = query match {
-      case query: FilterQuery => queryService.getShortResults(query).map(_.map(_.asUntyped).toList.asJson)
+      case query: FilterQuery => queryService.getShortResults(query).map(_.toList.asJson)
       case query: FacetQuery => queryService.getFacetResults(query).map(_.asJson)
     }
     json match {
@@ -99,7 +99,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
   @ApiOperation(
     value = "Search query",
     notes = "Accepts a search query and returns list of all results.",
-    response = classOf[UntypedShortEntry],
+    response = classOf[ShortBlockEt],
     responseContainer = "List",
     httpMethod = "POST"
   )
@@ -143,7 +143,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
   @ApiOperation(
     value = "Executes url-encoded query",
     notes = "Decodes query-url and executes query",
-    response = classOf[UntypedShortEntry],
+    response = classOf[ShortBlockEt],
     responseContainer = "List",
     httpMethod = "GET"
   )
