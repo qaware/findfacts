@@ -1,6 +1,7 @@
 package de.qaware.findfacts.theoryimporter.steps
 
 import scala.collection.mutable
+
 import de.qaware.findfacts.common.dt.{BaseEt, BlockEt, ConstantEt, DocumentationEt, FactEt, TheoryEt, TypeEt}
 import de.qaware.findfacts.common.utils.DefaultMultiMap
 
@@ -100,8 +101,9 @@ final class StepContext private (
     * @return immutable blocks set
     */
   def blocks: Set[BlockEt] = {
-    val entitiesByBlock =
-      (_consts ++ _facts ++ _types).flatMap(e => e._2.map((e._1, _))).groupBy(_._2).mapValues(_.keys)
+    val explodedMap: Seq[(TheoryEt, String)] = (_consts ++ _facts ++ _types).toSeq.flatMap(e => e._2.map((e._1, _)))
+    val entitiesByBlock: Map[String, Set[TheoryEt]] = explodedMap.groupBy(_._2).mapValues(_.map(_._1).toSet)
+
     _blocks.to[Set].map(block => block.copy(entities = entitiesByBlock(block.id).toList))
   }
 
