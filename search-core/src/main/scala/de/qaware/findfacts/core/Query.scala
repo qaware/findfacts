@@ -8,9 +8,6 @@ sealed trait FilterTerm
 /** Abstract data type for filters queries. */
 sealed trait AbstractFQ
 
-/** Union type for queries. */
-sealed trait Query
-
 // Primitives
 /** Id type.
   *
@@ -83,13 +80,14 @@ final case class FilterComplement(filter: AbstractFQ) extends AbstractFQ
 /** Query to facet on, i.e. list number of occurrences for each distinct value.
   *
   * @param filter to apply before facet
-  * @param field field to facet on
+  * @param fields to facet on
+  * @param maxFacets maximum number of facet values. Fields for which this value is exceeded will be ignored
   */
-final case class FacetQuery(filter: AbstractFQ, field: EtField) extends Query
+final case class FacetQuery(filter: AbstractFQ, fields: Set[EtField], maxFacets: Int)
 
 /** Query to filter for results.
   *
   * @param filter to apply
   * @param maxResults maximum number of results to stream back
   */
-final case class FilterQuery(filter: AbstractFQ, maxResults: Int) extends Query
+final case class FilterQuery(filter: AbstractFQ, maxResults: Int)

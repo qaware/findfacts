@@ -18,7 +18,6 @@ import de.qaware.findfacts.core.{
   Id,
   InRange,
   Number,
-  Query,
   StringExpression
 }
 // scalastyle:off
@@ -36,7 +35,7 @@ object SolrMapper {
   final val All = "*"
 
   // TODO real query {!parent which='-_nest_path_:* *:*'}
-  final val ParentFilter = "kind:Block"
+  final val ParentFilter = "'kind:Block OR kind:Documentation'"
 
   /** Query connective. */
   sealed trait Connective {
@@ -168,34 +167,35 @@ class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
   */
 class SolrQueryMapper(filterMapper: SolrFilterMapper) {
 
-  /** Builds solr query for a query.
+  /** Builds solr query for a filter query.
     *
     * @param queryService for recursive calls
     * @param query to map
     * @return solrquery representation that can be fed to a solrJ client
     */
-  def buildQuery(queryService: SolrQueryService, query: Query): Try[solrj.SolrQuery] = {
-    // Make context impmlicit
-    implicit val queryParams: mutable.Map[String, Seq[String]] = mutable.Map.empty
-    implicit val qs: SolrQueryService = queryService
-
-    query match {
-      case FacetQuery(filter, field) =>
-        buildFilterQuery(filter).map(
-          _.addFacetField(field.name)
-            .setFacetMinCount(1)
-            .setFacetLimit(Int.MaxValue)
-            .setRows(0))
-      case FilterQuery(filter, max) =>
-        buildFilterQuery(filter).map(
-          _.setFacet(false)
-            .addField(s"[child parentFilter=${SolrMapper.ParentFilter}]")
-            .setRows(max)
-        )
-    }
+  def buildFilterQuery(queryService: SolrQueryService, query: FilterQuery): Try[solrj.SolrQuery] = {
+    buildFQ(query.filter)(mutable.Map.empty, queryService).map(
+      _.setFacet(false)
+        .addField(s"[child parentFilter=${SolrMapper.ParentFilter}]")
+        .setRows(query.maxResults)
+    )
   }
 
-  private def buildFilterQuery(filter: AbstractFQ)(
+  /** Builds solr query for a facet query.
+    *
+    * @param queryService for recursive calls
+    * @param facetQuery to transform
+    * @return solr query
+    */
+  def buildFacetQuery(queryService: SolrQueryService, facetQuery: FacetQuery): Try[solrj.SolrQuery] = {
+    buildFQ(facetQuery.filter)(mutable.Map.empty, queryService).map(
+      _.addFacetField(facetQuery.fields.map(_.name).toArray: _*)
+        .setFacetMinCount(1)
+        .setFacetLimit(facetQuery.maxFacets + 1)
+        .setRows(0))
+  }
+
+  private def buildFQ(filter: AbstractFQ)(
       implicit qParams: mutable.Map[String, Seq[String]],
       queryService: SolrQueryService): Try[solrj.SolrQuery] = {
     for {

@@ -1,23 +1,19 @@
 module Main exposing (..)
 
 import Bootstrap.Accordion as Accordion
-import Bootstrap.Button as Button
-import Bootstrap.Card as Card
-import Bootstrap.Card.Block as Block
-import Bootstrap.Form.Input as Input
-import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Navbar as Navbar
-import Bootstrap.Text as Text
+import Bootstrap.Spinner as Spinner
 import Browser
 import Browser.Navigation as Navigation
-import Entities exposing (ResultList, ShortResult, decoder, kindToString)
+import Entities exposing (ResultList)
 import Html exposing (Html, br, div, h1, text)
 import Html.Attributes exposing (href)
 import Http exposing (Error(..), expectJson, jsonBody)
-import List exposing (map)
-import Query exposing (FilterQuery, encode, fromString)
+import List exposing (indexedMap, map)
+import Query exposing (AbstractFQ(..), FacetResult, Field(..), FilterTerm(..), Query(..), decode, encode)
+import Search exposing (FacetEntry, State)
 import Url exposing (Url)
 import Url.Parser as UrlParser
 
@@ -47,14 +43,15 @@ type alias Model =
     , page : Page
     , navState : Navbar.State
     , apiBaseUrl : String
-    , searchState : SearchState
-    , selectedState : Accordion.State
-    , searchQuery : Maybe (Result String FilterQuery)
+    , queryState : SearchState
+    , selectedStates : List Accordion.State
+    , searchState : Search.State
     }
 
 
 type Page
     = Home
+    | Example
     | Syntax
     | Imprint
     | NotFound
@@ -64,7 +61,7 @@ type SearchState
     = Init
     | Searching
     | SearchError String
-    | SearchResult (List ShortResult)
+    | SearchResult ResultList
 
 
 init : () -> Url -> Navigation.Key -> ( Model, Cmd Msg )
@@ -77,7 +74,7 @@ init _ url key =
             Navbar.initialState NavbarMsg
 
         ( model, urlCmd ) =
-            urlUpdate url (Model key Home navState baseUrl Init Accordion.initialState Nothing)
+            urlUpdate url (Model key Home navState baseUrl Init [] Search.init)
     in
     ( model, Cmd.batch [ urlCmd, navCmd ] )
 
@@ -90,10 +87,11 @@ type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url
     | NavbarMsg Navbar.State
-    | QueryString String
-    | Search
-    | NewEntities (Result Http.Error ResultList)
-    | Selected Accordion.State
+    | ExecuteQuery
+    | QueryResult (Result Http.Error ResultList)
+    | FacetResult (Result Http.Error FacetResult)
+    | SearchMsg Search.State
+    | Selected Int Accordion.State
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -113,35 +111,29 @@ update msg model =
         NavbarMsg state ->
             ( { model | navState = state }, Cmd.none )
 
-        QueryString queryStr ->
-            ( { model
-                | searchQuery =
-                    if String.isEmpty queryStr then
-                        Nothing
+        ExecuteQuery ->
+            let
+                filterQuery =
+                    Search.buildFilterQuery model.searchState
 
-                    else
-                        Just (fromString queryStr)
+                facetQuery =
+                    Search.buildFacetQuery model.searchState
+            in
+            ( { model | queryState = Searching, selectedStates = [] }
+            , Cmd.batch [ executeQuery model facetQuery, executeQuery model filterQuery ]
+            )
+
+        QueryResult (Ok results) ->
+            ( { model
+                | queryState = SearchResult results
+                , selectedStates = map (\_ -> Accordion.initialState) results
               }
             , Cmd.none
             )
 
-        Search ->
-            case model.searchQuery of
-                Nothing ->
-                    ( model, Cmd.none )
-
-                Just (Err e) ->
-                    ( { model | searchState = SearchError e }, Cmd.none )
-
-                Just (Ok query) ->
-                    ( { model | searchState = Searching, selectedState = Accordion.initialState }, executeQuery model query )
-
-        NewEntities (Ok results) ->
-            ( { model | searchState = SearchResult results }, Cmd.none )
-
-        NewEntities (Err e) ->
+        QueryResult (Err e) ->
             ( { model
-                | searchState =
+                | queryState =
                     SearchError
                         (case e of
                             BadUrl _ ->
@@ -163,8 +155,28 @@ update msg model =
             , Cmd.none
             )
 
-        Selected state ->
-            ( { model | selectedState = state }, Cmd.none )
+        Selected idx state ->
+            ( { model
+                | selectedStates = List.append (List.take idx model.selectedStates) (state :: List.drop (idx + 1) model.selectedStates)
+              }
+            , Cmd.none
+            )
+
+        SearchMsg state ->
+            let
+                filterQuery =
+                    Search.buildFilterQuery model.searchState
+
+                facetQuery =
+                    Search.buildFacetQuery model.searchState
+            in
+            ( { model | searchState = state }, Cmd.batch [ executeQuery model facetQuery, executeQuery model filterQuery ] )
+
+        FacetResult (Ok result) ->
+            ( { model | searchState = Search.update model.searchState result }, Cmd.none )
+
+        FacetResult (Err _) ->
+            ( model, Cmd.none )
 
 
 urlUpdate : Url -> Model -> ( Model, Cmd Msg )
@@ -177,7 +189,11 @@ urlUpdate url model =
 
         Just page ->
             ( { model | page = page }
-            , Cmd.none
+            , if page == Example then
+                executeQuery model (FilterQuery (Filter [ ( Name, StringExpression "*gauss*" ) ]) 10)
+
+              else
+                Cmd.none
             )
 
 
@@ -185,18 +201,28 @@ routeParser : UrlParser.Parser (Page -> a) a
 routeParser =
     UrlParser.oneOf
         [ UrlParser.map Home UrlParser.top
+        , UrlParser.map Example (UrlParser.s "example")
         , UrlParser.map Syntax (UrlParser.s "syntax")
         , UrlParser.map Imprint (UrlParser.s "imprint")
         ]
 
 
-executeQuery : Model -> FilterQuery -> Cmd Msg
+executeQuery : Model -> Query -> Cmd Msg
 executeQuery model query =
-    Http.post
-        { url = model.apiBaseUrl ++ "/v1/search"
-        , body = jsonBody (encode query)
-        , expect = expectJson NewEntities decoder
-        }
+    case query of
+        FilterQuery _ _ ->
+            Http.post
+                { url = model.apiBaseUrl ++ "/v1/search"
+                , body = jsonBody (encode query)
+                , expect = expectJson QueryResult Entities.decoder
+                }
+
+        FacetQuery _ _ _ ->
+            Http.post
+                { url = model.apiBaseUrl ++ "/v1/facet"
+                , body = jsonBody (encode query)
+                , expect = expectJson FacetResult decode
+                }
 
 
 
@@ -206,9 +232,9 @@ executeQuery model query =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Navbar.subscriptions model.navState NavbarMsg
-        , Accordion.subscriptions model.selectedState Selected
-        ]
+        (Navbar.subscriptions model.navState NavbarMsg
+            :: map (\( idx, state ) -> Accordion.subscriptions state (Selected idx)) (indexedMap Tuple.pair model.selectedStates)
+        )
 
 
 
@@ -220,57 +246,39 @@ view model =
     { title = "FindFacts"
     , body =
         [ div []
-            [ menu model
-            , mainContent model
+            [ Navbar.config NavbarMsg
+                |> Navbar.withAnimation
+                |> Navbar.container
+                |> Navbar.brand [ href "#" ] [ text "Home" ]
+                |> Navbar.items
+                    [ Navbar.itemLink [ href "#example" ] [ text "Example" ]
+                    , Navbar.itemLink [ href "#syntax" ] [ text "Syntax" ]
+                    , Navbar.itemLink [ href "#imprint" ] [ text "Imprint" ]
+                    ]
+                |> Navbar.view model.navState
+            , Grid.container [] <|
+                case model.page of
+                    Home ->
+                        pageHome model
+
+                    Example ->
+                        pageHome model
+
+                    Syntax ->
+                        pageSyntax
+
+                    Imprint ->
+                        pageImprint
+
+                    NotFound ->
+                        pageNotFound
             ]
         ]
     }
 
 
-menu : Model -> Html Msg
-menu model =
-    Navbar.config NavbarMsg
-        |> Navbar.withAnimation
-        |> Navbar.container
-        |> Navbar.brand [ href "#" ] [ text "Home" ]
-        |> Navbar.items
-            [ Navbar.itemLink [ href "#syntax" ] [ text "Syntax" ]
-            , Navbar.itemLink [ href "#imprint" ] [ text "Imprint" ]
-            ]
-        |> Navbar.view model.navState
-
-
-mainContent : Model -> Html Msg
-mainContent model =
-    Grid.container [] <|
-        case model.page of
-            Home ->
-                pageHome model
-
-            Syntax ->
-                pageSyntax
-
-            Imprint ->
-                pageImprint
-
-            NotFound ->
-                pageNotFound
-
-
 pageHome : Model -> List (Html Msg)
 pageHome model =
-    let
-        validationState =
-            case model.searchQuery of
-                Nothing ->
-                    []
-
-                Just (Ok _) ->
-                    [ Input.success ]
-
-                Just (Err _) ->
-                    [ Input.danger ]
-    in
     [ div []
         [ Grid.row []
             [ Grid.col [ Col.lg6 ]
@@ -278,79 +286,47 @@ pageHome model =
             ]
         , br [] []
         , Grid.row []
-            [ Grid.col [ Col.lg6 ]
-                [ InputGroup.config
-                    (InputGroup.text (List.append [ Input.placeholder "Search for", Input.onInput QueryString ] validationState))
-                    |> InputGroup.successors
-                        [ InputGroup.button [ Button.primary, Button.onClick Search ] [ text "Go!" ] ]
-                    |> InputGroup.view
-                ]
+            [ Grid.col []
+                -- Search.view model.searchState (Search.config SearchMsg)
+                (Search.Config SearchMsg ExecuteQuery
+                    |> Search.view model.searchState
+                )
             ]
         , br [] []
         , Grid.row []
             [ Grid.col []
-                (searchResults model)
+                (case model.queryState of
+                    Init ->
+                        []
+
+                    Searching ->
+                        [ Spinner.spinner [] [] ]
+
+                    SearchError err ->
+                        [ text err ]
+
+                    SearchResult res ->
+                        Entities.view res
+                )
             ]
         ]
     ]
 
 
-searchResults : Model -> List (Html Msg)
-searchResults model =
-    case model.searchState of
-        Init ->
-            []
-
-        Searching ->
-            [ text "Searching..." ]
-
-        SearchError err ->
-            [ text ("Something went wrong! " ++ err) ]
-
-        SearchResult res ->
-            [ Accordion.config Selected
-                |> Accordion.withAnimation
-                |> Accordion.cards (map displayResult res)
-                |> Accordion.view model.selectedState
-            ]
-
-
-displayResult : ShortResult -> Accordion.Card Msg
-displayResult res =
-    Accordion.card
-        { id = res.id
-        , options = []
-        , header =
-            Accordion.header [] <|
-                Accordion.toggle []
-                    [ Card.config [ Card.align Text.alignXsLeft ]
-                        |> Card.header [] [ text (kindToString res.kind) ]
-                        |> Card.block []
-                            [ Block.text [] [ text res.shortDescription ] ]
-                        |> Card.footer [] [ text (res.sourceFile ++ ": " ++ String.fromInt res.startPosition) ]
-                        |> Card.view
-                    ]
-        , blocks =
-            [ Accordion.block []
-                [ Block.text [] [ text res.sourceFile ] ]
-            ]
-        }
-
-
-pageSyntax : List (Html Msg)
+pageSyntax : List (Html msg)
 pageSyntax =
     [ h1 [] [ text "Search syntax" ]
     , Grid.row [] []
     ]
 
 
-pageImprint : List (Html Msg)
+pageImprint : List (Html msg)
 pageImprint =
     [ h1 [] [ text "Imprint" ]
     ]
 
 
-pageNotFound : List (Html Msg)
+pageNotFound : List (Html msg)
 pageNotFound =
     [ h1 [] [ text "Not found" ]
     , text "404 - Could not find requested page"

@@ -1,9 +1,10 @@
 package de.qaware.findfacts.webapp.controllers
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BaseEt, EtField, ShortBlockEt}
-import de.qaware.findfacts.core.{FacetQuery, Filter, FilterQuery, Id, Query, QueryService}
+import de.qaware.findfacts.common.dt.{BaseEt, EtField, EtKind, ShortEt, ShortThyEt}
+import de.qaware.findfacts.core.{FacetQuery, Filter, FilterQuery, Id, QueryService}
 import de.qaware.findfacts.webapp.utils.JsonUrlCodec
+import io.circe.Encoder
 // scalastyle:off
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -41,38 +42,35 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
   private final val ExampleFilterQuery =
     """
 {
-  "FilterQuery": {
-    "filter": {
-      "Filter": {
-        "fieldTerms": {
-          "Name": {
-            "StringExpression": {
-              "inner": "*gauss*"
-            }
+  "filter": {
+    "Filter": {
+      "fieldTerms": {
+        "Name": {
+          "StringExpression": {
+            "inner": "*gauss*"
           }
         }
       }
-    },
-    "maxResults": 10
-  }
+    }
+  },
+  "maxResults": 10
 }
 """
   private final val ExampleFacetQuery = """
 {
-  "FacetQuery" : {
-    "filter" : {
-      "Filter" : {
-        "fieldTerms" : {
-          "Name" : {
-            "StringExpression" : {
-              "inner" : "*gauss*"
-            }
+  "filter" : {
+    "Filter" : {
+      "fieldTerms" : {
+        "Name" : {
+          "StringExpression" : {
+            "inner" : "*gauss*"
           }
         }
       }
-    },
-    "field" : "Kind"
-  }
+    }
+  },
+  "fields" : [ "Kind", "Name" ],
+  "maxFacets": 10
 }
 """
   private final val InternalErrorMsg = "Internal server error"
@@ -83,23 +81,40 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
   // Json printer
   implicit val jsonPrinter: Printer = Printer.noSpacesSortKeys.copy(dropNullValues = true)
 
-  protected def executeQuery(query: Query): Result = {
-    val json: Try[Json] = query match {
-      case query: FilterQuery => queryService.getShortResults(query).map(_.toList.asJson)
-      case query: FacetQuery => queryService.getFacetResults(query).map(_.asJson)
+  // Json Encoders/decoders
+  implicit val shortThyEncoder: Encoder[ShortThyEt] =
+    Encoder.forProduct5("id", "kind", "name", "proposition", "description") { shortEt =>
+      (shortEt.id, shortEt.kind, shortEt.name, shortEt.proposition, shortEt.shortDescription)
     }
-    json match {
-      case Failure(exception) =>
-        logger.error(s"Error executing query $query", exception)
-        InternalServerError(InternalErrorMsg)
-      case Success(value) => Ok(value)
-    }
+  implicit val shortListEncoder: Encoder[List[ShortThyEt]] = Encoder.encodeList(shortThyEncoder)
+  implicit val shortEncoder: Encoder[ShortEt] = Encoder.forProduct5("id", "kind", "file", "src", "entities") {
+    et: ShortEt =>
+      (et.id, et.kind, et.file, et.src, et.entities.asInstanceOf[List[ShortThyEt]])
+  }(
+    Encoder[EtField.Id.FieldType],
+    Encoder[EtKind],
+    Encoder[EtField.SourceFile.FieldType],
+    Encoder[EtField.SourceText.FieldType],
+    shortListEncoder)
+  implicit val resultListEncoder: Encoder[List[ShortEt]] = Encoder.encodeList(shortEncoder)
+
+  protected def executeFilterQuery(query: FilterQuery): Result =
+    logIfErr(query.toString, queryService.getShortResults(query).map(_.toList.asJson(resultListEncoder)))
+
+  protected def executeFacetQuery(query: FacetQuery): Result =
+    logIfErr(query.toString, queryService.getFacetResults(query).map(_.asJson))
+
+  protected def logIfErr(query: String, json: Try[Json]): Result = json match {
+    case Failure(exception) =>
+      logger.error(s"Error executing query $query", exception)
+      InternalServerError(InternalErrorMsg)
+    case Success(value) => Ok(value)
   }
 
   @ApiOperation(
     value = "Search query",
     notes = "Accepts a search query and returns list of all results.",
-    response = classOf[ShortBlockEt],
+    response = classOf[ShortEt],
     responseContainer = "List",
     httpMethod = "POST"
   )
@@ -107,59 +122,16 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(
-        name = "query",
-        value = "Query object",
+        name = "filterQuery",
+        value = "filter query object",
         required = true,
         paramType = "body",
-        dataType = "de.qaware.findfacts.core.Query",
+        dataType = "de.qaware.findfacts.core.FilterQuery",
         examples = new Example(value = Array(new ExampleProperty(mediaType = "default", value = ExampleFilterQuery)))
       )))
-  def search: Action[Query] = Action(circe.json[Query]) { implicit request: Request[Query] =>
-    executeQuery(request.body)
+  def search: Action[FilterQuery] = Action(circe.json[FilterQuery]) { implicit request: Request[FilterQuery] =>
+    executeFilterQuery(request.body)
   }
-
-  @ApiOperation(
-    value = "Encode query as url",
-    notes = "Encodes query as url for permalinks.",
-    response = classOf[String],
-    httpMethod = "POST"
-  )
-  @ApiResponses(Array(new ApiResponse(code = 400, message = "Invalid Query")))
-  @ApiImplicitParams(
-    Array(
-      new ApiImplicitParam(
-        name = "query",
-        value = "Query object",
-        required = true,
-        paramType = "body",
-        dataType = "de.qaware.findfacts.core.Query",
-        examples = new Example(value = Array(new ExampleProperty(mediaType = "default", value = ExampleFacetQuery)))
-      )))
-  def encode: Action[Query] = Action(circe.json[Query]) { implicit request: Request[Query] =>
-    // Parse back into json - parsing into query first does validation.
-    Ok(urlCodec.encodeCompressed(request.body.asJson))
-  }
-
-  @ApiOperation(
-    value = "Executes url-encoded query",
-    notes = "Decodes query-url and executes query",
-    response = classOf[ShortBlockEt],
-    responseContainer = "List",
-    httpMethod = "GET"
-  )
-  def searchEncoded(@ApiParam(value = "Encoded query", required = true) encodedQuery: String): Action[AnyContent] =
-    Action { implicit request: Request[AnyContent] =>
-      urlCodec.decodeCompressed(encodedQuery) match {
-        case Failure(ex) =>
-          logger.warn("Could not decode query string: ", ex)
-          BadRequest("Corrupt query encoding")
-        case Success(queryJson) =>
-          queryJson.as[Query] match {
-            case Left(value) => BadRequest(value.message)
-            case Right(query) => executeQuery(query)
-          }
-      }
-    }
 
   @ApiOperation(
     value = "Retrieves a single entity",
@@ -180,4 +152,28 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, urlC
           BadRequest(NotFoundMsg)
       }
     }
+
+  @ApiOperation(
+    value = "Facet query",
+    notes = "Executes a facet query and returns faceted results.",
+    response = classOf[Map[_, _]],
+    responseContainer = "Map",
+    httpMethod = "POST"
+  )
+  @ApiResponses(Array(new ApiResponse(code = 400, message = "Invalid Query")))
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(
+        name = "facetQuery",
+        value = "facet query object",
+        required = true,
+        paramType = "body",
+        dataType = "de.qaware.findfacts.core.FacetQuery",
+        examples = new Example(value = Array(new ExampleProperty(mediaType = "default", value = ExampleFacetQuery)))
+      )
+    )
+  )
+  def facet: Action[FacetQuery] = Action(circe.json[FacetQuery]) { implicit request: Request[FacetQuery] =>
+    executeFacetQuery(request.body)
+  }
 }

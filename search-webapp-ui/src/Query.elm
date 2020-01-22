@@ -1,11 +1,15 @@
-module Query exposing (Field, FilterQuery, encode, fromString)
+module Query exposing (AbstractFQ(..), Facet, FacetResult, Field(..), FilterTerm(..), Query(..), decode, encode, facetFields, fieldToString)
 
-import Json.Encode exposing (Value, int, object, string)
-import List exposing (foldr, map)
+import Dict exposing (Dict)
+import Dict.Any as AnyDict exposing (AnyDict)
+import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode exposing (Value, int, list, object, string)
+import List exposing (map)
+import Result.Extra
 
 
 type FilterTerm
-    = Id String
+    = IdTerm String
     | Number Int
     | StringExpression String
     | InRange Int Int
@@ -15,75 +19,42 @@ type FilterTerm
 
 type AbstractFQ
     = Filter (List ( Field, FilterTerm ))
-    | Intersection (List AbstractFQ)
-    | Union (List AbstractFQ)
+    | Intersection AbstractFQ AbstractFQ (List AbstractFQ)
+    | Union AbstractFQ AbstractFQ (List AbstractFQ)
     | Complement AbstractFQ
 
 
 type Field
-    = Name
+    = Id
+    | Name
     | Kind
+    | Src
+    | File
+    | Prop
     | StartPosition
     | EndPosition
 
 
-type alias FilterQuery =
-    { filter : AbstractFQ
-    , maxResults : Int
-    }
+type Query
+    = FilterQuery AbstractFQ Int
+    | FacetQuery AbstractFQ (List Field) Int
 
 
-type alias FacetQuery =
-    { filter : AbstractFQ
-    , field : String
-    }
+type alias Facet =
+    Dict String Int
+
+
+type alias FacetResult =
+    AnyDict String Field Facet
+
+
+facetFields : List Field
+facetFields =
+    [ Kind, Src ]
 
 
 
--- String
-
-
-fromString : String -> Result String FilterQuery
-fromString str =
-    if str == "" then
-        Err "No query"
-
-    else
-        let
-            filterTermResults =
-                map filterTermFromString (String.split " " str)
-
-            filterTerms =
-                foldr
-                    (\term acc ->
-                        case ( term, acc ) of
-                            ( Ok t, Ok ts ) ->
-                                Ok (t :: ts)
-
-                            ( Err e, Ok ts ) ->
-                                Err e
-
-                            _ ->
-                                acc
-                    )
-                    (Ok [])
-                    filterTermResults
-        in
-        Result.map (\terms -> FilterQuery (Filter terms) 10) filterTerms
-
-
-filterTermFromString : String -> Result String ( Field, FilterTerm )
-filterTermFromString str =
-    case String.split ":" str of
-        [ field, filter ] ->
-            if String.isEmpty filter then
-                Err "Empty filter"
-
-            else
-                Result.map (\f -> ( f, StringExpression filter )) (fieldFromString field)
-
-        _ ->
-            Err "Invalid query"
+-- STRING
 
 
 fieldFromString : String -> Result String Field
@@ -100,6 +71,9 @@ fieldFromString str =
 
         "EndPosition" ->
             Ok EndPosition
+
+        "SourceFile" ->
+            Ok Src
 
         _ ->
             Err ("No such field: " ++ str)
@@ -120,6 +94,18 @@ fieldToString field =
         EndPosition ->
             "EndPosition"
 
+        Id ->
+            "Id"
+
+        Src ->
+            "SourceText"
+
+        Prop ->
+            "Proposition"
+
+        File ->
+            "SourceFile"
+
 
 
 -- JSON
@@ -128,7 +114,7 @@ fieldToString field =
 encodeFilterTerm : FilterTerm -> Value
 encodeFilterTerm term =
     case term of
-        Id id ->
+        IdTerm id ->
             object [ ( "Id", object [ ( "inner", string id ) ] ) ]
 
         Number num ->
@@ -165,14 +151,30 @@ encodeAbstractFQ fq =
                   )
                 ]
 
-        Intersection fqs ->
-            string "TODO"
+        Intersection fq1 fq2 fqs ->
+            object
+                [ ( "FilterIntersection"
+                  , object
+                        [ ( "f1", encodeAbstractFQ fq1 )
+                        , ( "f2", encodeAbstractFQ fq2 )
+                        , ( "fn", Encode.list encodeAbstractFQ fqs )
+                        ]
+                  )
+                ]
 
-        Union fqs ->
-            string "TODO"
+        Union fq1 fq2 fqs ->
+            object
+                [ ( "FilterUnion"
+                  , object
+                        [ ( "f1", encodeAbstractFQ fq1 )
+                        , ( "f2", encodeAbstractFQ fq2 )
+                        , ( "fn", Encode.list encodeAbstractFQ fqs )
+                        ]
+                  )
+                ]
 
         Complement fq1 ->
-            string "TODO"
+            object [ ( "FilterComplement", object [ ( "filter", encodeAbstractFQ fq1 ) ] ) ]
 
 
 encodeFieldTerm : ( Field, FilterTerm ) -> ( String, Value )
@@ -180,13 +182,40 @@ encodeFieldTerm ( field, term ) =
     ( fieldToString field, encodeFilterTerm term )
 
 
-encode : FilterQuery -> Value
+encode : Query -> Value
 encode query =
-    object
-        [ ( "FilterQuery"
-          , object
-                [ ( "filter", encodeAbstractFQ query.filter )
-                , ( "maxResults", int query.maxResults )
+    case query of
+        FilterQuery filter maxResults ->
+            object [ ( "filter", encodeAbstractFQ filter ), ( "maxResults", int maxResults ) ]
+
+        FacetQuery filter fields maxFacets ->
+            object
+                [ ( "filter", encodeAbstractFQ filter )
+                , ( "fields", list (\f -> f |> fieldToString |> string) fields )
+                , ( "maxFacets", int maxFacets )
                 ]
-          )
-        ]
+
+
+facetDecode : Decoder Facet
+facetDecode =
+    Decode.dict Decode.int
+
+
+toFieldAnyDict : Dict String Facet -> Decoder (AnyDict String Field Facet)
+toFieldAnyDict untypedDict =
+    let
+        typedRes =
+            Dict.toList untypedDict
+                |> List.map (\( fieldStr, facet ) -> fieldFromString fieldStr |> Result.map (\x -> ( x, facet )))
+    in
+    case Result.Extra.combine typedRes of
+        Ok res ->
+            Decode.succeed (AnyDict.fromList fieldToString res)
+
+        Err e ->
+            Decode.fail e
+
+
+decode : Decoder FacetResult
+decode =
+    Decode.dict facetDecode |> Decode.andThen toFieldAnyDict

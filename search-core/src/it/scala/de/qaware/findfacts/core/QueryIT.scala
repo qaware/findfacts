@@ -53,7 +53,7 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val resList = result.success.value
     resList should have size 1
 
-    val thyRes = resList.head.childEntities
+    val thyRes = resList.head.entities
     thyRes should have size 1
     thyRes.head.kind should equal(EtKind.Constant)
     thyRes.head.shortDescription should equal("Const1 :: 'a => 'b")
@@ -65,8 +65,8 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val result = queryModule.service.getShortResults(query)
 
     result.success.value should have size 1
-    result.success.value.head.childEntities should have size 1
-    result.success.value.head.childEntities.head.name should equal("ConstIsFact")
+    result.success.value.head.entities should have size 1
+    result.success.value.head.entities.head.name should equal("ConstIsFact")
   }
 
   test("Query set operations") {
@@ -81,8 +81,8 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val result = queryModule.service.getShortResults(query)
 
     result.success.value should have size 1
-    result.success.value.head.childEntities should have size 1
-    result.success.value.head.childEntities.head.name should equal("Const1")
+    result.success.value.head.entities should have size 1
+    result.success.value.head.entities.head.name should equal("Const1")
   }
 
   test("Facet query") {

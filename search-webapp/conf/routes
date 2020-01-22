@@ -18,7 +18,5 @@ GET     /assets/*file                  controllers.Assets.versioned(file)
 GET     /v1/entities/:id               de.qaware.findfacts.webapp.controllers.QueryController.entity(id: String)
 # Searches by a complete query
 POST    /v1/search                     de.qaware.findfacts.webapp.controllers.QueryController.search
-# Searches a bookmarked query
-GET     /v1/search/:query              de.qaware.findfacts.webapp.controllers.QueryController.searchEncoded(query)
-# Bookmark a query
-POST    /v1/bookmark                   de.qaware.findfacts.webapp.controllers.QueryController.encode
+# Retrieves facet results for each field
+POST /v1/facet                     de.qaware.findfacts.webapp.controllers.QueryController.facet

@@ -5,7 +5,7 @@ import scala.language.{postfixOps, reflectiveCalls}
 import scala.util.Try
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BlockEt, ShortBlockEt}
+import de.qaware.findfacts.common.dt.{BlockEt, EtField, ShortEt}
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.common.utils.TryUtils.flattenTryFailFirst
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
@@ -34,17 +34,20 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     }
   }
 
-  override def getFacetResults(facetQuery: FacetQuery): Try[Map[String, Long]] = {
+  override def getFacetResults(facetQuery: FacetQuery): Try[Map[EtField, Map[String, Long]]] = {
     for {
-      solrQuery <- mapper.buildQuery(this, facetQuery)
+      solrQuery <- mapper.buildFacetQuery(this, facetQuery)
       solrResult <- getSolrResult(solrQuery)
       result <- Try {
-        solrResult
-          .getFacetField(facetQuery.field.name)
-          .getValues
-          .asScala
-          .groupBy(_.getName)
-          .mapValues(_.head.getCount)
+        val res = facetQuery.fields.map { field =>
+          field -> solrResult
+            .getFacetField(field.name)
+            .getValues
+            .asScala
+            .groupBy(_.getName)
+            .mapValues(_.head.getCount)
+        }
+        res.filter(_._2.size < facetQuery.maxFacets).filterNot(_._2.isEmpty).toMap
       }
     } yield result
   }
@@ -59,7 +62,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
   private[solrimpl] def getListResults[A](filterQuery: FilterQuery)(
       implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] = {
     val results = for {
-      query <- mapper.buildQuery(this, filterQuery)
+      query <- mapper.buildFilterQuery(this, filterQuery)
       () = docMapper.getSolrFields.foreach(f => query.addField(f.name))
       solrRes <- getSolrResult(query)
     } yield solrRes.getResults.asScala.map(docMapper.fromSolrDoc)
@@ -71,7 +74,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     getListResults(filterQuery)(FromSolrDoc[BlockEt])
   }
 
-  override def getShortResults(filterQuery: FilterQuery): Try[Vector[ShortBlockEt]] = {
-    getListResults(filterQuery)(FromSolrDoc[ShortBlockEt])
+  override def getShortResults(filterQuery: FilterQuery): Try[Vector[ShortEt]] = {
+    getListResults(filterQuery)(FromSolrDoc[ShortEt])
   }
 }
