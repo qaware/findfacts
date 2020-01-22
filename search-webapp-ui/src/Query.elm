@@ -50,7 +50,7 @@ type alias FacetResult =
 
 facetFields : List Field
 facetFields =
-    [ Kind, Src ]
+    [ Kind, File ]
 
 
 

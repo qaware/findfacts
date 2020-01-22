@@ -7,6 +7,7 @@ import Bootstrap.Form.Input as Input
 import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
+import Bootstrap.Text as Text
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, text)
@@ -17,8 +18,8 @@ import Query exposing (AbstractFQ(..), FacetResult, Field(..), FilterTerm(..), Q
 type alias State =
     { termSearcher : String
     , fieldSearchers : Array ( Field, String )
-    , facetFieldSearchers : AnyDict String Field Facet
-    , facetSearchers : AnyDict String Field Facet
+    , facetFieldSearchers : Faceting
+    , facetSearchers : Faceting
     }
 
 
@@ -36,6 +37,10 @@ type alias FacetEntry =
     { count : Int
     , selected : Bool
     }
+
+
+type alias Faceting =
+    AnyDict String Field Facet
 
 
 facetValues : Facet -> List String
@@ -122,17 +127,65 @@ buildFacetQuery state =
 -- UPDATE
 
 
+facetSelected : Facet -> Bool
+facetSelected facet =
+    facet |> Dict.values |> List.any (\entry -> entry.selected)
+
+
+makeFacet : Query.Facet -> Facet
+makeFacet queryFacet =
+    Dict.map (\_ count -> FacetEntry count False) queryFacet
+
+
+updateCounts : Facet -> Query.Facet -> Facet
+updateCounts facet queryFacets =
+    facet
+        |> Dict.map
+            (\name entry ->
+                case Dict.get name queryFacets of
+                    Nothing ->
+                        entry
+
+                    Just some ->
+                        { entry | count = some }
+            )
+
+
+updateFacet : Facet -> Maybe Query.Facet -> Facet
+updateFacet facet queryFacet =
+    case queryFacet of
+        Nothing ->
+            facet
+
+        Just qFacet ->
+            if facetSelected facet then
+                updateCounts facet qFacet
+
+            else
+                -- re-build since no information is lost here
+                makeFacet qFacet
+
+
+makeFaceting : FacetResult -> Faceting
+makeFaceting result =
+    AnyDict.map (\_ -> makeFacet) result
+
+
+updateFaceting : Faceting -> FacetResult -> Faceting
+updateFaceting faceting result =
+    let
+        ( used, _ ) =
+            AnyDict.partition (\_ -> facetSelected) faceting
+
+        ( upd, new ) =
+            AnyDict.partition (\k _ -> AnyDict.member k used) result
+    in
+    makeFaceting new |> AnyDict.union (AnyDict.map (\field facet -> AnyDict.get field upd |> updateFacet facet) used)
+
+
 update : State -> FacetResult -> State
 update state result =
-    let
-        resultFacetSearchers =
-            AnyDict.map (\_ oldFacet -> oldFacet |> Dict.map (\_ count -> FacetEntry count False)) result
-
-        updatedFacetSearchers =
-            -- TODO
-            state.facetSearchers |> AnyDict.map (\field facet -> facet)
-    in
-    { state | facetSearchers = AnyDict.union updatedFacetSearchers resultFacetSearchers }
+    { state | facetSearchers = updateFaceting state.facetSearchers result }
 
 
 
@@ -161,12 +214,12 @@ renderFacetSearcher : State -> Config msg -> ( Field, Facet ) -> Html msg
 renderFacetSearcher state conf ( field, facet ) =
     Grid.row []
         (List.append
-            [ Grid.col [ Col.xs ] [ text (fieldToString field) ]
-            , Grid.col [ Col.xs ] []
+            [ Grid.col [ Col.xsAuto ] [ text (fieldToString field) ]
+            , Grid.col [ Col.xs1 ] []
             ]
             (map
                 (\( key, val ) ->
-                    Grid.col [ Col.xsAuto ]
+                    Grid.col [ Col.xsAuto, Col.textAlign Text.alignXsLeft ]
                         [ (if val.selected then
                             Badge.badgePrimary
 

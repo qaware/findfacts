@@ -163,14 +163,7 @@ update msg model =
             )
 
         SearchMsg state ->
-            let
-                filterQuery =
-                    Search.buildFilterQuery model.searchState
-
-                facetQuery =
-                    Search.buildFacetQuery model.searchState
-            in
-            ( { model | searchState = state }, Cmd.batch [ executeQuery model facetQuery, executeQuery model filterQuery ] )
+            ( { model | searchState = state }, Cmd.none )
 
         FacetResult (Ok result) ->
             ( { model | searchState = Search.update model.searchState result }, Cmd.none )
