@@ -3,6 +3,7 @@ module Search exposing (..)
 import Array exposing (Array)
 import Bootstrap.Badge as Badge
 import Bootstrap.Button as Button
+import Bootstrap.Dropdown as Dropdown
 import Bootstrap.Form.Input as Input
 import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Grid as Grid
@@ -11,17 +12,17 @@ import Bootstrap.Text as Text
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, text)
-import Html.Events as Events
+import Html.Events as Events exposing (onClick)
 import Html.Events.Extra as ExtraEvents
 import List exposing (map)
-import Query exposing (AbstractFQ(..), FacetResult, Field(..), FilterTerm(..), Query(..), fieldToString)
+import Query exposing (AbstractFQ(..), FacetResult, Field(..), FilterTerm(..), Query(..), fieldToString, filterableFields)
 
 
 type alias State =
     { termSearcher : String
-    , fieldSearchers : Array ( Field, String )
-    , facetFieldSearchers : Faceting
-    , facetSearchers : Faceting
+    , facetSelectors : Faceting
+    , fieldSearchers : Array FieldSearcher
+    , newField : Dropdown.State
     }
 
 
@@ -46,6 +47,13 @@ type alias Faceting =
     AnyDict String Field Facet
 
 
+type alias FieldSearcher =
+    { fieldSelect : Dropdown.State
+    , field : Field
+    , value : String
+    }
+
+
 facetValues : Facet -> List String
 facetValues f =
     Dict.filter (\_ entry -> entry.selected) f |> Dict.keys
@@ -53,7 +61,7 @@ facetValues f =
 
 init : State
 init =
-    State "" Array.empty (AnyDict.empty fieldToString) (AnyDict.empty fieldToString)
+    State "" (AnyDict.empty fieldToString) Array.empty Dropdown.initialState
 
 
 buildFQ : State -> AbstractFQ
@@ -72,7 +80,7 @@ buildFQ state =
 
         fieldFQs =
             state.fieldSearchers
-                |> Array.map (\( f, s ) -> Filter [ ( f, StringExpression s ) ])
+                |> Array.map (\searcher -> Filter [ ( searcher.field, StringExpression searcher.value ) ])
                 |> Array.toList
 
         facetFQs =
@@ -88,7 +96,7 @@ buildFQ state =
                                     _ ->
                                         Nothing
                             )
-                            (List.append (AnyDict.toList state.facetFieldSearchers) (AnyDict.toList state.facetSearchers))
+                            (AnyDict.toList state.facetSelectors)
                  in
                  if List.isEmpty singletonSelected then
                     []
@@ -99,7 +107,7 @@ buildFQ state =
                 (let
                     multipleSelected =
                         List.filter (\( f, facet ) -> List.length (facetValues facet) > 1)
-                            (List.append (AnyDict.toList state.facetFieldSearchers) (AnyDict.toList state.facetSearchers))
+                            (AnyDict.toList state.facetSelectors)
                  in
                  -- TODO
                  []
@@ -123,7 +131,7 @@ buildFilterQuery state =
 
 buildFacetQuery : State -> Query
 buildFacetQuery state =
-    FacetQuery (buildFQ state) Query.facetFields 10
+    FacetQuery (buildFQ state) Query.facetableFields 10
 
 
 
@@ -188,7 +196,16 @@ updateFaceting faceting result =
 
 update : State -> FacetResult -> State
 update state result =
-    { state | facetSearchers = updateFaceting state.facetSearchers result }
+    { state | facetSelectors = updateFaceting state.facetSelectors result }
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Config msg -> State -> Sub msg
+subscriptions conf state =
+    Sub.batch [ Dropdown.subscriptions state.newField (\d -> conf.toMsg { state | newField = d }) ]
 
 
 
@@ -197,27 +214,54 @@ update state result =
 
 view : State -> Config msg -> List (Html msg)
 view state conf =
-    [ Grid.container [] (map (renderFacetSearcher state conf) (AnyDict.toList state.facetSearchers))
-    , InputGroup.config
-        (InputGroup.text
-            (List.append [ Input.placeholder "Search for", Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ], Input.onInput (\text -> conf.toMsg { state | termSearcher = text }) ] [])
+    [ Grid.container []
+        (map (renderFacetSearcher state conf) (AnyDict.toList state.facetSelectors)
+            ++ [ Grid.row []
+                    [ Grid.col [ Col.xs1 ] []
+                    , Grid.col []
+                        [ InputGroup.config
+                            (InputGroup.text
+                                (List.append
+                                    [ Input.placeholder "Search for"
+                                    , Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ]
+                                    , Input.onInput (\text -> conf.toMsg { state | termSearcher = text })
+                                    ]
+                                    []
+                                )
+                            )
+                            |> InputGroup.successors
+                                [ InputGroup.button
+                                    [ Button.primary
+                                    , Button.onClick conf.exec
+                                    ]
+                                    [ text "Go!" ]
+                                ]
+                            |> InputGroup.view
+                        ]
+                    ]
+               ]
+            ++ (Array.indexedMap (renderFieldSearcher conf state) state.fieldSearchers |> Array.toList)
+            ++ [ Grid.row []
+                    [ Grid.col [ Col.xs1 ]
+                        [ Dropdown.dropdown
+                            state.newField
+                            { options = []
+                            , toggleMsg = \d -> conf.toMsg { state | newField = d }
+                            , toggleButton = Dropdown.toggle [ Button.primary ] [ text "Field" ]
+                            , items = map (\f -> Dropdown.buttonItem [ onClick (conf.toMsg { state | fieldSearchers = Array.push (FieldSearcher Dropdown.initialState f "") state.fieldSearchers }) ] [ text (fieldToString f) ]) filterableFields
+                            }
+                        ]
+                    ]
+               ]
         )
-        |> InputGroup.successors
-            [ InputGroup.button
-                [ Button.primary
-                , Button.onClick conf.exec
-                ]
-                [ text "Go!" ]
-            ]
-        |> InputGroup.view
     ]
 
 
 selectFacetEntry : State -> Field -> Facet -> String -> FacetEntry -> State
 selectFacetEntry state field facet key val =
     { state
-        | facetSearchers =
-            AnyDict.insert field (Dict.insert key { val | selected = not val.selected } facet) state.facetSearchers
+        | facetSelectors =
+            AnyDict.insert field (Dict.insert key { val | selected = not val.selected } facet) state.facetSelectors
     }
 
 
@@ -256,13 +300,16 @@ renderFacetSearcher state conf ( field, facet ) =
         )
 
 
-renderDropdownFacetSearcher : ( Field, List FacetEntry ) -> Html msg
-renderDropdownFacetSearcher ( f, facets ) =
+renderFieldSearcher : Config msg -> State -> Int -> FieldSearcher -> Html msg
+renderFieldSearcher conf state index fieldSearcher =
     -- TODO
-    Grid.row [] []
-
-
-renderFieldSearcher : ( Field, String ) -> Html msg
-renderFieldSearcher ( f, val ) =
-    -- TODO
-    Grid.row [] []
+    Grid.row []
+        [ Grid.col []
+            [ Dropdown.dropdown fieldSearcher.fieldSelect
+                { options = []
+                , toggleMsg = \d -> conf.toMsg { state | fieldSearchers = Array.set index { fieldSearcher | fieldSelect = d } state.fieldSearchers }
+                , toggleButton = Dropdown.toggle [ Button.secondary ] [ text (fieldToString fieldSearcher.field) ]
+                , items = []
+                }
+            ]
+        ]

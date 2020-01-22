@@ -1,4 +1,4 @@
-module Query exposing (AbstractFQ(..), Facet, FacetResult, Field(..), FilterTerm(..), Query(..), decode, encode, facetFields, fieldToString)
+module Query exposing (AbstractFQ(..), Facet, FacetResult, Field(..), FilterTerm(..), Query(..), decode, encode, facetableFields, fieldToString, filterableFields)
 
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
@@ -48,9 +48,14 @@ type alias FacetResult =
     AnyDict String Field Facet
 
 
-facetFields : List Field
-facetFields =
+facetableFields : List Field
+facetableFields =
     [ Kind, File ]
+
+
+filterableFields : List Field
+filterableFields =
+    [ Name, Kind, Src, File, Prop, StartPosition, EndPosition ]
 
 
 
