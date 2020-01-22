@@ -137,7 +137,7 @@ lazy val `search-core` = project
 lazy val `search-webapp` = project
   .settings(
     // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
-    javaOptions in Runtime += "-Dlog4j.configurationFile=" + (file("`search-webapp`") / "conf" / "log4j2.properties").getPath,
+    javaOptions in Runtime += "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
     libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
       playGuice, playCirce, playSwagger, swaggerUi, playTestPlus % "test"
     ))

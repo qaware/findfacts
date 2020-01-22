@@ -47,7 +47,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
             .groupBy(_.getName)
             .mapValues(_.head.getCount)
         }
-        res.filter(_._2.size < facetQuery.maxFacets).filterNot(_._2.isEmpty).toMap
+        res.filter(_._2.size < facetQuery.maxFacets).toMap
       }
     } yield result
   }

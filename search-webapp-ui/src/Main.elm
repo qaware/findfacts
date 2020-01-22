@@ -46,6 +46,7 @@ type alias Model =
     , queryState : SearchState
     , selectedStates : List Accordion.State
     , searchState : Search.State
+    , lastQuery : Maybe Query
     }
 
 
@@ -74,7 +75,7 @@ init _ url key =
             Navbar.initialState NavbarMsg
 
         ( model, urlCmd ) =
-            urlUpdate url (Model key Home navState baseUrl Init [] Search.init)
+            urlUpdate url (Model key Home navState baseUrl Init [] Search.init Nothing)
     in
     ( model, Cmd.batch [ urlCmd, navCmd ] )
 
@@ -92,6 +93,7 @@ type Msg
     | FacetResult (Result Http.Error FacetResult)
     | SearchMsg Search.State
     | Selected Int Accordion.State
+    | Batch (List Msg)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -119,9 +121,13 @@ update msg model =
                 facetQuery =
                     Search.buildFacetQuery model.searchState
             in
-            ( { model | queryState = Searching, selectedStates = [] }
-            , Cmd.batch [ executeQuery model facetQuery, executeQuery model filterQuery ]
-            )
+            if Maybe.map (\x -> filterQuery == x) model.lastQuery |> Maybe.withDefault False then
+                ( model, Cmd.none )
+
+            else
+                ( { model | queryState = Searching, selectedStates = [], lastQuery = Just filterQuery }
+                , Cmd.batch [ executeQuery model facetQuery, executeQuery model filterQuery ]
+                )
 
         QueryResult (Ok results) ->
             ( { model
@@ -170,6 +176,19 @@ update msg model =
 
         FacetResult (Err _) ->
             ( model, Cmd.none )
+
+        Batch [] ->
+            ( model, Cmd.none )
+
+        Batch (m :: ms) ->
+            let
+                ( model1, cmd1 ) =
+                    update m model
+
+                ( model2, cmd2 ) =
+                    update (Batch ms) model1
+            in
+            ( model2, Cmd.batch [ cmd1, cmd2 ] )
 
 
 urlUpdate : Url -> Model -> ( Model, Cmd Msg )
@@ -281,7 +300,7 @@ pageHome model =
         , Grid.row []
             [ Grid.col []
                 -- Search.view model.searchState (Search.config SearchMsg)
-                (Search.Config SearchMsg ExecuteQuery
+                (Search.Config SearchMsg Batch ExecuteQuery
                     |> Search.view model.searchState
                 )
             ]

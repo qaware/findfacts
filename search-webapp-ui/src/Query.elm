@@ -73,7 +73,7 @@ fieldFromString str =
             Ok EndPosition
 
         "SourceFile" ->
-            Ok Src
+            Ok File
 
         _ ->
             Err ("No such field: " ++ str)

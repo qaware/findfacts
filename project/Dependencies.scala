@@ -1,7 +1,8 @@
 import sbt._
 
 object Dependencies {
-  private val scalaVersion = "2.12.10"
+  private val scalaMajor = "2.12"
+  private val scalaVersion = s"$scalaMajor.10"
 
   val solrVersion = "8.2.0"
   val playVersion = "2.7.3"
@@ -30,7 +31,7 @@ object Dependencies {
   val logging = "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
   val loggingBackend = Seq(
     "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
-      exclude ("org.slf4j", "slf4j-api"),
+      excludeAll ("org.slf4j" %% "slf4j-api"),
     "org.apache.logging.log4j" % "log4j-core" % log4jVersion
   )
   val enum = "com.beachape" %% "enumeratum" % enumVersion
@@ -55,18 +56,15 @@ object Dependencies {
   val scalaParserCombinators = "org.scala-lang.modules" %% "scala-parser-combinators" % parserCombinatorsVersion
   val fastParse = "com.lihaoyi" %% "fastparse" % fastparseVersion
   val solr = ("org.apache.solr" % "solr-core" % solrVersion
-    exclude ("org.slf4j", "slf4j-api")
-    exclude ("org.apache.logging.log4j", "log4j-api")
-    exclude ("org.apache.logging.log4j", "log4j-web")
-    exclude ("org.apache.logging.log4j", "log4j-core")
-    exclude ("org.apache.logging.log4j", "log4j-slf4j-impl"))
+    excludeAll ("org.slf4j" %% "slf4j-api")
+    excludeAll ("org.apache.logging.log4j"))
   val playGuice = ("com.typesafe.play" %% "play-guice" % playVersion
-    exclude ("org.slf4j", "slf4j-api"))
+    excludeAll ("org.slf4j" %% "slf4j-api"))
   val playCirce = "com.dripower" %% "play-circe" % playCirceVersion
   val playTestPlus = ("org.scalatestplus.play" %% "scalatestplus-play" % scalaTestPlusVersion
-    exclude ("org.slf4j", "slf4j-api"))
+    excludeAll ("org.slf4j" %% "slf4j-api"))
   val playSwagger = ("io.swagger" %% "swagger-play2" % playSwaggerVersion
-    exclude ("com.google.guava", "guava")
-    exclude ("com.typesafe.play", "play-logback"))
+    excludeAll ("com.google.guava" %% "guava")
+    excludeAll ("com.typesafe.play" %% "play-logback"))
   val isabelleDependencies = Seq("org.tukaani" % "xz" % tukaaniVersion)
 }

@@ -11,6 +11,8 @@ import Bootstrap.Text as Text
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, text)
+import Html.Events as Events
+import Html.Events.Extra as ExtraEvents
 import List exposing (map)
 import Query exposing (AbstractFQ(..), FacetResult, Field(..), FilterTerm(..), Query(..), fieldToString)
 
@@ -25,6 +27,7 @@ type alias State =
 
 type alias Config msg =
     { toMsg : State -> msg
+    , toBatch : List msg -> msg
     , exec : msg
     }
 
@@ -104,7 +107,7 @@ buildFQ state =
     in
     case List.append termFQs (List.append fieldFQs facetFQs) of
         [] ->
-            Filter [ ( Query.Id, Query.IdTerm "*" ) ]
+            Filter []
 
         fq :: [] ->
             fq
@@ -144,7 +147,7 @@ updateCounts facet queryFacets =
             (\name entry ->
                 case Dict.get name queryFacets of
                     Nothing ->
-                        entry
+                        { entry | count = 0 }
 
                     Just some ->
                         { entry | count = some }
@@ -197,7 +200,7 @@ view state conf =
     [ Grid.container [] (map (renderFacetSearcher state conf) (AnyDict.toList state.facetSearchers))
     , InputGroup.config
         (InputGroup.text
-            (List.append [ Input.placeholder "Search for", Input.onInput (\text -> conf.toMsg { state | termSearcher = text }) ] [])
+            (List.append [ Input.placeholder "Search for", Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ], Input.onInput (\text -> conf.toMsg { state | termSearcher = text }) ] [])
         )
         |> InputGroup.successors
             [ InputGroup.button
@@ -208,6 +211,14 @@ view state conf =
             ]
         |> InputGroup.view
     ]
+
+
+selectFacetEntry : State -> Field -> Facet -> String -> FacetEntry -> State
+selectFacetEntry state field facet key val =
+    { state
+        | facetSearchers =
+            AnyDict.insert field (Dict.insert key { val | selected = not val.selected } facet) state.facetSearchers
+    }
 
 
 renderFacetSearcher : State -> Config msg -> ( Field, Facet ) -> Html msg
@@ -229,7 +240,12 @@ renderFacetSearcher state conf ( field, facet ) =
                             []
                             [ Button.button
                                 [ Button.small
-                                , Button.onClick (conf.toMsg { state | facetSearchers = AnyDict.insert field (Dict.insert key { val | selected = not val.selected } facet) state.facetSearchers })
+                                , Button.onClick
+                                    (conf.toBatch
+                                        [ conf.toMsg (selectFacetEntry state field facet key val)
+                                        , conf.exec
+                                        ]
+                                    )
                                 ]
                                 [ text (key ++ " (" ++ String.fromInt val.count ++ ")") ]
                             ]
