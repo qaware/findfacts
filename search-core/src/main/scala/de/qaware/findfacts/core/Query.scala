@@ -83,7 +83,7 @@ final case class FilterComplement(filter: AbstractFQ) extends AbstractFQ
   * @param fields to facet on
   * @param maxFacets maximum number of facet values. Fields for which this value is exceeded will be ignored
   */
-final case class FacetQuery(filter: AbstractFQ, fields: Set[EtField], maxFacets: Int)
+final case class FacetQuery(filter: AbstractFQ, fields: Set[EtField], maxFacets: Int = 100)
 
 /** Query to filter for results.
   *

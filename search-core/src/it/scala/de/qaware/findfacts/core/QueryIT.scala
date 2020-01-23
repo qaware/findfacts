@@ -86,10 +86,10 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
   }
 
   test("Facet query") {
-    val query = FacetQuery(Filter(Map.empty), EtField.StartPosition)
+    val query = FacetQuery(Filter(Map.empty), Set(EtField.StartPosition))
     val result = queryModule.service.getFacetResults(query)
 
     val resultFacet = result.success.value
-    resultFacet should equal(Map("1" -> 1, "12" -> 1))
+    resultFacet should equal(Map(EtField.StartPosition -> Map("1" -> 1, "12" -> 1)))
   }
 }

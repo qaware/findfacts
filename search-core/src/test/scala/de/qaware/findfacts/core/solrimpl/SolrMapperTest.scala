@@ -62,7 +62,7 @@ class SolrMapperTest extends FunSuite with Matchers with TryValues with MockFact
 
     val sut = new SolrFilterMapper(termMapper)
     val result = sut.buildFilter(filter).success.value
-    result should equal(" +{!parent which=kind:Block filters=$childfq0}")
+    result should equal(" +{!parent which='kind:Block OR kind:Documentation' filters=$childfq0}")
     qParams.keySet should contain theSameElementsAs List("childfq0")
     qParams("childfq0") should contain theSameElementsAs List("kind:(Fact)", "name:somename")
   }
@@ -78,7 +78,7 @@ class SolrMapperTest extends FunSuite with Matchers with TryValues with MockFact
     val sut = new SolrFilterMapper(termMapper)
     val result = sut.buildFilter(filter).success.value
     result should equal(
-      "( +start_pos:42 +id:id1 +{!parent which=kind:Block} OR +start_pos:42 +{!parent which=kind:Block filters=$childfq0})")
+      "( +start_pos:42 +id:id1 +{!parent which='kind:Block OR kind:Documentation'} OR +start_pos:42 +{!parent which='kind:Block OR kind:Documentation' filters=$childfq0})")
     qParams.keySet should contain theSameElementsAs List("childfq0")
     qParams("childfq0") should contain theSameElementsAs List("id:id1")
   }
