@@ -245,6 +245,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         (Navbar.subscriptions model.navState NavbarMsg
+            :: Search.subscriptions model.searchState SearchMsg
             :: map (\( idx, state ) -> Accordion.subscriptions state (Selected idx)) (indexedMap Tuple.pair model.selectedStates)
         )
 

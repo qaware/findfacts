@@ -16,6 +16,22 @@ import Html.Events as Events exposing (onClick)
 import Html.Events.Extra as ExtraEvents
 import List exposing (map)
 import Query exposing (AbstractFQ(..), FacetResult, Field(..), FilterTerm(..), Query(..), fieldToString, filterableFields)
+import Tuple as Pair
+
+
+
+-- CONFIG
+
+
+type alias Config msg =
+    { toMsg : State -> msg
+    , toBatch : List msg -> msg
+    , exec : msg
+    }
+
+
+
+-- STATE
 
 
 type alias State =
@@ -23,13 +39,6 @@ type alias State =
     , facetSelectors : Faceting
     , fieldSearchers : Array FieldSearcher
     , newField : Dropdown.State
-    }
-
-
-type alias Config msg =
-    { toMsg : State -> msg
-    , toBatch : List msg -> msg
-    , exec : msg
     }
 
 
@@ -51,17 +60,46 @@ type alias FieldSearcher =
     { fieldSelect : Dropdown.State
     , field : Field
     , value : String
+    , facetSelect : Maybe ( Dropdown.State, Facet )
     }
-
-
-facetValues : Facet -> List String
-facetValues f =
-    Dict.filter (\_ entry -> entry.selected) f |> Dict.keys
 
 
 init : State
 init =
     State "" (AnyDict.empty fieldToString) Array.empty Dropdown.initialState
+
+
+
+-- UTILITIES
+
+
+facetValues : Facet -> List String
+facetValues f =
+    Dict.filter (\_ -> .selected) f |> Dict.keys
+
+
+facetSelected : Facet -> Bool
+facetSelected facet =
+    facet |> Dict.values |> List.any .selected
+
+
+
+-- QUERYING
+
+
+buildFacetFQ : Field -> Facet -> Maybe AbstractFQ
+buildFacetFQ field facet =
+    -- TODO
+    Nothing
+
+
+buildFieldSearcherFQ : FieldSearcher -> Maybe AbstractFQ
+buildFieldSearcherFQ fieldSearcher =
+    if String.isEmpty fieldSearcher.value then
+        fieldSearcher.facetSelect |> Maybe.map Pair.second |> Maybe.andThen (buildFacetFQ fieldSearcher.field)
+
+    else
+        Just (Filter [ ( fieldSearcher.field, StringExpression fieldSearcher.value ) ])
 
 
 buildFQ : State -> AbstractFQ
@@ -80,7 +118,8 @@ buildFQ state =
 
         fieldFQs =
             state.fieldSearchers
-                |> Array.map (\searcher -> Filter [ ( searcher.field, StringExpression searcher.value ) ])
+                -- TODO
+                |> Array.map (\searcher -> Filter [ ( searcher.field, StringExpression "TODO" ) ])
                 |> Array.toList
 
         facetFQs =
@@ -136,11 +175,6 @@ buildFacetQuery state =
 
 
 -- UPDATE
-
-
-facetSelected : Facet -> Bool
-facetSelected facet =
-    facet |> Dict.values |> List.any (\entry -> entry.selected)
 
 
 makeFacet : Query.Facet -> Facet
@@ -203,9 +237,9 @@ update state result =
 -- SUBSCRIPTIONS
 
 
-subscriptions : Config msg -> State -> Sub msg
-subscriptions conf state =
-    Sub.batch [ Dropdown.subscriptions state.newField (\d -> conf.toMsg { state | newField = d }) ]
+subscriptions : State -> (State -> msg) -> Sub msg
+subscriptions state toMsg =
+    Sub.batch [ Dropdown.subscriptions state.newField (\d -> toMsg { state | newField = d }) ]
 
 
 
@@ -221,13 +255,10 @@ view state conf =
                     , Grid.col []
                         [ InputGroup.config
                             (InputGroup.text
-                                (List.append
-                                    [ Input.placeholder "Search for"
-                                    , Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ]
-                                    , Input.onInput (\text -> conf.toMsg { state | termSearcher = text })
-                                    ]
-                                    []
-                                )
+                                [ Input.placeholder "Search for"
+                                , Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ]
+                                , Input.onInput (\text -> conf.toMsg { state | termSearcher = text })
+                                ]
                             )
                             |> InputGroup.successors
                                 [ InputGroup.button
@@ -240,15 +271,44 @@ view state conf =
                         ]
                     ]
                ]
-            ++ (Array.indexedMap (renderFieldSearcher conf state) state.fieldSearchers |> Array.toList)
+            ++ (Array.indexedMap (\i -> renderFieldSearcher conf (\f -> { state | fieldSearchers = Array.set i f state.fieldSearchers })) state.fieldSearchers |> Array.toList)
             ++ [ Grid.row []
                     [ Grid.col [ Col.xs1 ]
                         [ Dropdown.dropdown
                             state.newField
                             { options = []
                             , toggleMsg = \d -> conf.toMsg { state | newField = d }
-                            , toggleButton = Dropdown.toggle [ Button.primary ] [ text "Field" ]
-                            , items = map (\f -> Dropdown.buttonItem [ onClick (conf.toMsg { state | fieldSearchers = Array.push (FieldSearcher Dropdown.initialState f "") state.fieldSearchers }) ] [ text (fieldToString f) ]) filterableFields
+                            , toggleButton =
+                                Dropdown.toggle
+                                    [ Button.primary
+                                    , Button.disabled
+                                        (state.fieldSearchers
+                                            |> Array.toList
+                                            |> List.reverse
+                                            |> List.head
+                                            |> Maybe.map buildFieldSearcherFQ
+                                            |> Maybe.map (\_ -> True)
+                                            |> Maybe.withDefault False
+                                        )
+                                    ]
+                                    [ text "+" ]
+                            , items =
+                                map
+                                    (\f ->
+                                        Dropdown.buttonItem
+                                            [ onClick
+                                                (conf.toMsg
+                                                    { state
+                                                        | fieldSearchers =
+                                                            Array.push
+                                                                (FieldSearcher Dropdown.initialState f "" Nothing)
+                                                                state.fieldSearchers
+                                                    }
+                                                )
+                                            ]
+                                            [ text (fieldToString f) ]
+                                    )
+                                    filterableFields
                             }
                         ]
                     ]
@@ -300,16 +360,63 @@ renderFacetSearcher state conf ( field, facet ) =
         )
 
 
-renderFieldSearcher : Config msg -> State -> Int -> FieldSearcher -> Html msg
-renderFieldSearcher conf state index fieldSearcher =
+renderFieldSearcher : Config msg -> (FieldSearcher -> State) -> FieldSearcher -> Html msg
+renderFieldSearcher conf stateFromElem fieldSearcher =
     -- TODO
     Grid.row []
         [ Grid.col []
             [ Dropdown.dropdown fieldSearcher.fieldSelect
                 { options = []
-                , toggleMsg = \d -> conf.toMsg { state | fieldSearchers = Array.set index { fieldSearcher | fieldSelect = d } state.fieldSearchers }
+                , toggleMsg = \d -> { fieldSearcher | fieldSelect = d } |> stateFromElem |> conf.toMsg
                 , toggleButton = Dropdown.toggle [ Button.secondary ] [ text (fieldToString fieldSearcher.field) ]
-                , items = []
+                , items =
+                    map
+                        (\f ->
+                            Dropdown.buttonItem
+                                [ { fieldSearcher | field = f, fieldSelect = Dropdown.initialState }
+                                    |> stateFromElem
+                                    |> conf.toMsg
+                                    |> onClick
+                                ]
+                                [ text (fieldToString f) ]
+                        )
+                        filterableFields
                 }
+            ]
+        , Grid.col []
+            [ InputGroup.config
+                (InputGroup.text
+                    [ Input.placeholder "Search for"
+                    , Input.onInput (\s -> { fieldSearcher | value = s } |> stateFromElem |> conf.toMsg)
+                    ]
+                )
+                |> InputGroup.successors
+                    (case fieldSearcher.facetSelect of
+                        Nothing ->
+                            []
+
+                        Just ( facetDropdownState, facet ) ->
+                            [ InputGroup.dropdown facetDropdownState
+                                { options = []
+                                , toggleMsg = \d -> { fieldSearcher | facetSelect = Just ( d, facet ) } |> stateFromElem |> conf.toMsg
+                                , toggleButton =
+                                    Dropdown.toggle [ Button.secondary ]
+                                        [ text
+                                            (let
+                                                values =
+                                                    facetValues facet
+                                             in
+                                             if List.length values > 5 then
+                                                "..."
+
+                                             else
+                                                List.foldl (++) "" values
+                                            )
+                                        ]
+                                , items = []
+                                }
+                            ]
+                    )
+                |> InputGroup.view
             ]
         ]
