@@ -18,6 +18,7 @@ jobs:
             - "~/.ivy2/cache"
             - "~/.sbt"
             - "~/.m2"
+            - "~/.elm"
 
 workflows:
   version: 2

@@ -16,6 +16,7 @@ build:
       - "/root/.ivy2/cache"
       - "/root/.sbt"
       - "/root/.m2"
+      - "/root/.elm"
   before_script:
     - ./ci-scripts/install-isabelle.sh
     - ./ci-scripts/install-elm.sh

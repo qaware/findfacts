@@ -1,6 +1,5 @@
 module Main exposing (..)
 
-import Bootstrap.Accordion as Accordion
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Navbar as Navbar
@@ -11,8 +10,9 @@ import Entities exposing (ResultList)
 import Html exposing (Html, br, div, h1, text)
 import Html.Attributes exposing (href)
 import Http exposing (Error(..), expectJson, jsonBody)
-import List exposing (indexedMap, map)
+import List
 import Query exposing (AbstractFQ(..), FacetResult, Field(..), FilterTerm(..), Query(..), decode, encode)
+import Results exposing (Config)
 import Search exposing (FacetEntry, State)
 import Url exposing (Url)
 import Url.Parser as UrlParser
@@ -35,17 +35,25 @@ main =
 
 
 
+-- CONFIG
+
+
+type alias Config =
+    { apiBaseUrl : String
+    }
+
+
+
 -- MODEL
 
 
 type alias Model =
-    { key : Navigation.Key
+    { config : Config
+    , key : Navigation.Key
     , page : Page
     , navState : Navbar.State
-    , apiBaseUrl : String
-    , queryState : SearchState
-    , selectedStates : List Accordion.State
     , searchState : Search.State
+    , resultState : ResultState
     , lastQuery : Maybe Query
     }
 
@@ -58,11 +66,11 @@ type Page
     | NotFound
 
 
-type SearchState
+type ResultState
     = Init
     | Searching
     | SearchError String
-    | SearchResult ResultList
+    | SearchResult Results.State
 
 
 init : () -> Url -> Navigation.Key -> ( Model, Cmd Msg )
@@ -75,9 +83,14 @@ init _ url key =
             Navbar.initialState NavbarMsg
 
         ( model, urlCmd ) =
-            urlUpdate url (Model key Home navState baseUrl Init [] Search.init Nothing)
+            urlUpdate url (Model (Config baseUrl) key Home navState Search.init Init Nothing)
     in
     ( model, Cmd.batch [ urlCmd, navCmd ] )
+
+
+reset : Model -> Model
+reset model =
+    { model | resultState = Init, searchState = Search.init, lastQuery = Nothing }
 
 
 
@@ -92,7 +105,7 @@ type Msg
     | QueryResult (Result Http.Error ResultList)
     | FacetResult (Result Http.Error FacetResult)
     | SearchMsg Search.State
-    | Selected Int Accordion.State
+    | ResultsMsg Results.State
     | Batch (List Msg)
 
 
@@ -125,21 +138,16 @@ update msg model =
                 ( model, Cmd.none )
 
             else
-                ( { model | queryState = Searching, selectedStates = [], lastQuery = Just filterQuery }
-                , Cmd.batch [ executeQuery model facetQuery, executeQuery model filterQuery ]
+                ( { model | resultState = Searching, lastQuery = Just filterQuery }
+                , Cmd.batch [ executeQuery model.config facetQuery, executeQuery model.config filterQuery ]
                 )
 
         QueryResult (Ok results) ->
-            ( { model
-                | queryState = SearchResult results
-                , selectedStates = map (\_ -> Accordion.initialState) results
-              }
-            , Cmd.none
-            )
+            ( { model | resultState = SearchResult (Results.init results) }, Cmd.none )
 
         QueryResult (Err e) ->
             ( { model
-                | queryState =
+                | resultState =
                     SearchError
                         (case e of
                             BadUrl _ ->
@@ -157,13 +165,6 @@ update msg model =
                             BadBody body ->
                                 "Could not read response" ++ body
                         )
-              }
-            , Cmd.none
-            )
-
-        Selected idx state ->
-            ( { model
-                | selectedStates = List.append (List.take idx model.selectedStates) (state :: List.drop (idx + 1) model.selectedStates)
               }
             , Cmd.none
             )
@@ -190,6 +191,14 @@ update msg model =
             in
             ( model2, Cmd.batch [ cmd1, cmd2 ] )
 
+        ResultsMsg state ->
+            case model.resultState of
+                SearchResult res ->
+                    ( { model | resultState = SearchResult state }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 urlUpdate : Url -> Model -> ( Model, Cmd Msg )
 urlUpdate url model =
@@ -200,9 +209,9 @@ urlUpdate url model =
             )
 
         Just page ->
-            ( { model | page = page }
+            ( { model | page = page } |> reset
             , if page == Example then
-                executeQuery model (FilterQuery (Filter [ ( Name, StringExpression "*gauss*" ) ]) 10)
+                executeQuery model.config (FilterQuery (Filter [ ( Name, StringExpression "*gauss*" ) ]) 10)
 
               else
                 Cmd.none
@@ -219,19 +228,19 @@ routeParser =
         ]
 
 
-executeQuery : Model -> Query -> Cmd Msg
-executeQuery model query =
+executeQuery : Config -> Query -> Cmd Msg
+executeQuery config query =
     case query of
         FilterQuery _ _ ->
             Http.post
-                { url = model.apiBaseUrl ++ "/v1/search"
+                { url = config.apiBaseUrl ++ "/v1/search"
                 , body = jsonBody (encode query)
                 , expect = expectJson QueryResult Entities.decoder
                 }
 
         FacetQuery _ _ _ ->
             Http.post
-                { url = model.apiBaseUrl ++ "/v1/facet"
+                { url = config.apiBaseUrl ++ "/v1/facet"
                 , body = jsonBody (encode query)
                 , expect = expectJson FacetResult decode
                 }
@@ -243,11 +252,7 @@ executeQuery model query =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        (Navbar.subscriptions model.navState NavbarMsg
-            :: Search.subscriptions model.searchState SearchMsg
-            :: map (\( idx, state ) -> Accordion.subscriptions state (Selected idx)) (indexedMap Tuple.pair model.selectedStates)
-        )
+    Sub.batch (Navbar.subscriptions model.navState NavbarMsg :: Search.subscriptions model.searchState SearchMsg :: [])
 
 
 
@@ -308,7 +313,7 @@ pageHome model =
         , br [] []
         , Grid.row []
             [ Grid.col []
-                (case model.queryState of
+                (case model.resultState of
                     Init ->
                         []
 
@@ -319,7 +324,7 @@ pageHome model =
                         [ text err ]
 
                     SearchResult res ->
-                        Entities.view res
+                        Results.view ResultsMsg res
                 )
             ]
         ]

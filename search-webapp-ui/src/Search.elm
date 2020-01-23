@@ -87,10 +87,22 @@ facetSelected facet =
 -- QUERYING
 
 
+buildSingleFQ : Field -> String -> AbstractFQ
+buildSingleFQ field val =
+    Filter [ ( field, StringExpression val ) ]
+
+
 buildFacetFQ : Field -> Facet -> Maybe AbstractFQ
 buildFacetFQ field facet =
-    -- TODO
-    Nothing
+    case facetValues facet of
+        [] ->
+            Nothing
+
+        exp :: [] ->
+            Just (buildSingleFQ field exp)
+
+        exp1 :: exp2 :: exps ->
+            Just (Union (buildSingleFQ field exp1) (buildSingleFQ field exp2) (map (buildSingleFQ field) exps))
 
 
 buildFieldSearcherFQ : FieldSearcher -> Maybe AbstractFQ
@@ -105,54 +117,23 @@ buildFieldSearcherFQ fieldSearcher =
 buildFQ : State -> AbstractFQ
 buildFQ state =
     let
-        termFQs =
+        termFQ =
             if String.isEmpty state.termSearcher then
                 []
 
             else
-                [ Union
-                    (Filter [ ( Query.Name, StringExpression state.termSearcher ) ])
-                    (Filter [ ( Query.Src, StringExpression state.termSearcher ) ])
-                    [ Filter [ ( Query.Prop, StringExpression state.termSearcher ) ] ]
+                [ Union (buildSingleFQ Query.Name state.termSearcher)
+                    (buildSingleFQ Query.Src state.termSearcher)
+                    [ buildSingleFQ Query.Prop state.termSearcher ]
                 ]
 
         fieldFQs =
-            state.fieldSearchers
-                -- TODO
-                |> Array.map (\searcher -> Filter [ ( searcher.field, StringExpression "TODO" ) ])
-                |> Array.toList
+            state.fieldSearchers |> Array.toList |> List.filterMap buildFieldSearcherFQ
 
         facetFQs =
-            List.append
-                (let
-                    singletonSelected =
-                        List.filterMap
-                            (\( f, facet ) ->
-                                case facetValues facet of
-                                    e :: [] ->
-                                        Just ( f, StringExpression e )
-
-                                    _ ->
-                                        Nothing
-                            )
-                            (AnyDict.toList state.facetSelectors)
-                 in
-                 if List.isEmpty singletonSelected then
-                    []
-
-                 else
-                    [ Filter singletonSelected ]
-                )
-                (let
-                    multipleSelected =
-                        List.filter (\( f, facet ) -> List.length (facetValues facet) > 1)
-                            (AnyDict.toList state.facetSelectors)
-                 in
-                 -- TODO
-                 []
-                )
+            state.facetSelectors |> AnyDict.toList |> List.filterMap (\( x, y ) -> buildFacetFQ x y)
     in
-    case List.append termFQs (List.append fieldFQs facetFQs) of
+    case List.append termFQ (List.append fieldFQs facetFQs) of
         [] ->
             Filter []
 
@@ -278,20 +259,7 @@ view state conf =
                             state.newField
                             { options = []
                             , toggleMsg = \d -> conf.toMsg { state | newField = d }
-                            , toggleButton =
-                                Dropdown.toggle
-                                    [ Button.primary
-                                    , Button.disabled
-                                        (state.fieldSearchers
-                                            |> Array.toList
-                                            |> List.reverse
-                                            |> List.head
-                                            |> Maybe.map buildFieldSearcherFQ
-                                            |> Maybe.map (\_ -> True)
-                                            |> Maybe.withDefault False
-                                        )
-                                    ]
-                                    [ text "+" ]
+                            , toggleButton = Dropdown.toggle [ Button.primary ] [ text "+" ]
                             , items =
                                 map
                                     (\f ->
@@ -388,6 +356,7 @@ renderFieldSearcher conf stateFromElem fieldSearcher =
                 (InputGroup.text
                     [ Input.placeholder "Search for"
                     , Input.onInput (\s -> { fieldSearcher | value = s } |> stateFromElem |> conf.toMsg)
+                    , Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ]
                     ]
                 )
                 |> InputGroup.successors
