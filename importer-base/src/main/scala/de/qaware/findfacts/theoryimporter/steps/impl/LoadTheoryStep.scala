@@ -4,7 +4,7 @@ import scala.language.postfixOps
 
 import cats.implicits._
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BlockEt, ConstantEt, FactEt, TypeEt}
+import de.qaware.findfacts.common.dt.{CodeblockEt, ConstantEt, FactEt, TypeEt}
 import de.qaware.findfacts.common.utils.LoggingUtils.doDebug
 import de.qaware.findfacts.theoryimporter.TheoryView.{Axiom, Block, Position, Source, Theory, Thm}
 import de.qaware.findfacts.theoryimporter.steps.impl.thy.{TermExtractor, TypExtractor}
@@ -67,7 +67,7 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
                 typExtractor.referencedTypes(typ).toList,
                 typExtractor.prettyPrint(typ)
               ),
-              new BlockEt(
+              new CodeblockEt(
                 thy.name,
                 src.start,
                 src.stop,
@@ -102,7 +102,7 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
             termExtractor.referencedConsts(thm.prop.term).toList,
             thm.deps
           ),
-          new BlockEt(theoryName, src.start, src.stop, src.text)
+          new CodeblockEt(theoryName, src.start, src.stop, src.text)
         )
       }
     }
@@ -116,7 +116,7 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
             termExtractor.referencedConsts(ax.prop.term).toList,
             List.empty
           ),
-          new BlockEt(theoryName, src.start, src.stop, src.text)
+          new CodeblockEt(theoryName, src.start, src.stop, src.text)
         )
       }
     }
@@ -145,7 +145,7 @@ class LoadTheoryStep(termExtractor: TermExtractor, typExtractor: TypExtractor) e
             axioms.map(_.prop.term).map(termExtractor.prettyPrint).mkString(" | "),
             axioms.map(_.prop.term).flatMap(termExtractor.referencedConsts).toList
           ),
-          new BlockEt(thy.name, src.start, src.stop, src.text)
+          new CodeblockEt(thy.name, src.start, src.stop, src.text)
         )
 
       res.fold(identity, _ => List.empty[ImportError])

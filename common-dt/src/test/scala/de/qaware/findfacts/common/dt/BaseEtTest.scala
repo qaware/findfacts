@@ -3,7 +3,7 @@ package de.qaware.findfacts.common.dt
 import org.scalatest.{FunSuite, Matchers}
 
 class BaseEtTest extends FunSuite with Matchers {
-  val block = new BlockEt("B", 0, 0, "")
+  val block = new CodeblockEt("B", 0, 0, "")
   val const = new ConstantEt("C", "", Nil, Nil, "")
   val doc = new DocumentationEt("D", 0, 0, "", DocKind.Latex)
   val fact = new FactEt("F", "", Nil, Nil)

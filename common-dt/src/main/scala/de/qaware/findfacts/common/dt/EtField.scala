@@ -35,8 +35,13 @@ object EtField extends DefaultEnum[EtField] {
   }
 
   /** Kind of the entity. Possible values in [[Kind]]. */
-  case object Kind extends SingleValuedField[EtKind] with ChildField {
-    override val name: String = SolrSchema.Kind
+  case object Kind extends SingleValuedField[ThyEtKind] with ChildField {
+    override val name: String = SolrSchema.TheoryKind
+    override val implicits = FieldImplicits()
+  }
+
+  case object CommandKind extends SingleValuedField[CmdKind] with ChildField {
+    override val name: String = SolrSchema.CommandKind
     override val implicits = FieldImplicits()
   }
 
@@ -58,8 +63,8 @@ object EtField extends DefaultEnum[EtField] {
   }
 
   /** Source theory file containing the entity. */
-  case object SourceFile extends SingleValuedField[String] with ParentField {
-    override final val name = SolrSchema.SourceFile
+  case object SourceTheory extends SingleValuedField[String] with ParentField {
+    override final val name = SolrSchema.SourceTheory
     override val implicits = FieldImplicits()
   }
 

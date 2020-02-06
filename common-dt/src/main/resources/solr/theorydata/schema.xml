@@ -3,18 +3,20 @@
     <fields>
         <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
         <field name="id" type="string" required="true" uninvertible="false" multiValued="false" omitTermFreqAndPositions="true"/>
-        <field name="kind" type="entity_kind" required="true" docValues="true" multiValued="false"/>
-        <field name="source_file" type="string" docValues="true" multiValued="false" omitNorms="true" omitTermFreqAndPositions="true"/>
-        <field name="start_pos" type="pint" uninvertible="false" multiValued="false" omitNorms="true"/>
-        <field name="end_pos" type="pint" uninvertible="false" multiValued="false" omitNorms="true"/>
-        <field name="name" type="string" multiValued="false" omitNorms="true" omitTermFreqAndPositions="true"/>
-        <field name="const_type" type="string" multiValued="false" omitNorms="true" omitTermFreqAndPositions="true"/>
-        <field name="doc_kind" type="doc_kind" multiValued="false" omitNorms="true"/>
-        <field name="prop" type="text_general" uninvertible="false" multiValued="false" omitNorms="true"/>
-        <field name="source_text" type="text_general" uninvertible="false" multiValued="false" omitNorms="true"/>
-        <field name="uses" type="string" uninvertible="false" multiValued="true"  omitNorms="true" omitTermFreqAndPositions="true"/>
-        <field name="type_uses" type="string" uninvertible="false" multiValued="true"  omitNorms="true" omitTermFreqAndPositions="true"/>
-        <field name="proof_uses" type="string" uninvertible="false" multiValued="true" omitNorms="true" omitTermFreqAndPositions="true"/>
+        <field name="cmd_kind" type="cmd_kind" docValues="true" multiValued="false"/>
+        <field name="thy_kind" type="thy_kind" docValues="true" multiValued="false"/>
+        <field name="theory" type="string" docValues="true" multiValued="false" omitNorms="true"/>
+        <field name="start_pos" type="pint" uninvertible="false" multiValued="false"/>
+        <field name="end_pos" type="pint" uninvertible="false" multiValued="false"/>
+        <field name="start_line" type="pint" multiValued="false"/>
+        <field name="name" type="string" multiValued="false" omitNorms="true"/>
+        <field name="type" type="type_syntax" multiValued="false"/>
+        <field name="doc_kind" type="doc_kind" docValues="true" multiValued="false"/>
+        <field name="prop" type="term_syntax" uninvertible="false" multiValued="false"/>
+        <field name="src" type="text_general" uninvertible="false" multiValued="false"/>
+        <field name="uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
+        <field name="type_uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
+        <field name="proof_uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
         <field name="_version_" type="plong" indexed="false" stored="false" multiValued="false"/>
     </fields>
 
@@ -25,9 +27,27 @@
         <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
         <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
         <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
+        <fieldType name="type_syntax" class="solr.TextField">
+            <analyzer>
+                <tokenizer class="solr.PatternTokenizerFactory" pattern="[\(\)\{\},]|::|->|([^\(\)\{\},\s:-]|:[^\(\)\{\},\s:]|-[^\(\)\{\},\s>])+" group="0"/>
+                <filter class="solr.LowerCaseFilterFactory"/>
+                <filter class="solr.ASCIIFoldingFilterFactory" preserveOriginal="false"/>
+            </analyzer>
+        </fieldType>
+        <fieldType name="term_syntax" class="solr.TextField">
+            <analyzer>
+                <tokenizer class="solr.StandardTokenizerFactory">
+                </tokenizer>
+            </analyzer>
+        </fieldType>
         <fieldType name="text_general" class="solr.TextField">
             <analyzer type="index">
                 <tokenizer class="solr.StandardTokenizerFactory"/>
+                <filter class="solr.WordDelimiterFilterFactory"
+                        generateWordParts="1" catenateWords="1"
+                        generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
+                        catenateAll="0" splitOnCaseChange="1"
+                        stemEnglishPossessive="1" preserveOriginal="1"/>
                 <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
             <analyzer type="query">
@@ -35,8 +55,10 @@
                 <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
         </fieldType>
-        <fieldType name="entity_kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
-                   enumName="EntityKind"/>
+        <fieldType name="cmd_kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
+                   enumName="CommandKind"/>
+        <fieldType name="thy_kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
+                   enumName="TheoryKind"/>
         <fieldType name="doc_kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
                    enumName="DocumentationKind"/>
     </types>

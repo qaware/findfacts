@@ -9,23 +9,17 @@ sealed trait FilterTerm
 sealed trait AbstractFQ
 
 // Primitives
-/** Id type.
-  *
-  * @param inner id as string
-  */
-final case class Id(inner: String) extends FilterTerm
+/** Filters by terms, seperated by whitespace.
+ *
+ * @param inner string
+ */
+final case class Term(inner: String) extends FilterTerm
 
-/** Numerical type.
-  *
-  * @param inner as integer
-  */
-final case class Number(inner: Int) extends FilterTerm
-
-/** String type
-  *
-  * @param inner string
-  */
-final case class StringExpression(inner: String) extends FilterTerm
+/** Filters by exact terms.
+ *
+ * @param inner string
+ */
+final case class Exact(inner: String) extends FilterTerm
 
 // Filter Terms
 /** Matches range for numerical fields.

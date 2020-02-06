@@ -8,7 +8,7 @@ package de.qaware.findfacts
 
 
 import de.qaware.findfacts.Theory._
-import de.qaware.findfacts.common.solr.{LocalSolr, RemoteSolr, SolrRepository}
+import de.qaware.findfacts.common.solr.RemoteSolr
 import de.qaware.findfacts.theoryimporter.ImporterModule
 import de.qaware.findfacts.theoryimporter.solrimpl.SolrImporterModule
 import org.apache.solr.client.solrj.SolrClient
@@ -20,7 +20,7 @@ object Importer
 
   /* import a session to solr */
 
-  def solr_import_session(
+  def solr_import(
     provider: Export.Provider,
     session_name: String,
     theory_names: List[String],

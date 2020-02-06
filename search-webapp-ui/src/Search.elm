@@ -15,8 +15,22 @@ import Html exposing (Html, text)
 import Html.Events as Events exposing (onClick)
 import Html.Events.Extra as ExtraEvents
 import List exposing (map)
-import Query exposing (AbstractFQ(..), FacetResult, Field(..), FilterTerm(..), Query(..), fieldToString, filterableFields)
+import Query exposing (AbstractFQ(..), FacetResult, Field(..), FilterTerm(..), Query(..), fieldToString)
 import Tuple as Pair
+
+
+
+-- STATIC
+
+
+facetableFields : List Field
+facetableFields =
+    [ Kind, File ]
+
+
+filterableFields : List Field
+filterableFields =
+    [ Name, Kind, Src, File, Prop, StartPosition, EndPosition, ConstType ]
 
 
 
@@ -89,7 +103,7 @@ facetSelected facet =
 
 buildSingleFQ : Field -> String -> AbstractFQ
 buildSingleFQ field val =
-    Filter [ ( field, StringExpression val ) ]
+    Filter [ ( field, Term val ) ]
 
 
 buildFacetFQ : Field -> Facet -> Maybe AbstractFQ
@@ -111,7 +125,7 @@ buildFieldSearcherFQ fieldSearcher =
         fieldSearcher.facetSelect |> Maybe.map Pair.second |> Maybe.andThen (buildFacetFQ fieldSearcher.field)
 
     else
-        Just (Filter [ ( fieldSearcher.field, StringExpression fieldSearcher.value ) ])
+        Just (buildSingleFQ fieldSearcher.field fieldSearcher.value)
 
 
 buildFQ : State -> AbstractFQ
@@ -151,7 +165,7 @@ buildFilterQuery state =
 
 buildFacetQuery : State -> Query
 buildFacetQuery state =
-    FacetQuery (buildFQ state) Query.facetableFields 10
+    FacetQuery (buildFQ state) facetableFields 10
 
 
 
@@ -239,6 +253,7 @@ view state conf =
                                 [ Input.placeholder "Search for"
                                 , Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ]
                                 , Input.onInput (\text -> conf.toMsg { state | termSearcher = text })
+                                , Input.value state.termSearcher
                                 ]
                             )
                             |> InputGroup.successors
@@ -357,6 +372,7 @@ renderFieldSearcher conf stateFromElem fieldSearcher =
                     [ Input.placeholder "Search for"
                     , Input.onInput (\s -> { fieldSearcher | value = s } |> stateFromElem |> conf.toMsg)
                     , Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ]
+                    , Input.value fieldSearcher.value
                     ]
                 )
                 |> InputGroup.successors

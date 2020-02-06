@@ -1,7 +1,7 @@
 package de.qaware.findfacts.core
 
 import de.qaware.findfacts.common.dt.EtField.{Kind, Name, PropositionUses, StartPosition}
-import de.qaware.findfacts.common.dt.{BaseEt, BlockEt, ConstantEt, EtField, EtKind, FactEt, ITSolr}
+import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, ITSolr, ThyEtKind}
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import org.apache.solr.client.solrj.{SolrClient, SolrQuery}
@@ -14,9 +14,9 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
   override def beforeAll(): Unit = {
     // Add integration test data set
     val const1 = new ConstantEt("Const1", "...", List("someid"), Nil, "'a => 'b")
-    val block1 = BlockEt("ExampleThy.1", "ExampleThy", 1, 11, "fun Example = ...", List(const1))
+    val block1 = CodeblockEt("ExampleThy.1", "ExampleThy", 1, 11, "fun Example = ...", List(const1))
     val fact1 = new FactEt("ConstIsFact", "IsFact Const1", List(const1.id), Nil)
-    val block2 = BlockEt("ExampleThy.12", "ExampleThy", 12, 14, "lemma ...", List(fact1))
+    val block2 = CodeblockEt("ExampleThy.12", "ExampleThy", 12, 14, "lemma ...", List(fact1))
 
     val mapper = ToSolrDoc[BaseEt]
     solr.add(mapper.toSolrDoc(block1))
@@ -38,7 +38,7 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val resList = result.success.value
     resList should have size 1
     inside(resList) {
-      case Vector(b: BlockEt) =>
+      case Vector(b: CodeblockEt) =>
         b.startPosition should be(12)
         b.endPosition should be(14)
         b.entities should have size 1
@@ -47,7 +47,7 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
   }
 
   test("Filter query shortlist") {
-    val query = FilterQuery(Filter(Map(Kind -> Id(EtKind.Constant.entryName))), 10)
+    val query = FilterQuery(Filter(Map(Kind -> Term(ThyEtKind.Constant.entryName))), 10)
     val result = queryModule.service.getShortResults(query)
 
     val resList = result.success.value
@@ -55,12 +55,12 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
 
     val thyRes = resList.head.entities
     thyRes should have size 1
-    thyRes.head.kind should equal(EtKind.Constant)
+    thyRes.head.kind should equal(ThyEtKind.Constant)
     thyRes.head.shortDescription should equal("Const1 :: 'a => 'b")
   }
 
   test("Recursive query") {
-    val innerQuery = Filter(Map(Kind -> StringExpression(EtKind.Constant.toString)))
+    val innerQuery = Filter(Map(Kind -> Term(ThyEtKind.Constant.toString)))
     val query = FilterQuery(Filter(Map(PropositionUses -> AnyInResult(innerQuery))), 10)
     val result = queryModule.service.getShortResults(query)
 
@@ -71,11 +71,11 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
 
   test("Query set operations") {
     // matches nothing
-    val noMatchQuery = Filter(Map(Name -> StringExpression("does not exist")))
+    val noMatchQuery = Filter(Map(Name -> Term("does not exist")))
     // matches all
     val query1 = Filter(Map(PropositionUses -> AllInResult(noMatchQuery)))
     // matches kind:Constant
-    val query2 = Filter(Map(Kind -> StringExpression(EtKind.Constant.toString)))
+    val query2 = Filter(Map(Kind -> Term(ThyEtKind.Constant.toString)))
     // matches all intersect kind:Constant
     val query = FilterQuery(FilterIntersection(query1, query2), 10)
     val result = queryModule.service.getShortResults(query)

@@ -211,7 +211,7 @@ urlUpdate url model =
         Just page ->
             ( { model | page = page } |> reset
             , if page == Example then
-                executeQuery model.config (FilterQuery (Filter [ ( Name, StringExpression "*gauss*" ) ]) 10)
+                executeQuery model.config (FilterQuery (Filter [ ( Name, Term "*gauss*" ) ]) 10)
 
               else
                 Cmd.none
@@ -244,6 +244,30 @@ executeQuery config query =
                 , body = jsonBody (encode query)
                 , expect = expectJson FacetResult decode
                 }
+
+
+displayQueryError : Error -> Model -> Model
+displayQueryError e model =
+    { model
+        | resultState =
+            SearchError
+                (case e of
+                    BadUrl _ ->
+                        "Invalid backend configuration"
+
+                    Timeout ->
+                        "Backend timed out"
+
+                    NetworkError ->
+                        "Could not reach server"
+
+                    BadStatus status ->
+                        "Server error: " ++ String.fromInt status
+
+                    BadBody body ->
+                        "Could not read response" ++ body
+                )
+    }
 
 
 
@@ -305,7 +329,6 @@ pageHome model =
         , br [] []
         , Grid.row []
             [ Grid.col []
-                -- Search.view model.searchState (Search.config SearchMsg)
                 (Search.Config SearchMsg Batch ExecuteQuery
                     |> Search.view model.searchState
                 )

@@ -1,10 +1,12 @@
 <?xml version="1.0" ?>
 <enumsConfig>
-    <enum name="EntityKind">
-        <value>Block</value>
+    <enum name="TheoryKind">
         <value>Type</value>
         <value>Constant</value>
         <value>Fact</value>
+    </enum>
+    <enum name="CommandKind">
+        <value>Codeblock</value>
         <value>Documentation</value>
     </enum>
     <enum name="DocumentationKind">

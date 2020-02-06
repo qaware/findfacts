@@ -1,13 +1,11 @@
 package de.qaware.findfacts.webapp
 
-import java.net.URL
-
 import _root_.controllers.{ApiHelpController, AssetsComponents}
 import com.softwaremill.macwire.wire
 import de.qaware.findfacts.common.solr.RemoteSolr
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
-import de.qaware.findfacts.webapp.utils.JsonUrlCodec
+import de.qaware.findfacts.webapp.utils.JsonMappings
 import org.apache.solr.client.solrj.SolrClient
 import play.api.ApplicationLoader.Context
 import play.api.mvc.EssentialFilter
@@ -42,7 +40,7 @@ class WebappModule(context: Context)
   override lazy val solrClient: SolrClient =
     RemoteSolr(WebappModule.SolrHost, WebappModule.SolrPort, WebappModule.SolrCore).solrConnection()
 
-  private val urlEncoder: JsonUrlCodec = wire[JsonUrlCodec]
+  private val jsonMappings: JsonMappings = wire[JsonMappings]
 
   // Wire up controllers for the router
   private lazy val homeController: HomeController = wire[HomeController]

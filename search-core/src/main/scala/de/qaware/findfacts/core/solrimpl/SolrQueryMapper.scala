@@ -1,13 +1,18 @@
 package de.qaware.findfacts.core.solrimpl
 
-import scala.collection.mutable
+import java.util.regex.Matcher
 
+import scala.collection.mutable
+import scala.util.Failure
+
+import de.qaware.findfacts.common.dt.solr.SolrSchema
 import de.qaware.findfacts.common.dt.{EtField, IdEt}
 import de.qaware.findfacts.core.solrimpl.SolrMapper.BiConnective
 import de.qaware.findfacts.core.{
   AbstractFQ,
   AllInResult,
   AnyInResult,
+  Exact,
   FacetQuery,
   Filter,
   FilterComplement,
@@ -15,11 +20,10 @@ import de.qaware.findfacts.core.{
   FilterQuery,
   FilterTerm,
   FilterUnion,
-  Id,
   InRange,
-  Number,
-  StringExpression
+  Term
 }
+import org.apache.solr.client.solrj.request.json.{DomainMap, JsonQueryRequest, TermsFacetMap}
 // scalastyle:off
 import de.qaware.findfacts.common.utils.TryUtils._
 // scalastyle:on
@@ -34,8 +38,10 @@ object SolrMapper {
   /** Match all elements. */
   final val All = "*"
 
-  // TODO real query {!parent which='-_nest_path_:* *:*'}
-  final val ParentFilter = "'kind:Block OR kind:Documentation'"
+  final val QueryAll = "*:*"
+
+  /** Match only parent docs. */
+  final val ParentFilter = s"${SolrSchema.CommandKind}:*"
 
   /** Query connective. */
   sealed trait Connective {
@@ -67,7 +73,16 @@ object SolrMapper {
 
 /** Maps abstract filter terms to solr query strings. */
 class SolrFilterTermMapper {
-  final val DefaultMaxResults = 10
+
+  /** Characters that need to be escaped. Special characters that may be used: * ? */
+  final val SpecialCharacters =
+    Set("\\+", "-", "&&", "\\|\\|", "!", "\\(", "\\)", "\\{", "\\}", "\\[", "\\]", "\\^", "\"", "~", ":", "\\\\", "\\/")
+
+  /** Regex built from special characters */
+  final private val EscapeRegex = SpecialCharacters.map(s => s"($s)").mkString("|").r
+
+  /** Default maximum number of result for recursive query. */
+  final val DefaultMaxResults = 100
 
   /** Builds nested query by executing inner one */
   private def buildInnerQuery(fq: AbstractFQ, connective: BiConnective)(implicit queryService: SolrQueryService) = {
@@ -81,6 +96,10 @@ class SolrFilterTermMapper {
     }
   }
 
+  private def escape(s: String): String = {
+    EscapeRegex.replaceAllIn(s, m => Matcher.quoteReplacement(s"\\$m"))
+  }
+
   /** Builds a filter string.
     *
     * @param filter term
@@ -88,9 +107,8 @@ class SolrFilterTermMapper {
     * @return query string or exception if rescursive call failed
     */
   def buildFilterQuery(filter: FilterTerm)(implicit queryService: SolrQueryService): Try[String] = filter match {
-    case Id(inner) => Try(inner) // TODO escaping
-    case Number(inner) => Try(inner.toString)
-    case StringExpression(inner) => Try(s"($inner)") // TODO escaping
+    case Term(inner) => Try(s"(${escape(inner)})")
+    case Exact(inner) => Try("\"" + escape(inner) + "\"")
     case InRange(from, to) => Try(s"[$from TO $to]")
     case AnyInResult(fq) => buildInnerQuery(fq, SolrMapper.Or)
     case AllInResult(fq) => buildInnerQuery(fq, SolrMapper.And)
@@ -144,13 +162,7 @@ class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
         parentQ <- parentFieldTerms
         childQ <- childFieldTerms
         bothQ <- bothFieldTerms
-      } yield {
-        if (bothQ.nonEmpty) {
-          s"(${makeQueryString(parentQ ++ bothQ, childQ)} OR${makeQueryString(parentQ, childQ ++ bothQ)})"
-        } else {
-          makeQueryString(parentQ, childQ)
-        }
-      }
+      } yield s"(${bothQ.map(e => s"$e AND").mkString}${makeQueryString(parentQ, childQ)})"
     case FilterIntersection(f1, f2, fn @ _*) =>
       val filters: Try[Seq[String]] = (f1 +: f2 +: fn).map(buildFilter)
       filters.map(_.map(e => s"($e)").mkString(SolrMapper.And.str))
@@ -167,6 +179,9 @@ class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
   */
 class SolrQueryMapper(filterMapper: SolrFilterMapper) {
 
+  /** Selector for parents. */
+  final val SelectParents = "child parentFilter"
+
   /** Builds solr query for a filter query.
     *
     * @param queryService for recursive calls
@@ -174,11 +189,17 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
     * @return solrquery representation that can be fed to a solrJ client
     */
   def buildFilterQuery(queryService: SolrQueryService, query: FilterQuery): Try[solrj.SolrQuery] = {
-    buildFQ(query.filter)(mutable.Map.empty, queryService).map(
-      _.setFacet(false)
-        .addField(s"[child parentFilter=${SolrMapper.ParentFilter}]")
+    val qParams = mutable.Map.empty[String, Seq[String]]
+    for {
+      fq <- filterMapper.buildFilter(query.filter)(qParams, queryService)
+    } yield {
+      val solrQuery = new solrj.SolrQuery().setQuery(fq)
+      qParams.foreach(param => solrQuery.setParam(param._1, param._2: _*))
+      solrQuery
+        .setFacet(false)
+        .addField(s"[$SelectParents=${SolrMapper.ParentFilter}]")
         .setRows(query.maxResults)
-    )
+    }
   }
 
   /** Builds solr query for a facet query.
@@ -187,23 +208,33 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
     * @param facetQuery to transform
     * @return solr query
     */
-  def buildFacetQuery(queryService: SolrQueryService, facetQuery: FacetQuery): Try[solrj.SolrQuery] = {
-    buildFQ(facetQuery.filter)(mutable.Map.empty, queryService).map(
-      _.addFacetField(facetQuery.fields.map(_.name).toArray: _*)
-        .setFacetMinCount(1)
-        .setFacetLimit(facetQuery.maxFacets + 1)
-        .setRows(0))
-  }
+  def buildFacetQuery(queryService: SolrQueryService, facetQuery: FacetQuery): Try[JsonQueryRequest] = {
+    // Faceting on ID field does not make any sense,
+    // and won't work properly because it's a field of both parent and children
+    if (facetQuery.fields.contains(EtField.Id)) {
+      return Failure(new IllegalArgumentException("Cannot facet on Id field!"))
+    }
 
-  private def buildFQ(filter: AbstractFQ)(
-      implicit qParams: mutable.Map[String, Seq[String]],
-      queryService: SolrQueryService): Try[solrj.SolrQuery] = {
+    val qParams = mutable.Map.empty[String, Seq[String]]
     for {
-      fq <- filterMapper.buildFilter(filter)
+      fq <- filterMapper.buildFilter(facetQuery.filter)(qParams, queryService)
     } yield {
-      val solrQuery = new solrj.SolrQuery().setQuery(fq)
-      qParams.foreach(param => solrQuery.setParam(param._1, param._2: _*))
-      solrQuery
+      val domainMap = new DomainMap().setBlockChildQuery(SolrMapper.ParentFilter)
+      val jsonRequest = new JsonQueryRequest()
+
+      facetQuery.fields foreach { field =>
+        val facet = new TermsFacetMap(field.name).setMinCount(1).setLimit(facetQuery.maxFacets + 1)
+        if (field.isChild) {
+          facet.withDomain(domainMap)
+        }
+        jsonRequest.withFacet(field.name, facet)
+      }
+
+      qParams foreach {
+        case (name, vals) => jsonRequest.withParam(name, vals.mkString(SolrMapper.And.str))
+      }
+
+      jsonRequest.setLimit(0).withFilter(fq).setQuery(SolrMapper.QueryAll)
     }
   }
 }

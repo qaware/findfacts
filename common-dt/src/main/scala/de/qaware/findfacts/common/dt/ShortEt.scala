@@ -1,45 +1,46 @@
 package de.qaware.findfacts.common.dt
 
 import de.qaware.findfacts.common.da.api.Variant.Discriminator
+import de.qaware.findfacts.common.dt
 // scalastyle:off
 import de.qaware.findfacts.common.dt.EtField._
 // scalastyle:on
 
 // scalastyle:off scaladoc
-sealed trait ShortEt {
+sealed trait ShortCmdEt {
   val id: EtField.Id.FieldType
-  val file: SourceFile.FieldType
+  val file: SourceTheory.FieldType
   val src: SourceText.FieldType
-  val kind: EtKind.Value
+  val kind: CmdKind.Value
   val entities: ChildShorts.FieldType
 }
 
-/** Short source code block entry. */
-final case class ShortBlockEt(
+/** Short source code block. */
+final case class ShortBlock(
     override val id: EtField.Id.FieldType,
-    override val file: SourceFile.FieldType,
+    override val file: SourceTheory.FieldType,
     override val src: SourceText.FieldType,
     override val entities: ChildShorts.FieldType)
-    extends ShortEt
-    with Discriminator[EtKind, Kind.type, EtKind.Block.type] {
-  override val kind: EtKind.Value = EtKind.Block
+    extends ShortCmdEt
+    with Discriminator[CmdKind, CommandKind.type, CmdKind.Codeblock.type] {
+  override val kind: CmdKind.Value = CmdKind.Codeblock
 }
 
 /** Short documentation entity */
 final case class DocumentationShortEt(
     override val id: EtField.Id.FieldType,
-    override val file: SourceFile.FieldType,
+    override val file: SourceTheory.FieldType,
     override val src: SourceText.FieldType,
-) extends ShortEt
-    with Discriminator[EtKind, Kind.type, EtKind.Documentation.type] {
-  override val kind: EtKind.Value = EtKind.Documentation
+) extends ShortCmdEt
+    with Discriminator[CmdKind, CommandKind.type, dt.CmdKind.Documentation.type] {
+  override val kind: dt.CmdKind.Value = CmdKind.Documentation
   override val entities: ChildShorts.FieldType = List.empty
 }
 
 /** Short entry. */
 sealed trait ShortThyEt {
   val id: Id.FieldType
-  val kind: EtKind.Value
+  val kind: ThyEtKind.Value
   val name: Name.FieldType
   val proposition: Proposition.FieldType
 
@@ -54,9 +55,9 @@ final case class ConstantShortEt(
     override val proposition: Proposition.FieldType,
     constType: ConstantType.FieldType,
 ) extends ShortThyEt
-    with Discriminator[EtKind, Kind.type, EtKind.Constant.type] {
+    with Discriminator[ThyEtKind, Kind.type, ThyEtKind.Constant.type] {
   override val shortDescription: String = s"$name :: $constType"
-  override val kind: EtKind.Value = EtKind.Constant
+  override val kind: ThyEtKind.Value = ThyEtKind.Constant
 }
 
 /** Short fact entity. */
@@ -65,9 +66,9 @@ final case class FactShortEt(
     override val name: Name.FieldType,
     override val proposition: Proposition.FieldType,
 ) extends ShortThyEt
-    with Discriminator[EtKind, Kind.type, EtKind.Fact.type] {
+    with Discriminator[ThyEtKind, Kind.type, ThyEtKind.Fact.type] {
   override val shortDescription: String = name
-  override val kind: EtKind.Value = EtKind.Fact
+  override val kind: ThyEtKind.Value = ThyEtKind.Fact
 }
 
 /** Short type entity. */
@@ -76,7 +77,7 @@ final case class TypeShortEt(
     override val name: Name.FieldType,
     override val proposition: Proposition.FieldType,
 ) extends ShortThyEt
-    with Discriminator[EtKind, Kind.type, EtKind.Type.type] {
+    with Discriminator[ThyEtKind, Kind.type, ThyEtKind.Type.type] {
   override val shortDescription: String = name
-  override val kind: EtKind.Value = EtKind.Type
+  override val kind: ThyEtKind.Value = ThyEtKind.Type
 }

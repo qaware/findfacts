@@ -1,4 +1,4 @@
-module Query exposing (AbstractFQ(..), Facet, FacetResult, Field(..), FilterTerm(..), Query(..), decode, encode, facetableFields, fieldToString, filterableFields)
+module Query exposing (AbstractFQ(..), Facet, FacetResult, Field(..), FilterTerm(..), Query(..), decode, encode, fieldToString)
 
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
@@ -9,9 +9,7 @@ import Result.Extra
 
 
 type FilterTerm
-    = IdTerm String
-    | Number Int
-    | StringExpression String
+    = Term String
     | InRange Int Int
     | AnyInResult AbstractFQ
     | AllInResult AbstractFQ
@@ -33,6 +31,7 @@ type Field
     | Prop
     | StartPosition
     | EndPosition
+    | ConstType
 
 
 type Query
@@ -48,40 +47,8 @@ type alias FacetResult =
     AnyDict String Field Facet
 
 
-facetableFields : List Field
-facetableFields =
-    [ Kind, File ]
-
-
-filterableFields : List Field
-filterableFields =
-    [ Name, Kind, Src, File, Prop, StartPosition, EndPosition ]
-
-
 
 -- STRING
-
-
-fieldFromString : String -> Result String Field
-fieldFromString str =
-    case str of
-        "Name" ->
-            Ok Name
-
-        "Kind" ->
-            Ok Kind
-
-        "StartPosition" ->
-            Ok StartPosition
-
-        "EndPosition" ->
-            Ok EndPosition
-
-        "SourceFile" ->
-            Ok File
-
-        _ ->
-            Err ("No such field: " ++ str)
 
 
 fieldToString : Field -> String
@@ -109,7 +76,39 @@ fieldToString field =
             "Proposition"
 
         File ->
-            "SourceFile"
+            "SourceTheory"
+
+        ConstType ->
+            "ConstantType"
+
+
+
+-- FROMSTRING
+
+
+fieldFromString : String -> Result String Field
+fieldFromString str =
+    case str of
+        "Name" ->
+            Ok Name
+
+        "Kind" ->
+            Ok Kind
+
+        "StartPosition" ->
+            Ok StartPosition
+
+        "EndPosition" ->
+            Ok EndPosition
+
+        "SourceTheory" ->
+            Ok File
+
+        "ConstantType" ->
+            Ok ConstType
+
+        _ ->
+            Err ("No such field: " ++ str)
 
 
 
@@ -119,14 +118,8 @@ fieldToString field =
 encodeFilterTerm : FilterTerm -> Value
 encodeFilterTerm term =
     case term of
-        IdTerm id ->
-            object [ ( "Id", object [ ( "inner", string id ) ] ) ]
-
-        Number num ->
-            object [ ( "Number", object [ ( "inner", int num ) ] ) ]
-
-        StringExpression str ->
-            object [ ( "StringExpression", object [ ( "inner", string str ) ] ) ]
+        Term str ->
+            object [ ( "Term", object [ ( "inner", string str ) ] ) ]
 
         InRange from to ->
             object

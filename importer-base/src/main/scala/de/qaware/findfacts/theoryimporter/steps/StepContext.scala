@@ -2,7 +2,7 @@ package de.qaware.findfacts.theoryimporter.steps
 
 import scala.collection.mutable
 
-import de.qaware.findfacts.common.dt.{BaseEt, BlockEt, ConstantEt, DocumentationEt, FactEt, TheoryEt, TypeEt}
+import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, DocumentationEt, FactEt, TheoryEt, TypeEt}
 import de.qaware.findfacts.common.utils.DefaultMultiMap
 
 /** Holds mutable context shared throughout the steps. Stores parent-child relation and keeps it consistent.
@@ -14,7 +14,7 @@ import de.qaware.findfacts.common.utils.DefaultMultiMap
   * @param _facts pairs of facts and the block it is in
   */
 final class StepContext private (
-    private val _blocks: mutable.Set[BlockEt] = mutable.Set.empty,
+    private val _blocks: mutable.Set[CodeblockEt] = mutable.Set.empty,
     private val _docs: mutable.Set[DocumentationEt] = mutable.Set.empty,
     private val _consts: mutable.MultiMap[ConstantEt, String] = DefaultMultiMap.empty,
     private val _types: mutable.MultiMap[TypeEt, String] = DefaultMultiMap.empty,
@@ -34,7 +34,7 @@ final class StepContext private (
 
   private def remove(entity: BaseEt): Unit = entity match {
     case d: DocumentationEt => _docs.remove(d)
-    case b: BlockEt => _blocks.remove(b)
+    case b: CodeblockEt => _blocks.remove(b)
     case c: ConstantEt => _consts.remove(c)
     case f: FactEt => _facts.remove(f)
     case t: TypeEt => _types.remove(t)
@@ -45,7 +45,7 @@ final class StepContext private (
     * @param entity to add
     * @param blockEt parent block
     */
-  def addEntity(entity: TheoryEt, blockEt: BlockEt): Unit = {
+  def addEntity(entity: TheoryEt, blockEt: CodeblockEt): Unit = {
     _blocks.add(blockEt)
     addToMap(entity, blockEt.id)
   }
@@ -90,7 +90,7 @@ final class StepContext private (
       case _ =>
         remove(old)
         (entity: @unchecked) match {
-          case b: BlockEt => _blocks.add(b)
+          case b: CodeblockEt => _blocks.add(b)
           case d: DocumentationEt => _docs.add(d)
         }
     }
@@ -100,7 +100,7 @@ final class StepContext private (
     *
     * @return immutable blocks set
     */
-  def blocks: Set[BlockEt] = {
+  def blocks: Set[CodeblockEt] = {
     val explodedMap: Seq[(TheoryEt, String)] = (_consts ++ _facts ++ _types).toSeq.flatMap(e => e._2.map((e._1, _)))
     val entitiesByBlock: Map[String, Set[TheoryEt]] = explodedMap.groupBy(_._2).mapValues(_.map(_._1).toSet)
 

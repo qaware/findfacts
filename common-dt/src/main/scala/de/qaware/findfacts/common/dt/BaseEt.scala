@@ -1,6 +1,7 @@
 package de.qaware.findfacts.common.dt
 
 import de.qaware.findfacts.common.da.api.Variant.Discriminator
+import de.qaware.findfacts.common.dt
 // scalastyle:off
 import de.qaware.findfacts.common.dt.EtField._
 // scalastyle:on
@@ -25,10 +26,10 @@ sealed trait TheoryEt extends BaseEt {
   val propositionUses: PropositionUses.FieldType
 }
 
-final case class BlockEt private (
+final case class CodeblockEt private (
     override val id: Id.FieldType,
     /** Source in which entity was defined. */
-    sourceFile: SourceFile.FieldType,
+    sourceFile: SourceTheory.FieldType,
     /** Start pos of entity definition, in isabelle tokens. */
     startPosition: StartPosition.FieldType,
     /** End pos of entity definition, in isabelle tokens. */
@@ -38,17 +39,47 @@ final case class BlockEt private (
     /** Entities from this bloock. */
     entities: ChildEntities.FieldType
 ) extends BaseEt
-    with Discriminator[EtKind, Kind.type, EtKind.Block.type] {
+    with Discriminator[CmdKind, CommandKind.type, CmdKind.Codeblock.type] {
   require(id == s"$sourceFile.$startPosition")
 
   def this(
-      sourceFile: SourceFile.FieldType,
+      sourceFile: SourceTheory.FieldType,
       startPosition: StartPosition.FieldType,
       endPosition: EndPosition.FieldType,
       sourceText: SourceText.FieldType) =
     this(s"$sourceFile.$startPosition", sourceFile, startPosition, endPosition, sourceText, List.empty)
 }
 
+/** Documentation.
+  *
+  * @param documentationKind kind of documentation
+  */
+final case class DocumentationEt private (
+    override val id: Id.FieldType,
+    sourceFile: SourceTheory.FieldType,
+    startPosition: StartPosition.FieldType,
+    endPosition: EndPosition.FieldType,
+    sourceText: SourceText.FieldType,
+    documentationKind: DocumentationKind.FieldType
+) extends BaseEt
+    with Discriminator[CmdKind, CommandKind.type, dt.CmdKind.Documentation.type] {
+  require(id == s"$sourceFile.$startPosition.$documentationKind")
+
+  def this(
+      sourceFile: SourceTheory.FieldType,
+      startPosition: StartPosition.FieldType,
+      endPosition: EndPosition.FieldType,
+      sourceText: SourceText.FieldType,
+      documentationKind: DocumentationKind.FieldType
+  ) =
+    this(
+      s"$sourceFile.$startPosition.$documentationKind",
+      sourceFile,
+      startPosition,
+      endPosition,
+      sourceText,
+      documentationKind)
+}
 // scalastyle:off scaladoc
 /** Constants.
   *
@@ -63,8 +94,8 @@ final case class ConstantEt private (
     typeUses: TypeUses.FieldType,
     constantType: ConstantType.FieldType
 ) extends TheoryEt
-    with Discriminator[EtKind, Kind.type, EtKind.Constant.type] {
-  require(id == s"${EtKind.Constant}.$name")
+    with Discriminator[ThyEtKind, Kind.type, ThyEtKind.Constant.type] {
+  require(id == s"${ThyEtKind.Constant}.$name")
 
   def this(
       name: Name.FieldType,
@@ -72,38 +103,7 @@ final case class ConstantEt private (
       propositionUses: PropositionUses.FieldType,
       typeUses: TypeUses.FieldType,
       constantType: ConstantType.FieldType
-  ) = this(s"${EtKind.Constant}.$name", name, proposition, propositionUses, typeUses, constantType)
-}
-
-/** Documentation.
-  *
-  * @param documentationKind kind of documentation
-  */
-final case class DocumentationEt private (
-    override val id: Id.FieldType,
-    sourceFile: SourceFile.FieldType,
-    startPosition: StartPosition.FieldType,
-    endPosition: EndPosition.FieldType,
-    sourceText: SourceText.FieldType,
-    documentationKind: DocumentationKind.FieldType
-) extends BaseEt
-    with Discriminator[EtKind, Kind.type, EtKind.Documentation.type] {
-  require(id == s"$sourceFile.$startPosition.$documentationKind")
-
-  def this(
-      sourceFile: SourceFile.FieldType,
-      startPosition: StartPosition.FieldType,
-      endPosition: EndPosition.FieldType,
-      sourceText: SourceText.FieldType,
-      documentationKind: DocumentationKind.FieldType
-  ) =
-    this(
-      s"$sourceFile.$startPosition.$documentationKind",
-      sourceFile,
-      startPosition,
-      endPosition,
-      sourceText,
-      documentationKind)
+  ) = this(s"${ThyEtKind.Constant}.$name", name, proposition, propositionUses, typeUses, constantType)
 }
 
 /** Any fact.
@@ -117,15 +117,15 @@ final case class FactEt private (
     override val propositionUses: PropositionUses.FieldType,
     proofUses: ProofUses.FieldType
 ) extends TheoryEt
-    with Discriminator[EtKind, Kind.type, EtKind.Fact.type] {
-  require(id == s"${EtKind.Fact}.$name")
+    with Discriminator[ThyEtKind, Kind.type, ThyEtKind.Fact.type] {
+  require(id == s"${ThyEtKind.Fact}.$name")
 
   def this(
       name: Name.FieldType,
       proposition: Proposition.FieldType,
       propositionUses: PropositionUses.FieldType,
       proofUses: ProofUses.FieldType
-  ) = this(s"${EtKind.Fact}.$name", name, proposition, propositionUses, proofUses)
+  ) = this(s"${ThyEtKind.Fact}.$name", name, proposition, propositionUses, proofUses)
 }
 
 /** Type entity. */
@@ -135,12 +135,12 @@ final case class TypeEt private (
     override val proposition: Proposition.FieldType,
     override val propositionUses: PropositionUses.FieldType
 ) extends TheoryEt
-    with Discriminator[EtKind, Kind.type, EtKind.Type.type] {
-  require(id == s"${EtKind.Type}.$name")
+    with Discriminator[ThyEtKind, Kind.type, ThyEtKind.Type.type] {
+  require(id == s"${ThyEtKind.Type}.$name")
 
   def this(
       name: Name.FieldType,
       proposition: Proposition.FieldType,
       propositionUses: PropositionUses.FieldType
-  ) = this(s"${EtKind.Type}.$name", name, proposition, propositionUses)
+  ) = this(s"${ThyEtKind.Type}.$name", name, proposition, propositionUses)
 }

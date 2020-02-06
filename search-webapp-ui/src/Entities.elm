@@ -68,20 +68,6 @@ kindToString kind =
             "Type"
 
 
-
--- JSON
-
-
-decoder : Decoder ResultList
-decoder =
-    Decode.list blockDecoder
-
-
-kindDecoder : Decoder Kind
-kindDecoder =
-    Decode.string |> Decode.andThen kindFromString
-
-
 kindFromString : String -> Decoder Kind
 kindFromString string =
     case string of
@@ -95,7 +81,21 @@ kindFromString string =
             Decode.succeed Type
 
         _ ->
-            Decode.fail ("Invalid kind: " ++ string)
+            Decode.fail ("Invalid theory entity kind: " ++ string)
+
+
+
+-- JSON
+
+
+decoder : Decoder ResultList
+decoder =
+    Decode.list blockDecoder
+
+
+kindDecoder : Decoder Kind
+kindDecoder =
+    Decode.string |> Decode.andThen kindFromString
 
 
 blockDecoder : Decoder ShortBlock

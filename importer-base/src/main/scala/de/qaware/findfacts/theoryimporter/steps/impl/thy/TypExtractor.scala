@@ -15,18 +15,37 @@ class TypExtractor(nameExtractor: NameExtractor) {
     * @return pretty string
     */
   def prettyPrint(typ: Typ): String = typ match {
-    case TypeTyp(PureSyntax.Fun.name, args) => s"(${args.map(prettyPrint).mkString(" ⇒ ")})"
+    // Functions
+    case TypeTyp(PureSyntax.Fun.name, List()) => "()"
+    case TypeTyp(PureSyntax.Fun.name, List(single)) => s"() ⇒ ${prettyPrint(single)}"
+    case TypeTyp(PureSyntax.Fun.name, args) =>
+      (args.dropRight(1).map(prettyPrintFnArg) ++ args.takeRight(1).map(prettyPrint)).mkString(" ⇒ ")
+
+    // Arbitrary c-tors
     case TypeTyp(name, List()) => name
-    case TypeTyp(name, List(single)) => s"${prettyPrint(single)} $name"
-    case TypeTyp(name, args) => s"(${args.map(prettyPrint).mkString(" ⇒ ")}) $name"
+    case TypeTyp(name, List(single)) => s"${prettyPrintCtorArg(single)} $name"
+    case TypeTyp(name, args) => s"(${args.map(prettyPrint).mkString(", ")}) $name"
 
-    case TFree(name, List()) => name
-    case TFree(name, List(single)) => s"($name::$single)"
-    case TFree(name, args) => s"($name::{${args.mkString(",")}})"
+    case TFree(name, sorts) => s"$name${prettyPrintSorts(sorts)}"
+    case TVar(indexname, sorts) => s"${nameExtractor.prettyPrint(indexname)}${prettyPrintSorts(sorts)}"
+  }
 
-    case TVar(name, List()) => nameExtractor.prettyPrint(name)
-    case TVar(name, List(single)) => s"(${nameExtractor.prettyPrint(name)}::$single)"
-    case TVar(name, sort) => s"(${nameExtractor.prettyPrint(name)}::{${sort.mkString(",")}})"
+  private def prettyPrintFnArg(typ: Typ): String = typ match {
+    case TypeTyp(PureSyntax.Fun.name, _ :: _) => s"(${prettyPrint(typ)})"
+    case _ => prettyPrint(typ)
+  }
+
+  private def prettyPrintCtorArg(typ: Typ): String = typ match {
+    case TypeTyp(PureSyntax.Fun.name, List()) | TypeTyp(_, List()) => prettyPrint(typ)
+    case TypeTyp(PureSyntax.Fun.name, _) | TypeTyp(_, _) | TFree(_, List(_)) | TVar(_, List(_)) =>
+      s"(${prettyPrint(typ)})"
+    case _ => prettyPrint(typ)
+  }
+
+  private def prettyPrintSorts(sorts: List[String]): String = sorts match {
+    case List() => ""
+    case List(single) => s" :: $single"
+    case List(args) => s" :: {${args.mkString(", ")}}"
   }
 
   /** Finds types referenced by this type.

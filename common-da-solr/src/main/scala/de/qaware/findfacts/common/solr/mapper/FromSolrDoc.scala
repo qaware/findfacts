@@ -162,11 +162,13 @@ object FromSolrDoc {
     rMapper.getSolrFields ++ lMapper.value.getSolrFields + fieldWitness.value,
     doc => {
       Try {
-        val docVarField = fieldWitness.value
-        val docVariant: B = docVarField.fromJsonString(doc.getFieldValue(docVarField.name).toString)
-        val typeVariant: B = variantWitness.value
+        val variantField = fieldWitness.value
+        val actualVariantValue = doc.getFieldValue(variantField.name)
+        val expectedVariant: B = variantWitness.value
 
-        if (docVariant == typeVariant) {
+        // For complex coproducts, the variant type of the document might be null for the expected variant enum.
+        // This is because the other types in the coproduct might define other variant enums in nested types.
+        if (actualVariantValue != null && variantField.fromJsonString(actualVariantValue.toString) == expectedVariant) {
           // Right type of entity found (it is L)
           lMapper.value.fromSolrDoc(doc).map(_.asInstanceOf[FieldType[K, L @@ Variant[_, F, V]]]).map(Inl(_))
         } else {
