@@ -42,7 +42,6 @@ sealed trait ShortThyEt {
   val id: Id.FieldType
   val kind: ThyEtKind.Value
   val name: Name.FieldType
-  val proposition: Proposition.FieldType
 
   /** Short description for the entity, e.g. to display in results. */
   val shortDescription: String
@@ -52,11 +51,10 @@ sealed trait ShortThyEt {
 final case class ConstantShortEt(
     override val id: EtField.Id.FieldType,
     override val name: Name.FieldType,
-    override val proposition: Proposition.FieldType,
     constType: ConstantType.FieldType,
 ) extends ShortThyEt
     with Discriminator[ThyEtKind, Kind.type, ThyEtKind.Constant.type] {
-  override val shortDescription: String = s"$name :: $constType"
+  override val shortDescription: String = constType
   override val kind: ThyEtKind.Value = ThyEtKind.Constant
 }
 
@@ -64,10 +62,9 @@ final case class ConstantShortEt(
 final case class FactShortEt(
     override val id: EtField.Id.FieldType,
     override val name: Name.FieldType,
-    override val proposition: Proposition.FieldType,
 ) extends ShortThyEt
     with Discriminator[ThyEtKind, Kind.type, ThyEtKind.Fact.type] {
-  override val shortDescription: String = name
+  override val shortDescription: String = ""
   override val kind: ThyEtKind.Value = ThyEtKind.Fact
 }
 
@@ -75,9 +72,8 @@ final case class FactShortEt(
 final case class TypeShortEt(
     override val id: EtField.Id.FieldType,
     override val name: Name.FieldType,
-    override val proposition: Proposition.FieldType,
 ) extends ShortThyEt
     with Discriminator[ThyEtKind, Kind.type, ThyEtKind.Type.type] {
-  override val shortDescription: String = name
+  override val shortDescription: String = ""
   override val kind: ThyEtKind.Value = ThyEtKind.Type
 }

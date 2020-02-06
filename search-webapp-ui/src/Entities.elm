@@ -23,7 +23,6 @@ type alias ShortEt =
     { id : String
     , kind : Kind
     , name : String
-    , proposition : String
     , shortDescription : String
     }
 
@@ -114,9 +113,8 @@ childDecoder =
 
 shortDecoder : Decoder ShortEt
 shortDecoder =
-    Decode.map5 ShortEt
+    Decode.map4 ShortEt
         (Decode.field "id" Decode.string)
         (Decode.field "kind" kindDecoder)
         (Decode.field "name" Decode.string)
-        (Decode.field "proposition" Decode.string)
         (Decode.field "description" Decode.string)

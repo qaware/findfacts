@@ -106,7 +106,7 @@ facetSelected facet =
 getFilterTerm : String -> FilterTerm
 getFilterTerm str =
     if String.startsWith "\"" str && String.endsWith "\"" str then
-        Exact str
+        str |> String.dropLeft 1 |> String.dropRight 1 |> Exact
 
     else
         Term str

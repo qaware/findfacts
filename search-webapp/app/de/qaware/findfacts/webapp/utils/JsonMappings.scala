@@ -15,10 +15,10 @@ class JsonMappings {
   // Encoding
   implicit val codeblockEtEncoder: Encoder[CodeblockEt] = deriveEncoder[CodeblockEt]
 
-  // Custom encodings: encode trait values and not union type
+  // Custom encodings: encode trait values and not full union types
   implicit val shortThyEncoder: Encoder[ShortThyEt] =
-    Encoder.forProduct5("id", "kind", "name", "proposition", "description") { thyEt =>
-      (thyEt.id, thyEt.kind, thyEt.name, thyEt.proposition, thyEt.shortDescription)
+    Encoder.forProduct4("id", "kind", "name", "description") { thyEt =>
+      (thyEt.id, thyEt.kind, thyEt.name, thyEt.shortDescription)
     }
 
   implicit val shortListEncoder: Encoder[List[ShortThyEt]] = Encoder.encodeList(shortThyEncoder)

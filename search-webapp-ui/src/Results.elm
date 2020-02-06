@@ -129,13 +129,19 @@ renderEntity : ShortEt -> ListGroup.Item msg
 renderEntity et =
     ListGroup.li [ ListGroup.light ]
         [ Grid.container []
-            [ Grid.row []
+            (Grid.row []
                 [ Grid.col [ Col.xs, Col.lg2 ] [ text (kindToString et.kind) ]
                 , Grid.col [] [ text et.name ]
                 ]
-            , Grid.row []
-                [ Grid.col [ Col.xs, Col.lg2 ] []
-                , Grid.col [] [ text et.proposition ]
-                ]
-            ]
+                :: (if String.isEmpty et.shortDescription then
+                        []
+
+                    else
+                        [ Grid.row []
+                            [ Grid.col [ Col.xs, Col.lg2 ] []
+                            , Grid.col [] [ text et.shortDescription ]
+                            ]
+                        ]
+                   )
+            )
         ]

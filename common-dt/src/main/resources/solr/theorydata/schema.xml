@@ -35,6 +35,7 @@
         <fieldType name="type_syntax" class="solr.TextField">
             <analyzer>
                 <filter class="solr.ASCIIFoldingFilterFactory" preserveOriginal="false"/>
+                <filter class="solr.PatternReplaceCharFilterFactory" pattern="⇒" replacement="->"/>
                 <tokenizer class="solr.PatternTokenizerFactory" pattern="[\(\)\{\},]|::|->|([^\(\)\{\},\s:-]|:[^\(\)\{\},\s:]|-[^\(\)\{\},\s>])+" group="0"/>
                 <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
