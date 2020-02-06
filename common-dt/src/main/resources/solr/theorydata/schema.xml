@@ -9,8 +9,10 @@
         <field name="start_pos" type="pint" uninvertible="false" multiValued="false"/>
         <field name="end_pos" type="pint" uninvertible="false" multiValued="false"/>
         <field name="start_line" type="pint" multiValued="false"/>
-        <field name="name" type="string" multiValued="false" omitNorms="true"/>
+        <field name="name" type="full_text" multiValued="false" omitNorms="true"/>
+        <field name="name_facet" type="string" multiValued="false" omitNorms="true"/>
         <field name="type" type="type_syntax" multiValued="false"/>
+        <field name="type_facet" type="string" multiValued="false"/>
         <field name="doc_kind" type="string" docValues="true" multiValued="false"/>
         <field name="prop" type="term_syntax" uninvertible="false" multiValued="false"/>
         <field name="src" type="full_text" uninvertible="false" multiValued="false"/>
@@ -19,6 +21,9 @@
         <field name="proof_uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
         <field name="_version_" type="plong" indexed="false" stored="false" multiValued="false"/>
     </fields>
+
+    <copyField source="type" dest="type_facet"/>
+    <copyField source="name" dest="name_facet"/>
 
     <uniqueKey>id</uniqueKey>
 

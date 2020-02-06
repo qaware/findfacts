@@ -10,6 +10,7 @@ import Result.Extra
 
 type FilterTerm
     = Term String
+    | Exact String
     | InRange Int Int
     | AnyInResult AbstractFQ
     | AllInResult AbstractFQ
@@ -27,12 +28,11 @@ type Field
     | CmdKind
     | Src
     | SrcFile
-    | StartPos
-    | EndPos
     | Name
     | Kind
     | Prop
     | ConstType
+    | ConstTypeFacet
     | DocKind
 
 
@@ -68,12 +68,6 @@ fieldToString field =
         SrcFile ->
             "SourceTheory"
 
-        StartPos ->
-            "StartPosition"
-
-        EndPos ->
-            "EndPosition"
-
         Kind ->
             "Kind"
 
@@ -85,6 +79,9 @@ fieldToString field =
 
         ConstType ->
             "ConstantType"
+
+        ConstTypeFacet ->
+            "ConstantTypeFacet"
 
         DocKind ->
             "DocumentationKind"
@@ -109,12 +106,6 @@ fieldFromString str =
         "SourceTheory" ->
             Ok SrcFile
 
-        "StartPosition" ->
-            Ok StartPos
-
-        "EndPosition" ->
-            Ok EndPos
-
         "Kind" ->
             Ok Kind
 
@@ -126,6 +117,9 @@ fieldFromString str =
 
         "ConstantType" ->
             Ok ConstType
+
+        "ConstantTypeFacet" ->
+            Ok ConstTypeFacet
 
         "DocumentationKind" ->
             Ok DocKind
@@ -143,6 +137,9 @@ encodeFilterTerm term =
     case term of
         Term str ->
             object [ ( "Term", object [ ( "inner", string str ) ] ) ]
+
+        Exact str ->
+            object [ ( "Exact", object [ ( "inner", string str ) ] ) ]
 
         InRange from to ->
             object

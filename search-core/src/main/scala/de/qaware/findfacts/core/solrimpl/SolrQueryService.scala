@@ -66,7 +66,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
           field -> facetField.getBuckets.asScala.map(bucket => bucket.getVal.toString -> bucket.getCount).toMap
         }
       }
-      res.toMap
+      res.filter(_._2.size < facetQuery.maxFacets).toMap
     }
   }
 

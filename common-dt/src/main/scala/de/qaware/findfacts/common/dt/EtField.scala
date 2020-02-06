@@ -36,7 +36,7 @@ object EtField extends DefaultEnum[EtField] {
 
   /** Kind of command span. */
   case object CommandKind extends SingleValuedField[CmdKind] with ParentField {
-    override val name: String = SolrSchema.CommandKind
+    override final val name = SolrSchema.CommandKind
     override val implicits = FieldImplicits()
   }
 
@@ -77,19 +77,24 @@ object EtField extends DefaultEnum[EtField] {
   }
 
   case object ChildIds extends ChildrenField[IdChild] with ParentField {
-    override val name: String = SolrSchema.Children
+    override final val name: String = SolrSchema.Children
     override val implicits = FieldImplicits()
   }
 
   /** Kind of theory entity. Possible values in [[Kind]]. */
   case object Kind extends SingleValuedField[ThyEtKind] with ChildField {
-    override val name: String = SolrSchema.TheoryKind
+    override final val name = SolrSchema.TheoryKind
     override val implicits = FieldImplicits()
   }
 
   /** Long (in most cases fully-qualified) name. */
   case object Name extends SingleValuedField[String] with ChildField {
     override final val name = SolrSchema.Name
+    override val implicits = FieldImplicits()
+  }
+  
+  case object NameFacet extends SingleValuedField[String] with ChildField {
+    override final val name = SolrSchema.NameFacet
     override val implicits = FieldImplicits()
   }
 
@@ -102,6 +107,12 @@ object EtField extends DefaultEnum[EtField] {
   /** Type of a constant entity. */
   case object ConstantType extends SingleValuedField[String] with ChildField {
     override final val name = SolrSchema.ConstantType
+    override val implicits = FieldImplicits()
+  }
+
+  /** Facetable field for a constant entity. */
+  case object ConstantTypeFacet extends SingleValuedField[String] with ChildField {
+    override final val name = SolrSchema.ConstantTypeFacet
     override val implicits = FieldImplicits()
   }
 

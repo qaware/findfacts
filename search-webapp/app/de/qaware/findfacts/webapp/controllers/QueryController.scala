@@ -71,7 +71,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
       }
     }
   },
-  "fields" : [ "Kind", "Name", "SourceTheory" ],
+  "fields" : [ "Kind", "NameFacet", "SourceTheory" ],
   "maxFacets": 10
 }
 """

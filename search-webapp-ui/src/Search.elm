@@ -25,7 +25,7 @@ import Tuple as Pair
 
 facetableFields : List Field
 facetableFields =
-    [ CmdKind, SrcFile, Kind, ConstType, DocKind ]
+    [ CmdKind, SrcFile, Kind, ConstTypeFacet, DocKind ]
 
 
 termFilterableFields : List Field
@@ -103,13 +103,22 @@ facetSelected facet =
     facet |> Dict.values |> List.any .selected
 
 
+getFilterTerm : String -> FilterTerm
+getFilterTerm str =
+    if String.startsWith "\"" str && String.endsWith "\"" str then
+        Exact str
+
+    else
+        Term str
+
+
 
 -- QUERYING
 
 
-buildSingleFQ : Field -> String -> AbstractFQ
-buildSingleFQ field val =
-    Filter [ ( field, Term val ) ]
+buildSingleFQ : Field -> FilterTerm -> AbstractFQ
+buildSingleFQ field term =
+    Filter [ ( field, term ) ]
 
 
 buildFacetFQ : Field -> Facet -> Maybe AbstractFQ
@@ -119,10 +128,17 @@ buildFacetFQ field facet =
             Nothing
 
         exp :: [] ->
-            Just (buildSingleFQ field exp)
+            Just (buildSingleFQ field (Exact exp))
 
         exp1 :: exp2 :: exps ->
-            Just (Union (buildSingleFQ field exp1) (buildSingleFQ field exp2) (map (buildSingleFQ field) exps))
+            Just
+                (Union (buildSingleFQ field (Exact exp1))
+                    (buildSingleFQ field (Exact exp2))
+                    (exps
+                        |> map Exact
+                        |> map (buildSingleFQ field)
+                    )
+                )
 
 
 buildFieldSearcherFQ : FieldSearcher -> Maybe AbstractFQ
@@ -131,7 +147,7 @@ buildFieldSearcherFQ fieldSearcher =
         fieldSearcher.facetSelect |> Maybe.map Pair.second |> Maybe.andThen (buildFacetFQ fieldSearcher.field)
 
     else
-        Just (buildSingleFQ fieldSearcher.field fieldSearcher.value)
+        fieldSearcher.value |> getFilterTerm |> buildSingleFQ fieldSearcher.field |> Just
 
 
 buildFQ : State -> AbstractFQ
@@ -142,9 +158,13 @@ buildFQ state =
                 []
 
             else
-                [ Union (buildSingleFQ Query.Name state.termSearcher)
-                    (buildSingleFQ Query.Src state.termSearcher)
-                    [ buildSingleFQ Query.Prop state.termSearcher ]
+                let
+                    filterTerm =
+                        getFilterTerm state.termSearcher
+                in
+                [ Union (buildSingleFQ Query.Name filterTerm)
+                    (buildSingleFQ Query.Src filterTerm)
+                    [ buildSingleFQ Query.Prop filterTerm ]
                 ]
 
         fieldFQs =
