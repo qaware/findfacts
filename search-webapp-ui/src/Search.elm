@@ -25,12 +25,16 @@ import Tuple as Pair
 
 facetableFields : List Field
 facetableFields =
-    [ Kind, File ]
+    [ CmdKind, SrcFile, Kind, ConstType, DocKind ]
 
 
-filterableFields : List Field
-filterableFields =
-    [ Name, Kind, Src, File, Prop, StartPosition, EndPosition, ConstType ]
+termFilterableFields : List Field
+termFilterableFields =
+    [ CmdKind, Src, SrcFile, Name, Kind, Prop, ConstType, DocKind ]
+
+
+rangeFilterableFields =
+    []
 
 
 
@@ -57,6 +61,7 @@ type alias State =
 
 
 type alias Facet =
+    -- Name -> FacetEntry
     Dict String FacetEntry
 
 
@@ -67,6 +72,7 @@ type alias FacetEntry =
 
 
 type alias Faceting =
+    -- Field -> (implicit dict key) -> Facet Values
     AnyDict String Field Facet
 
 
@@ -244,30 +250,32 @@ subscriptions state toMsg =
 view : State -> Config msg -> List (Html msg)
 view state conf =
     [ Grid.container []
-        (map (renderFacetSearcher state conf) (AnyDict.toList state.facetSelectors)
-            ++ [ Grid.row []
-                    [ Grid.col [ Col.xs1 ] []
-                    , Grid.col []
-                        [ InputGroup.config
-                            (InputGroup.text
-                                [ Input.placeholder "Search for"
-                                , Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ]
-                                , Input.onInput (\text -> conf.toMsg { state | termSearcher = text })
-                                , Input.value state.termSearcher
-                                ]
-                            )
-                            |> InputGroup.successors
-                                [ InputGroup.button
-                                    [ Button.primary
-                                    , Button.onClick conf.exec
-                                    ]
-                                    [ text "Go!" ]
-                                ]
-                            |> InputGroup.view
+        (Grid.row
+            []
+            [ Grid.col []
+                [ InputGroup.config
+                    (InputGroup.text
+                        [ Input.placeholder "Search for"
+                        , Input.attrs [ Events.onBlur conf.exec, ExtraEvents.onEnter conf.exec ]
+                        , Input.onInput (\text -> conf.toMsg { state | termSearcher = text })
+                        , Input.value state.termSearcher
                         ]
-                    ]
-               ]
-            ++ (Array.indexedMap (\i -> renderFieldSearcher conf (\f -> { state | fieldSearchers = Array.set i f state.fieldSearchers })) state.fieldSearchers |> Array.toList)
+                    )
+                    |> InputGroup.successors
+                        [ InputGroup.button
+                            [ Button.primary
+                            , Button.onClick conf.exec
+                            ]
+                            [ text "Go!" ]
+                        ]
+                    |> InputGroup.view
+                ]
+            ]
+            :: (Array.indexedMap
+                    (\i -> renderFieldSearcher conf (\f -> { state | fieldSearchers = Array.set i f state.fieldSearchers }))
+                    state.fieldSearchers
+                    |> Array.toList
+               )
             ++ [ Grid.row []
                     [ Grid.col [ Col.xs1 ]
                         [ Dropdown.dropdown
@@ -291,11 +299,16 @@ view state conf =
                                             ]
                                             [ text (fieldToString f) ]
                                     )
-                                    filterableFields
+                                    termFilterableFields
                             }
                         ]
                     ]
                ]
+            ++ (state.facetSelectors
+                    |> AnyDict.filter (\_ facet -> not (Dict.isEmpty facet) || facetSelected facet)
+                    |> AnyDict.toList
+                    |> map (renderFacetSearcher state conf)
+               )
         )
     ]
 
@@ -363,7 +376,7 @@ renderFieldSearcher conf stateFromElem fieldSearcher =
                                 ]
                                 [ text (fieldToString f) ]
                         )
-                        filterableFields
+                        termFilterableFields
                 }
             ]
         , Grid.col []

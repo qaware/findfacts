@@ -24,14 +24,16 @@ type AbstractFQ
 
 type Field
     = Id
+    | CmdKind
+    | Src
+    | SrcFile
+    | StartPos
+    | EndPos
     | Name
     | Kind
-    | Src
-    | File
     | Prop
-    | StartPosition
-    | EndPosition
     | ConstType
+    | DocKind
 
 
 type Query
@@ -54,32 +56,38 @@ type alias FacetResult =
 fieldToString : Field -> String
 fieldToString field =
     case field of
-        Name ->
-            "Name"
-
-        Kind ->
-            "Kind"
-
-        StartPosition ->
-            "StartPosition"
-
-        EndPosition ->
-            "EndPosition"
-
         Id ->
             "Id"
+
+        CmdKind ->
+            "CommandKind"
 
         Src ->
             "SourceText"
 
+        SrcFile ->
+            "SourceTheory"
+
+        StartPos ->
+            "StartPosition"
+
+        EndPos ->
+            "EndPosition"
+
+        Kind ->
+            "Kind"
+
+        Name ->
+            "Name"
+
         Prop ->
             "Proposition"
 
-        File ->
-            "SourceTheory"
-
         ConstType ->
             "ConstantType"
+
+        DocKind ->
+            "DocumentationKind"
 
 
 
@@ -89,23 +97,38 @@ fieldToString field =
 fieldFromString : String -> Result String Field
 fieldFromString str =
     case str of
-        "Name" ->
-            Ok Name
+        "Id" ->
+            Ok Id
+
+        "CommandKind" ->
+            Ok CmdKind
+
+        "SourceText" ->
+            Ok Src
+
+        "SourceTheory" ->
+            Ok SrcFile
+
+        "StartPosition" ->
+            Ok StartPos
+
+        "EndPosition" ->
+            Ok EndPos
 
         "Kind" ->
             Ok Kind
 
-        "StartPosition" ->
-            Ok StartPosition
+        "Name" ->
+            Ok Name
 
-        "EndPosition" ->
-            Ok EndPosition
-
-        "SourceTheory" ->
-            Ok File
+        "Proposition" ->
+            Ok Prop
 
         "ConstantType" ->
             Ok ConstType
+
+        "DocumentationKind" ->
+            Ok DocKind
 
         _ ->
             Err ("No such field: " ++ str)

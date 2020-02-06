@@ -56,13 +56,17 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
       val res = facetQuery.fields.map { field =>
         val facetField = solrResult.getJsonFacetingResponse.getBucketBasedFacets(field.name)
 
-        if (facetField.getBuckets == null) {
-          return Failure(new SolrServerException(s"Faceting does not contain buckets!"))
+        if (facetField == null) {
+          // Null indicates zero facet values for field here
+          field -> Map.empty[String, Long]
+        } else {
+          if (facetField.getBuckets == null) {
+            return Failure(new SolrServerException("Faceting does not contain buckets!"))
+          }
+          field -> facetField.getBuckets.asScala.map(bucket => bucket.getVal.toString -> bucket.getCount).toMap
         }
-
-        field -> facetField.getBuckets.asScala.map(bucket => bucket.getVal.toString -> bucket.getCount).toMap
       }
-      res.filter(_._2.size < facetQuery.maxFacets).toMap
+      res.toMap
     }
   }
 

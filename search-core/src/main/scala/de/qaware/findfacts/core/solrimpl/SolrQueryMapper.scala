@@ -23,6 +23,7 @@ import de.qaware.findfacts.core.{
   InRange,
   Term
 }
+import org.apache.solr.client.solrj.SolrQuery.ORDER
 import org.apache.solr.client.solrj.request.json.{DomainMap, JsonQueryRequest, TermsFacetMap}
 // scalastyle:off
 import de.qaware.findfacts.common.utils.TryUtils._
@@ -182,6 +183,15 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
   /** Selector for parents. */
   final val SelectParents = "child parentFilter"
 
+  /** Root field name */
+  final val RootField = "_root_"
+
+  /** Stats subfacet to aggregate parent blocks. */
+  final val BlockAggregation = s"uniqueBlock($RootField)"
+
+  /** Name of field for block aggregation subfacet. Overrides the default 'count' field. */
+  final val BlockCountField = "count"
+
   /** Builds solr query for a filter query.
     *
     * @param queryService for recursive calls
@@ -197,7 +207,8 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
       qParams.foreach(param => solrQuery.setParam(param._1, param._2: _*))
       solrQuery
         .setFacet(false)
-        .addField(s"[$SelectParents=${SolrMapper.ParentFilter}]")
+        .addField(s"[$SelectParents=${SolrMapper.ParentFilter} limit=-1]")
+        .addSort(RootField, ORDER.desc)
         .setRows(query.maxResults)
     }
   }
@@ -225,7 +236,8 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
       facetQuery.fields foreach { field =>
         val facet = new TermsFacetMap(field.name).setMinCount(1).setLimit(facetQuery.maxFacets + 1)
         if (field.isChild) {
-          facet.withDomain(domainMap)
+          // For child fields, go to child documents domain and then count unique parent blocks.
+          facet.withDomain(domainMap).withStatSubFacet(BlockCountField, BlockAggregation)
         }
         jsonRequest.withFacet(field.name, facet)
       }
