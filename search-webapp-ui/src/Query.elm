@@ -203,8 +203,8 @@ encodeFieldTerm ( field, term ) =
 encode : Query -> Value
 encode query =
     case query of
-        FilterQuery filter maxResults ->
-            object [ ( "filter", encodeAbstractFQ filter ), ( "maxResults", int maxResults ) ]
+        FilterQuery filter pageSize ->
+            object [ ( "filter", encodeAbstractFQ filter ), ( "pageSize", int pageSize ) ]
 
         FacetQuery filter fields maxFacets ->
             object

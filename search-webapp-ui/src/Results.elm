@@ -10,7 +10,7 @@ import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.ListGroup as ListGroup
 import Bootstrap.Text as Text
-import Entities exposing (Kind(..), ResultList, ShortBlock, ShortEt, compareByKind, kindToString)
+import Entities exposing (Kind(..), ResultShortlist, ShortBlock, ShortEt, compareByKind, kindToString)
 import Html exposing (Html, br, pre, text)
 
 
@@ -36,9 +36,9 @@ type alias State =
     Array Result
 
 
-init : ResultList -> State
+init : ResultShortlist -> State
 init resultList =
-    resultList |> List.map (Result False) |> Array.fromList
+    resultList.values |> List.map (Result False) |> Array.fromList
 
 
 

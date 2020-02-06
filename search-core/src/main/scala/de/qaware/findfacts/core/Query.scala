@@ -10,15 +10,15 @@ sealed trait AbstractFQ
 
 // Primitives
 /** Filters by terms, seperated by whitespace.
- *
- * @param inner string
- */
+  *
+  * @param inner string
+  */
 final case class Term(inner: String) extends FilterTerm
 
 /** Filters by exact terms.
- *
- * @param inner string
- */
+  *
+  * @param inner string
+  */
 final case class Exact(inner: String) extends FilterTerm
 
 // Filter Terms
@@ -82,6 +82,7 @@ final case class FacetQuery(filter: AbstractFQ, fields: Set[EtField], maxFacets:
 /** Query to filter for results.
   *
   * @param filter to apply
-  * @param maxResults maximum number of results to stream back
+  * @param pageSize maximum number of results to stream back
+  * @param cursor to specify which page should be fetched, if it isn't the first
   */
-final case class FilterQuery(filter: AbstractFQ, maxResults: Int)
+final case class FilterQuery(filter: AbstractFQ, pageSize: Int = 10, cursor: Option[String] = None)

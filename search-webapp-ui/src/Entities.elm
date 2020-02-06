@@ -1,4 +1,4 @@
-module Entities exposing (Kind(..), ResultList, ShortBlock, ShortEt, compareByKind, decoder, kindToString)
+module Entities exposing (Kind(..), ResultShortlist, ShortBlock, ShortEt, compareByKind, decoder, kindToString)
 
 import Json.Decode as Decode exposing (Decoder, list)
 
@@ -7,8 +7,11 @@ import Json.Decode as Decode exposing (Decoder, list)
 -- Entities
 
 
-type alias ResultList =
-    List ShortBlock
+type alias ResultShortlist =
+    { count : Int
+    , nextCursor : String
+    , values : List ShortBlock
+    }
 
 
 type alias ShortBlock =
@@ -87,9 +90,12 @@ kindFromString string =
 -- JSON
 
 
-decoder : Decoder ResultList
+decoder : Decoder ResultShortlist
 decoder =
-    Decode.list blockDecoder
+    Decode.map3 ResultShortlist
+        (Decode.field "count" Decode.int)
+        (Decode.field "nextCursor" Decode.string)
+        (Decode.field "values" (Decode.list blockDecoder))
 
 
 kindDecoder : Decoder Kind

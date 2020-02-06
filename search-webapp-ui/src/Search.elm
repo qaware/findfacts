@@ -186,7 +186,7 @@ buildFQ state =
 
 buildFilterQuery : State -> Query
 buildFilterQuery state =
-    FilterQuery (buildFQ state) 100
+    FilterQuery (buildFQ state) 20
 
 
 buildFacetQuery : State -> Query

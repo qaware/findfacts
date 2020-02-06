@@ -4,8 +4,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BaseEt, EtField, ShortCmdEt}
-import de.qaware.findfacts.core.{FacetQuery, Filter, FilterQuery, QueryService, Term}
+import de.qaware.findfacts.common.dt.{BaseEt, ShortCmdEt}
+import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
 import de.qaware.findfacts.webapp.utils.JsonMappings
 
 // scalastyle:off
@@ -55,7 +55,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
       }
     }
   },
-  "maxResults": 10
+  "pageSize": 10
 }
 """
   private final val ExampleFacetQuery = """
@@ -84,7 +84,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
   implicit val jsonPrinter: Printer = Printer.noSpacesSortKeys.copy(dropNullValues = true)
 
   protected def executeFilterQuery(query: FilterQuery): Result =
-    logIfErr(query.toString, queryService.getShortResults(query).map(_.toList.asJson))
+    logIfErr(query.toString, queryService.getResultShortlist(query).map(_.asJson))
 
   protected def executeFacetQuery(query: FacetQuery): Result =
     logIfErr(query.toString, queryService.getFacetResults(query).map(_.asJson))
@@ -126,14 +126,13 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
   @ApiResponses(Array(new ApiResponse(code = 400, message = NotFoundMsg)))
   def entity(@ApiParam(value = "ID of result entity to fetch", required = true) id: String): Action[AnyContent] =
     Action { implicit request: Request[AnyContent] =>
-      val singleQuery = FilterQuery(Filter(Map(EtField.Id -> Term(id))), 2)
-      queryService.getResults(singleQuery) match {
+      queryService.getResult(id) match {
         case Failure(exception) =>
           logger.error(s"Error executing id query: $exception")
           InternalServerError(InternalErrorMsg)
-        case Success(Vector(single)) => Ok(single.asJson)
-        case Success(values) =>
-          logger.error(s"Did not receive single value for id $id: ${values.mkString(",")}")
+        case Success(Some(value)) => Ok(value.asJson)
+        case Success(None) =>
+          logger.error(s"Elem not found for id: $id")
           BadRequest(NotFoundMsg)
       }
     }

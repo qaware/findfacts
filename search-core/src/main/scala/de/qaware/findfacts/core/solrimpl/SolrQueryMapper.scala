@@ -25,6 +25,7 @@ import de.qaware.findfacts.core.{
 }
 import org.apache.solr.client.solrj.SolrQuery.ORDER
 import org.apache.solr.client.solrj.request.json.{DomainMap, JsonQueryRequest, TermsFacetMap}
+import org.apache.solr.common.params.CursorMarkParams
 // scalastyle:off
 import de.qaware.findfacts.common.utils.TryUtils._
 // scalastyle:on
@@ -82,18 +83,15 @@ class SolrFilterTermMapper {
   /** Regex built from special characters */
   final private val EscapeRegex = SpecialCharacters.map(s => s"($s)").mkString("|").r
 
-  /** Default maximum number of result for recursive query. */
-  final val DefaultMaxResults = 100
-
   /** Builds nested query by executing inner one */
   private def buildInnerQuery(fq: AbstractFQ, connective: BiConnective)(implicit queryService: SolrQueryService) = {
-    queryService.getListResults[IdEt](FilterQuery(fq, DefaultMaxResults)) map {
-      case Vector() =>
+    queryService.getListResults[IdEt](FilterQuery(fq, -1)) map {
+      case (Vector(), _, _) =>
         connective match {
           case SolrMapper.And => s"${SolrMapper.All}"
           case SolrMapper.Or => s"(${SolrMapper.Not}${SolrMapper.All})"
         }
-      case elems: Any => s"(${elems.flatMap(_.children.map(_.id)).mkString(connective.str)})"
+      case (elems: Any, _, _) => s"(${elems.flatMap(_.children.map(_.id)).mkString(connective.str)})"
     }
   }
 
@@ -122,6 +120,15 @@ class SolrFilterTermMapper {
   */
 class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
 
+  /** Prefix for child query names. */
+  final val ChildFQPrefix = "childfq"
+
+  /** Selector field to choose parent documents. */
+  final val ParentSelector = "!parent which"
+
+  /** Filter field for child filters. */
+  final val ChildFilters = "filters"
+
   private def buildFieldTerms(fieldTerm: (EtField, FilterTerm))(
       implicit queryService: SolrQueryService): Try[String] = {
     termMapper.buildFilterQuery(fieldTerm._2).map(filter => s"${fieldTerm._1.name}:$filter")
@@ -131,13 +138,13 @@ class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
       implicit qParams: mutable.Map[String, Seq[String]]): String = {
     val parentF = if (parentTerms.isEmpty) "" else parentTerms.map(e => s" +$e").mkString
     if (childTerms.isEmpty) {
-      s"$parentF +{!parent which=${SolrMapper.ParentFilter}}"
+      s"$parentF +{$ParentSelector=${SolrMapper.ParentFilter}}"
     } else {
       // Make unique name
-      val filter = s"childfq${qParams.size}"
+      val filter = s"$ChildFQPrefix${qParams.size}"
       // Add child filter query (needs to be query parameter as solr query parser can't handle complex queries otherwise)
       qParams.put(filter, childTerms)
-      s"$parentF +{!parent which=${SolrMapper.ParentFilter} filters=" + "$" + s"$filter}"
+      s"$parentF +{$ParentSelector=${SolrMapper.ParentFilter} $ChildFilters=" + "$" + s"$filter}"
     }
   }
 
@@ -163,7 +170,7 @@ class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
         parentQ <- parentFieldTerms
         childQ <- childFieldTerms
         bothQ <- bothFieldTerms
-      } yield s"(${bothQ.map(e => s"$e AND").mkString}${makeQueryString(parentQ, childQ)})"
+      } yield s"(${bothQ.map(e => s"$e${SolrMapper.And.str}").mkString}${makeQueryString(parentQ, childQ)})"
     case FilterIntersection(f1, f2, fn @ _*) =>
       val filters: Try[Seq[String]] = (f1 +: f2 +: fn).map(buildFilter)
       filters.map(_.map(e => s"($e)").mkString(SolrMapper.And.str))
@@ -180,8 +187,8 @@ class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
   */
 class SolrQueryMapper(filterMapper: SolrFilterMapper) {
 
-  /** Selector for parents. */
-  final val SelectParents = "child parentFilter"
+  /** Query name of '_childDocuments_' field. */
+  final val ChildField = s"[child parentFilter=${SolrMapper.ParentFilter} limit=-1]"
 
   /** Root field name */
   final val RootField = "_root_"
@@ -191,6 +198,9 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
 
   /** Name of field for block aggregation subfacet. Overrides the default 'count' field. */
   final val BlockCountField = "count"
+
+  /** Name of the field which scores results, on which the result set is sorted. */
+  final val ScoreField = "score"
 
   /** Builds solr query for a filter query.
     *
@@ -204,12 +214,19 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
       fq <- filterMapper.buildFilter(query.filter)(qParams, queryService)
     } yield {
       val solrQuery = new solrj.SolrQuery().setQuery(fq)
+
+      // Set cursor to start or next cursor for paging
+      solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, query.cursor match {
+        case None => CursorMarkParams.CURSOR_MARK_START
+        case Some(cursor) => cursor
+      })
       qParams.foreach(param => solrQuery.setParam(param._1, param._2: _*))
       solrQuery
         .setFacet(false)
-        .addField(s"[$SelectParents=${SolrMapper.ParentFilter} limit=-1]")
-        .addSort(RootField, ORDER.desc)
-        .setRows(query.maxResults)
+        .addField(ChildField)
+        .setRows(query.pageSize)
+        .addSort(ScoreField, ORDER.desc)
+        .addSort(EtField.Id.name, ORDER.asc)
     }
   }
 
@@ -248,5 +265,14 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
 
       jsonRequest.setLimit(0).withFilter(fq).setQuery(SolrMapper.QueryAll)
     }
+  }
+
+  /** Builds a solr query to retrieve a single document by id.
+    *
+    * @param id to search for
+    * @return built solr query
+    */
+  def buildSingleQuery(id: EtField.Id.FieldType): solrj.SolrQuery = {
+    new solrj.SolrQuery().setQuery(s"${EtField.Id.name}:$id").setFields(SolrMapper.All, ChildField)
   }
 }

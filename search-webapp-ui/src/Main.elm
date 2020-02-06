@@ -6,7 +6,7 @@ import Bootstrap.Navbar as Navbar
 import Bootstrap.Spinner as Spinner
 import Browser
 import Browser.Navigation as Navigation
-import Entities exposing (ResultList)
+import Entities exposing (ResultShortlist)
 import Html exposing (Html, br, div, h1, text)
 import Html.Attributes exposing (href)
 import Http exposing (Error(..), expectJson, jsonBody)
@@ -70,7 +70,7 @@ type ResultState
     = Init
     | Searching
     | SearchError String
-    | SearchResult Results.State
+    | SearchResult Results.State Int String
 
 
 init : () -> Url -> Navigation.Key -> ( Model, Cmd Msg )
@@ -102,7 +102,7 @@ type Msg
     | UrlChanged Url
     | NavbarMsg Navbar.State
     | ExecuteQuery
-    | QueryResult (Result Http.Error ResultList)
+    | QueryResult (Result Http.Error ResultShortlist)
     | FacetResult (Result Http.Error FacetResult)
     | SearchMsg Search.State
     | ResultsMsg Results.State
@@ -143,7 +143,7 @@ update msg model =
                 )
 
         QueryResult (Ok results) ->
-            ( { model | resultState = SearchResult (Results.init results) }, Cmd.none )
+            ( { model | resultState = SearchResult (Results.init results) results.count results.nextCursor }, Cmd.none )
 
         QueryResult (Err e) ->
             ( { model
@@ -193,8 +193,8 @@ update msg model =
 
         ResultsMsg state ->
             case model.resultState of
-                SearchResult res ->
-                    ( { model | resultState = SearchResult state }, Cmd.none )
+                SearchResult res count cursor ->
+                    ( { model | resultState = SearchResult state count cursor }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -324,7 +324,19 @@ pageHome model =
     [ div []
         [ Grid.row []
             [ Grid.col [ Col.lg6 ]
-                [ h1 [] [ text "Search" ] ]
+                [ h1 []
+                    [ text
+                        ("Search"
+                            ++ (case model.resultState of
+                                    SearchResult _ count _ ->
+                                        " - " ++ String.fromInt count ++ " Results"
+
+                                    _ ->
+                                        ""
+                               )
+                        )
+                    ]
+                ]
             ]
         , br [] []
         , Grid.row []
@@ -346,7 +358,7 @@ pageHome model =
                     SearchError err ->
                         [ text err ]
 
-                    SearchResult res ->
+                    SearchResult res count cursor ->
                         Results.view ResultsMsg res
                 )
             ]

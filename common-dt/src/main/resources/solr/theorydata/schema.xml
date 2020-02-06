@@ -2,7 +2,7 @@
 <schema name="theorydata" version="1.6">
     <fields>
         <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
-        <field name="id" type="string" required="true" uninvertible="false" multiValued="false" omitTermFreqAndPositions="true"/>
+        <field name="id" type="string" required="true" docValues="false" uninvertible="true" multiValued="false" omitTermFreqAndPositions="true"/>
         <field name="cmd_kind" type="string" docValues="true" multiValued="false"/>
         <field name="thy_kind" type="string" docValues="true" multiValued="false"/>
         <field name="theory" type="string" docValues="true" multiValued="false" omitNorms="true"/>

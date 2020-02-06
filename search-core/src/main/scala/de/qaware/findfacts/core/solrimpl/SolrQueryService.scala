@@ -2,13 +2,14 @@ package de.qaware.findfacts.core.solrimpl
 
 import scala.collection.JavaConverters._
 import scala.language.{postfixOps, reflectiveCalls}
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{CodeblockEt, EtField, ShortCmdEt}
+import de.qaware.findfacts.common.dt.{BaseEt, EtField, ShortCmdEt}
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
-import de.qaware.findfacts.common.utils.TryUtils.flattenTryFailFirst
-import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
+import de.qaware.findfacts.common.utils.TryUtils._
+import de.qaware.findfacts.core.QueryService.{FacetResult, SingleResult}
+import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService, ResultShortlist}
 import org.apache.solr.client.solrj
 import org.apache.solr.client.solrj.request.json.JsonQueryRequest
 import org.apache.solr.client.solrj.response.QueryResponse
@@ -40,7 +41,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     }
   }
 
-  override def getFacetResults(facetQuery: FacetQuery): Try[Map[EtField, Map[String, Long]]] = {
+  override def getFacetResults(facetQuery: FacetQuery): Try[FacetResult] = {
     for {
       solrQuery <- mapper.buildFacetQuery(this, facetQuery)
       solrResult <- getSolrResult(Right(solrQuery))
@@ -75,24 +76,32 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     * @param filterQuery fo execute
     * @param docMapper for result types
     * @tparam A type of result
-    * @return vector containing results or error
+    * @return vector containing results, result count, and next cursor or error
     */
   private[solrimpl] def getListResults[A](filterQuery: FilterQuery)(
-      implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] = {
+      implicit docMapper: FromSolrDoc[A]): Try[(Vector[A], Long, String)] = {
     val results = for {
       query <- mapper.buildFilterQuery(this, filterQuery)
       () = docMapper.getSolrFields.foreach(f => query.addField(f.name))
       solrRes <- getSolrResult(Left(query))
-    } yield solrRes.getResults.asScala.map(docMapper.fromSolrDoc)
-
-    (results: Try[Seq[A]]).map(_.toVector)
+    } yield {
+      val resList: Try[Seq[A]] = solrRes.getResults.asScala.map(docMapper.fromSolrDoc)
+      resList.map(r => (r.toVector, solrRes.getResults.getNumFound, solrRes.getNextCursorMark))
+    }
+    results.flatten
   }
 
-  override def getResults(filterQuery: FilterQuery): Try[Vector[CodeblockEt]] = {
-    getListResults(filterQuery)(FromSolrDoc[CodeblockEt])
+  override def getResult(id: EtField.Id.FieldType): Try[SingleResult] = {
+    val query = mapper.buildSingleQuery(id)
+    getSolrResult(Left(query)).map(_.getResults.asScala.toList) flatMap {
+      case List(elem) => FromSolrDoc[BaseEt].fromSolrDoc(elem).map(Some(_))
+      case _ => Success(None)
+    }
   }
 
-  override def getShortResults(filterQuery: FilterQuery): Try[Vector[ShortCmdEt]] = {
-    getListResults(filterQuery)(FromSolrDoc[ShortCmdEt])
+  override def getResultShortlist(filterQuery: FilterQuery): Try[ResultShortlist] = {
+    getListResults(filterQuery)(FromSolrDoc[ShortCmdEt]) map {
+      case (values, count, nextCursor) => ResultShortlist(values, count, nextCursor)
+    }
   }
 }
