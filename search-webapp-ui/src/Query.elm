@@ -1,4 +1,16 @@
-module Query exposing (AbstractFQ(..), Facet, FacetResult, Field(..), FilterTerm(..), Query(..), decode, encode, fieldToString)
+module Query exposing
+    ( AbstractFQ(..)
+    , Facet
+    , FacetQuery
+    , FacetResult
+    , Field(..)
+    , FilterQuery
+    , FilterTerm(..)
+    , decode
+    , encodeFacetQuery
+    , encodeFilterQuery
+    , fieldToString
+    )
 
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
@@ -6,6 +18,7 @@ import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value, int, list, object, string)
 import List exposing (map)
 import Result.Extra
+import Util
 
 
 type FilterTerm
@@ -36,9 +49,18 @@ type Field
     | DocKind
 
 
-type Query
-    = FilterQuery AbstractFQ Int
-    | FacetQuery AbstractFQ (List Field) Int
+type alias FilterQuery =
+    { filter : AbstractFQ
+    , pageSize : Int
+    , cursor : Maybe String
+    }
+
+
+type alias FacetQuery =
+    { filter : AbstractFQ
+    , fields : List Field
+    , maxFacets : Int
+    }
 
 
 type alias Facet =
@@ -200,18 +222,20 @@ encodeFieldTerm ( field, term ) =
     ( fieldToString field, encodeFilterTerm term )
 
 
-encode : Query -> Value
-encode query =
-    case query of
-        FilterQuery filter pageSize ->
-            object [ ( "filter", encodeAbstractFQ filter ), ( "pageSize", int pageSize ) ]
+encodeFilterQuery : FilterQuery -> Value
+encodeFilterQuery filterQuery =
+    [ ( "filter", encodeAbstractFQ filterQuery.filter ), ( "pageSize", int filterQuery.pageSize ) ]
+        |> Util.consMaybe (filterQuery.cursor |> Maybe.map (\c -> ( "cursor", string c )))
+        |> object
 
-        FacetQuery filter fields maxFacets ->
-            object
-                [ ( "filter", encodeAbstractFQ filter )
-                , ( "fields", list (\f -> f |> fieldToString |> string) fields )
-                , ( "maxFacets", int maxFacets )
-                ]
+
+encodeFacetQuery : FacetQuery -> Value
+encodeFacetQuery facetQuery =
+    object
+        [ ( "filter", encodeAbstractFQ facetQuery.filter )
+        , ( "fields", list (\f -> f |> fieldToString |> string) facetQuery.fields )
+        , ( "maxFacets", int facetQuery.maxFacets )
+        ]
 
 
 facetDecode : Decoder Facet

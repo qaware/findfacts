@@ -1,4 +1,4 @@
-module Results exposing (Config, State, init, view)
+module ResultsComponent exposing (Config, State(..), empty, init, view)
 
 import Array exposing (Array)
 import Array.Extra
@@ -9,6 +9,7 @@ import Bootstrap.Card.Block as Block
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.ListGroup as ListGroup
+import Bootstrap.Spinner as Spinner
 import Bootstrap.Text as Text
 import Entities exposing (Kind(..), ResultShortlist, ShortBlock, ShortEt, compareByKind, kindToString)
 import Html exposing (Html, br, pre, text)
@@ -26,19 +27,32 @@ type alias Config msg =
 -- STATE
 
 
-type alias Result =
+type State
+    = Empty
+    | Searching
+    | Error String
+    | Result (Array ResultBlock)
+
+
+type alias ResultBlock =
     { open : Bool
     , block : ShortBlock
     }
 
 
-type alias State =
-    Array Result
+empty : State
+empty =
+    Empty
 
 
-init : ResultShortlist -> State
-init resultList =
-    resultList.values |> List.map (Result False) |> Array.fromList
+init : Result String ResultShortlist -> State
+init result =
+    case result of
+        Ok resultList ->
+            resultList.values |> List.map (ResultBlock False) |> Array.fromList |> Result
+
+        Err cause ->
+            Error cause
 
 
 
@@ -47,13 +61,24 @@ init resultList =
 
 view : Config msg -> State -> List (Html msg)
 view config state =
-    state
-        |> Array.indexedMap (\i res -> renderResult config res (\newRes -> Array.Extra.update i (\_ -> newRes) state))
-        |> Array.toList
-        |> List.concat
+    case state of
+        Empty ->
+            []
+
+        Searching ->
+            [ Spinner.spinner [] [] ]
+
+        Error err ->
+            [ text err ]
+
+        Result res ->
+            res
+                |> Array.indexedMap (\i r -> renderResult config r (\newRes -> Result (Array.Extra.update i (\_ -> newRes) res)))
+                |> Array.toList
+                |> List.concat
 
 
-renderResult : Config msg -> Result -> (Result -> State) -> List (Html msg)
+renderResult : Config msg -> ResultBlock -> (ResultBlock -> State) -> List (Html msg)
 renderResult conf res updateState =
     [ Card.config [ Card.align Text.alignXsLeft, Card.outlineSecondary ]
         |> Card.header [] []
