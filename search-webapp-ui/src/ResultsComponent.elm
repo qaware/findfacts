@@ -31,7 +31,8 @@ type State
     = Empty
     | Searching
     | Error String
-    | Result (Array ResultBlock)
+      -- count cursor results
+    | Result Int String (Array ResultBlock)
 
 
 type alias ResultBlock =
@@ -49,7 +50,10 @@ init : Result String ResultShortlist -> State
 init result =
     case result of
         Ok resultList ->
-            resultList.values |> List.map (ResultBlock False) |> Array.fromList |> Result
+            resultList.values
+                |> List.map (ResultBlock False)
+                |> Array.fromList
+                |> Result resultList.count resultList.nextCursor
 
         Err cause ->
             Error cause
@@ -71,9 +75,14 @@ view config state =
         Error err ->
             [ text err ]
 
-        Result res ->
+        Result count cursor res ->
             res
-                |> Array.indexedMap (\i r -> renderResult config r (\newRes -> Result (Array.Extra.update i (\_ -> newRes) res)))
+                |> Array.indexedMap
+                    (\i r ->
+                        renderResult config
+                            r
+                            (\newRes -> Result count cursor (Array.Extra.update i (\_ -> newRes) res))
+                    )
                 |> Array.toList
                 |> List.concat
 

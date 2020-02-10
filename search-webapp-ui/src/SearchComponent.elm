@@ -1,4 +1,4 @@
-module SearchComponent exposing (Config, State, buildFQ, init, subscriptions, update, view)
+module SearchComponent exposing (Config, State, decoder, encode, init, subscriptions, update, updateWithResult, view)
 
 import Array exposing (Array)
 import Bootstrap.Badge as Badge
@@ -14,11 +14,13 @@ import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, text)
 import Html.Events as Events exposing (onClick)
 import Html.Events.Extra as ExtraEvents
+import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode exposing (Value)
 import List exposing (map)
-import Query exposing (AbstractFQ(..), FacetQuery, FacetResult, Field(..), FilterTerm(..), fieldToString)
+import Query exposing (AbstractFQ(..), FacetQuery, FacetResult, Field(..), FilterTerm(..))
+import Result.Extra
 import Tuple as Pair
-import Url exposing (Url)
-import Url.Parser as UrlParser exposing (Parser)
+import Util exposing (consIf)
 
 
 
@@ -44,9 +46,8 @@ rangeFilterableFields =
 
 
 type alias Config msg =
-    { toMsg : State -> msg
-    , toUrl : String -> msg
-    , toBatch : List msg -> msg
+    { toInternal : State -> msg
+    , toMsg : State -> msg
     , exec : FacetQuery -> Int -> msg
     }
 
@@ -58,11 +59,11 @@ type alias Config msg =
 {-| All state that needs to be kept track of
 -}
 type alias State =
-    { termSearcher : String
+    { newField : Dropdown.State
+    , lastQuery : Maybe AbstractFQ
+    , termSearcher : String
     , facetSelectors : Faceting
     , fieldSearchers : Array FieldSearcher
-    , newField : Dropdown.State
-    , lastQuery : Maybe AbstractFQ
     }
 
 
@@ -92,7 +93,7 @@ type alias FieldSearcher =
 
 init : State
 init =
-    State "" (AnyDict.empty fieldToString) Array.empty Dropdown.initialState Nothing
+    State Dropdown.initialState Nothing "" (AnyDict.empty Query.fieldToString) Array.empty
 
 
 
@@ -119,23 +120,95 @@ getFilterTerm str =
 
 
 
--- Encoding/Decoding
+-- ENCODING
 
 
-urlEncoder : State -> String
+encodeFacetEntry : FacetEntry -> Encode.Value
+encodeFacetEntry facetEntry =
+    Encode.object [ ( "count", Encode.int facetEntry.count ), ( "selected", Encode.bool facetEntry.selected ) ]
+
+
+encodeFacet : Facet -> Encode.Value
+encodeFacet facet =
+    Encode.dict identity encodeFacetEntry facet
+
+
+encodeFaceting : Faceting -> Encode.Value
+encodeFaceting faceting =
+    faceting |> AnyDict.toDict |> Encode.dict identity encodeFacet
+
+
+encodeFieldSearcher : FieldSearcher -> Encode.Value
+encodeFieldSearcher fieldSearcher =
+    Encode.object
+        ([ ( "field", Encode.string (Query.fieldToString fieldSearcher.field) )
+         , ( "value", Encode.string fieldSearcher.value )
+         ]
+            |> Util.consMaybe (fieldSearcher.facetSelect |> Maybe.map (\( _, facet ) -> ( "facetSelect", encodeFacet facet )))
+        )
+
+
+encode : State -> Value
+encode state =
+    Encode.object
+        ([ ( "facets", encodeFaceting state.facetSelectors )
+         , ( "fields", Encode.array encodeFieldSearcher state.fieldSearchers )
+         ]
+            |> consIf (not (String.isEmpty state.termSearcher)) ( "term", Encode.string state.termSearcher )
+        )
 
 
 
--- TODO
+-- DECODING
 
 
-urlEncoder state =
-    ""
+facetEntryDecoder : Decoder FacetEntry
+facetEntryDecoder =
+    Decode.map2 FacetEntry (Decode.field "count" Decode.int) (Decode.field "selected" Decode.bool)
+
+
+facetDecoder : Decoder Facet
+facetDecoder =
+    Decode.dict facetEntryDecoder
+
+
+toFieldAnyDict : Dict String Facet -> Decoder Faceting
+toFieldAnyDict untypedDict =
+    case
+        untypedDict
+            |> Dict.toList
+            |> List.map (\( str, v ) -> Query.fieldFromString str |> Result.map (\k -> ( k, v )))
+            |> Result.Extra.combine
+    of
+        Ok res ->
+            Decode.succeed (AnyDict.fromList Query.fieldToString res)
+
+        Err e ->
+            Decode.fail e
+
+
+facetingDecoder : Decoder Faceting
+facetingDecoder =
+    Decode.dict facetDecoder |> Decode.andThen toFieldAnyDict
+
+
+fieldSearchersDecoder : Decoder FieldSearcher
+fieldSearchersDecoder =
+    Decode.map3 (FieldSearcher Dropdown.initialState)
+        (Decode.field "field" Query.fieldDecoder)
+        (Decode.field "value" Decode.string)
+        (Decode.field "facetSelect" facetDecoder |> Decode.map (Tuple.pair Dropdown.initialState) |> Decode.maybe)
+
+
+decoder : Decoder State
+decoder =
+    Decode.map3 (State Dropdown.initialState Nothing)
+        (Decode.field "term" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
+        (Decode.field "facets" facetingDecoder)
+        (Decode.field "fields" (Decode.array fieldSearchersDecoder))
 
 
 
---urlParser: UrlParser.Parser (State -> a) a
---urlParser = UrlParser.query
 -- QUERYING
 
 
@@ -267,9 +340,18 @@ updateFaceting faceting result =
     makeFaceting new |> AnyDict.union (AnyDict.map (\field facet -> AnyDict.get field upd |> updateFacet facet) used)
 
 
-update : State -> FacetResult -> Int -> State
-update state result id =
+updateWithResult : State -> FacetResult -> Int -> State
+updateWithResult state result id =
     { state | facetSelectors = updateFaceting state.facetSelectors result }
+
+
+update : State -> ( State, AbstractFQ )
+update state =
+    let
+        fq =
+            buildFQ state
+    in
+    ( { state | lastQuery = Just fq }, fq )
 
 
 
@@ -288,8 +370,8 @@ subscriptions state toMsg =
 changeEvents : State -> Config msg -> List (Html.Attribute msg)
 changeEvents state conf =
     -- TODO facets
-    [ Events.onBlur (state |> urlEncoder |> conf.toUrl)
-    , ExtraEvents.onEnter (state |> urlEncoder |> conf.toUrl)
+    [ Events.onBlur (state |> conf.toMsg)
+    , ExtraEvents.onEnter (state |> conf.toMsg)
     ]
 
 
@@ -303,7 +385,7 @@ view state conf =
                     (InputGroup.text
                         [ Input.placeholder "SearchComponent for"
                         , Input.attrs (changeEvents state conf)
-                        , Input.onInput (\text -> conf.toMsg { state | termSearcher = text })
+                        , Input.onInput (\text -> conf.toInternal { state | termSearcher = text })
                         , Input.value state.termSearcher
                         ]
                     )
@@ -326,7 +408,7 @@ view state conf =
                         [ Dropdown.dropdown
                             state.newField
                             { options = []
-                            , toggleMsg = \d -> conf.toMsg { state | newField = d }
+                            , toggleMsg = \toggle -> conf.toInternal { state | newField = toggle }
                             , toggleButton = Dropdown.toggle [ Button.primary ] [ text "+" ]
                             , items =
                                 map
@@ -339,11 +421,10 @@ view state conf =
                                                             (FieldSearcher Dropdown.initialState f "" Nothing)
                                                             state.fieldSearchers
                                                  }
-                                                    |> urlEncoder
-                                                    |> conf.toUrl
+                                                    |> conf.toMsg
                                                 )
                                             ]
-                                            [ text (fieldToString f) ]
+                                            [ text (Query.fieldToString f) ]
                                     )
                                     termFilterableFields
                             }
@@ -371,7 +452,7 @@ renderFacetSearcher : State -> Config msg -> ( Field, Facet ) -> Html msg
 renderFacetSearcher state conf ( field, facet ) =
     Grid.row []
         (List.append
-            [ Grid.col [ Col.xsAuto ] [ text (fieldToString field) ]
+            [ Grid.col [ Col.xsAuto ] [ text (Query.fieldToString field) ]
             , Grid.col [ Col.xs1 ] []
             ]
             (map
@@ -386,7 +467,7 @@ renderFacetSearcher state conf ( field, facet ) =
                             []
                             [ Button.button
                                 [ Button.small
-                                , Button.onClick (selectFacetEntry state field facet key val |> urlEncoder |> conf.toUrl)
+                                , Button.onClick (selectFacetEntry state field facet key val |> conf.toMsg)
                                 ]
                                 [ text (key ++ " (" ++ String.fromInt val.count ++ ")") ]
                             ]
@@ -404,19 +485,18 @@ renderFieldSearcher conf stateFromElem fieldSearcher =
         [ Grid.col []
             [ Dropdown.dropdown fieldSearcher.fieldSelect
                 { options = []
-                , toggleMsg = \d -> { fieldSearcher | fieldSelect = d } |> stateFromElem |> conf.toMsg
-                , toggleButton = Dropdown.toggle [ Button.secondary ] [ text (fieldToString fieldSearcher.field) ]
+                , toggleMsg = \toggle -> { fieldSearcher | fieldSelect = toggle } |> stateFromElem |> conf.toInternal
+                , toggleButton = Dropdown.toggle [ Button.secondary ] [ text (Query.fieldToString fieldSearcher.field) ]
                 , items =
                     map
                         (\f ->
                             Dropdown.buttonItem
                                 [ { fieldSearcher | field = f, fieldSelect = Dropdown.initialState }
                                     |> stateFromElem
-                                    |> urlEncoder
-                                    |> conf.toUrl
+                                    |> conf.toMsg
                                     |> onClick
                                 ]
-                                [ text (fieldToString f) ]
+                                [ text (Query.fieldToString f) ]
                         )
                         termFilterableFields
                 }
@@ -425,7 +505,7 @@ renderFieldSearcher conf stateFromElem fieldSearcher =
             [ InputGroup.config
                 (InputGroup.text
                     [ Input.placeholder "SearchComponent for"
-                    , Input.onInput (\s -> { fieldSearcher | value = s } |> stateFromElem |> conf.toMsg)
+                    , Input.onInput (\s -> { fieldSearcher | value = s } |> stateFromElem |> conf.toInternal)
                     , Input.attrs (changeEvents (stateFromElem fieldSearcher) conf)
                     , Input.value fieldSearcher.value
                     ]
@@ -438,7 +518,11 @@ renderFieldSearcher conf stateFromElem fieldSearcher =
                         Just ( facetDropdownState, facet ) ->
                             [ InputGroup.dropdown facetDropdownState
                                 { options = []
-                                , toggleMsg = \d -> { fieldSearcher | facetSelect = Just ( d, facet ) } |> stateFromElem |> conf.toMsg
+                                , toggleMsg =
+                                    \toggle ->
+                                        { fieldSearcher | facetSelect = Just ( toggle, facet ) }
+                                            |> stateFromElem
+                                            |> conf.toInternal
                                 , toggleButton =
                                     Dropdown.toggle [ Button.secondary ]
                                         [ text

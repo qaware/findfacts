@@ -10,13 +10,18 @@ import Entities exposing (ResultShortlist)
 import Html exposing (Html, br, div, h1, text)
 import Html.Attributes exposing (href)
 import Http exposing (Error(..), expectJson, jsonBody)
+import Json.Decode as Decode
+import Json.Encode as Encode exposing (Value)
 import List
 import PagingComponent as Paging
-import Query exposing (AbstractFQ(..), FacetQuery, FacetResult, Field(..), FilterQuery, FilterTerm(..), decode, encodeFacetQuery, encodeFilterQuery)
+import Query exposing (AbstractFQ(..), FacetQuery, FacetResult, FilterQuery, FilterTerm(..))
 import ResultsComponent as Results
 import SearchComponent as Search
 import Url exposing (Url)
+import Url.Builder as UrlBuilder
 import Url.Parser as UrlParser exposing ((</>), (<?>))
+import Url.Parser.Query as UrlQueryParser
+import Util exposing (consIf)
 
 
 
@@ -49,7 +54,7 @@ init _ url key =
             Navbar.initialState NavbarMsg
 
         ( model, urlCmd ) =
-            urlUpdate url (Model baseUrl key navState (Home Search.init Paging.init Results.empty))
+            urlUpdate url (Model baseUrl key navState (Home Search.init Paging.empty Results.empty))
     in
     ( model, Cmd.batch [ urlCmd, navCmd ] )
 
@@ -72,6 +77,8 @@ type alias Model =
 -}
 type Page
     = Home Search.State Paging.State Results.State
+      -- The Home page is updated via url, but as urlChange is an external event, the state needs to be locked until it occurs.
+    | Locked Search.State Paging.State Results.State
     | Example Results.State
     | Syntax
     | Imprint
@@ -83,39 +90,34 @@ type Page
 
 
 type Msg
-    = Batch (List Msg)
-      -- Routing
+    = -- Routing
+      UrlChanged Url
     | LinkClicked Browser.UrlRequest
-    | UrlChanged Url
     | NavbarMsg Navbar.State
-      -- Executing requests
-    | ExecuteQuery FacetQuery Int
-    | QueryChanged String
-    | FilterResult (Result Http.Error ResultShortlist)
-    | FacetResult Int (Result Http.Error FacetResult)
-      -- s
+      -- Updating state
+    | InternalSearchMsg Search.State
     | SearchMsg Search.State
     | PagingMsg Paging.State
     | ResultsMsg Results.State
+      -- Executing requests
+    | ExecuteQuery FacetQuery Int
+    | FilterResult (Result Http.Error ResultShortlist)
+    | FacetResult Int (Result Http.Error FacetResult)
 
 
+{-| Main update loop.
+-}
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        Batch [] ->
+    case ( msg, model.page ) of
+        ( UrlChanged url, _ ) ->
+            urlUpdate url model
+
+        ( _, Locked _ _ _ ) ->
+            -- only the UrlChanged event can free the locked state
             ( model, Cmd.none )
 
-        Batch (m :: ms) ->
-            let
-                ( model1, cmd1 ) =
-                    update m model
-
-                ( model2, cmd2 ) =
-                    update (Batch ms) model1
-            in
-            ( model2, Cmd.batch [ cmd1, cmd2 ] )
-
-        LinkClicked urlRequest ->
+        ( LinkClicked urlRequest, _ ) ->
             case urlRequest of
                 Browser.Internal url ->
                     ( model, Navigation.pushUrl model.navKey (Url.toString url) )
@@ -123,40 +125,53 @@ update msg model =
                 Browser.External href ->
                     ( model, Navigation.load href )
 
-        UrlChanged url ->
-            urlUpdate url model
-
-        NavbarMsg state ->
+        ( NavbarMsg state, _ ) ->
             ( { model | navState = state }, Cmd.none )
 
-        ExecuteQuery facetQuery id ->
+        ( InternalSearchMsg state, Home _ paging results ) ->
+            -- internal messages only change state, not url
+            ( { model | page = Home state paging results }, Cmd.none )
+
+        ( SearchMsg newSearch, Home search paging results ) ->
+            -- Check if paging needs to be reset
+            let
+                newPaging =
+                    if (Search.update newSearch |> Tuple.second |> Just) == search.lastQuery then
+                        paging
+
+                    else
+                        Paging.empty
+            in
+            -- Store old state in locked page
+            ( { model | page = Locked search paging results }
+            , Navigation.pushUrl model.navKey (encodeUrl newSearch newPaging)
+            )
+
+        ( PagingMsg newPaging, Home search paging results ) ->
+            -- Store old state in locked page
+            ( { model | page = Locked search paging results }
+            , Navigation.pushUrl model.navKey (encodeUrl search newPaging)
+            )
+
+        ( ResultsMsg newResults, Home search paging _ ) ->
+            ( { model | page = Home search paging newResults }, Cmd.none )
+
+        ( ExecuteQuery facetQuery id, _ ) ->
             ( model, executeFacetQuery model.apiBaseUrl facetQuery id )
 
-        QueryChanged encodedSearcherState ->
-            ( model, Navigation.pushUrl model.navKey encodedSearcherState )
-
-        _ ->
-            case model.page of
-                Home search paging results ->
-                    let
-                        ( page, cmd ) =
-                            updateHome msg search paging results
-                    in
-                    ( { model | page = page }, cmd )
-
-                _ ->
-                    ( model, Cmd.none )
-
-
-{-| Update main home page. Ignores other messages.
--}
-updateHome : Msg -> Search.State -> Paging.State -> Results.State -> ( Page, Cmd Msg )
-updateHome msg search paging results =
-    case msg of
-        FilterResult result ->
+        ( FilterResult result, Example _ ) ->
             case result of
                 Ok res ->
-                    ( Ok res |> Results.init |> Home search Paging.init, Cmd.none )
+                    ( { model | page = Example (Results.init (Ok res)) }, Cmd.none )
+
+                Err _ ->
+                    ( { model | page = Example (Results.init (Err "Error getting example")) }, Cmd.none )
+
+        ( FilterResult result, Home search paging _ ) ->
+            case result of
+                Ok res ->
+                    -- The paging stores previous cursors in the URL
+                    ( { model | page = Home search (Paging.update res paging) (Results.init (Ok res)) }, Cmd.none )
 
                 Err e ->
                     let
@@ -177,81 +192,121 @@ updateHome msg search paging results =
                                 BadBody body ->
                                     "Could not read response" ++ body
                     in
-                    ( Home { search | lastQuery = Nothing } paging (Results.init (Err cause)), Cmd.none )
+                    ( { model | page = Home { search | lastQuery = Nothing } Paging.empty (Results.init (Err cause)) }
+                    , Cmd.none
+                    )
 
-        FacetResult id result ->
+        ( FacetResult id result, Home search paging results ) ->
             case result of
                 Ok res ->
-                    ( Home (Search.update search res id) paging results, Cmd.none )
+                    ( { model | page = Home (Search.updateWithResult search res id) paging results }, Cmd.none )
 
-                Err e ->
+                Err _ ->
                     -- TODO improve facet error strategy
                     let
                         _ =
                             log "Error in facet"
                     in
-                    ( Home search paging results, Cmd.none )
+                    ( { model | page = Home search paging results }, Cmd.none )
 
-        SearchMsg state ->
-            ( Home state paging results, Cmd.none )
-
-        PagingMsg state ->
-            ( Home search state results, Cmd.none )
-
-        ResultsMsg state ->
-            ( Home search paging state, Cmd.none )
-
-        _ ->
-            ( Home search paging results, Cmd.none )
+        ( _, _ ) ->
+            ( model, Cmd.none )
 
 
 {-| Parses url and updates model accordingly.
 -}
 urlUpdate : Url -> Model -> ( Model, Cmd Msg )
 urlUpdate url model =
-    case UrlParser.parse routeParser url of
+    -- For the SPA, all path is stored in the fragment.
+    let
+        -- Retreive part before first "?" (the path) and after (the query/fragment)
+        urlElems =
+            String.split "?" (Maybe.withDefault "" url.fragment)
+
+        path =
+            List.head urlElems |> Maybe.withDefault ""
+
+        query =
+            List.drop 1 urlElems |> String.join "?"
+    in
+    case UrlParser.parse routeParser { url | path = path, query = Just query, fragment = Nothing } of
         Nothing ->
             ( { model | page = NotFound }
             , Cmd.none
             )
 
-        Just page ->
-            case ( model.page, page ) of
-                ( Home oldSearch oldPaging oldResults, Home search paging results ) ->
-                    let
-                        fq =
-                            Search.buildFQ search
-                    in
-                    if oldSearch.lastQuery == Just fq && oldPaging == paging then
-                        ( { model | page = Home { search | lastQuery = Just fq } paging oldResults }, Cmd.none )
+        Just (Home search paging _) ->
+            let
+                -- Update search to retrieve up-to-date filter
+                ( newSearch, fq ) =
+                    Search.update search
+            in
+            case model.page of
+                Locked oldSearch oldPaging oldResults ->
+                    if oldSearch.lastQuery == Just fq && oldPaging.previous == paging.previous then
+                        -- Page was loaded before, so re-use results if filter and page didn't change
+                        ( { model | page = Home newSearch oldPaging oldResults }, Cmd.none )
 
                     else
-                        ( { model | page = Home { search | lastQuery = Just fq } paging Results.Searching }, executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging) )
-
-                ( _, Home search paging results ) ->
-                    let
-                        fq =
-                            Search.buildFQ search
-
-                        filterQuery =
-                            Paging.buildFilterQuery fq paging
-                    in
-                    ( { model | page = Home { search | lastQuery = Just fq } paging Results.Searching }, executeFilterQuery model.apiBaseUrl filterQuery )
-
-                ( _, Example results ) ->
-                    ( { model | page = Example Results.Searching }, executeFilterQuery model.apiBaseUrl (FilterQuery (Query.Filter [ ( Query.Name, Query.Term "*gauss*" ) ]) 10 Nothing) )
+                        ( { model | page = Home newSearch paging Results.Searching }
+                        , executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging)
+                        )
 
                 _ ->
-                    ( { model | page = page }, Cmd.none )
+                    -- Page is load for the first time, so definitely query!
+                    ( { model | page = Home newSearch paging Results.Searching }
+                    , executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging)
+                    )
+
+        Just (Example _) ->
+            ( { model | page = Example Results.Searching }
+            , executeFilterQuery model.apiBaseUrl
+                (FilterQuery (Query.Filter [ ( Query.Name, Query.Term "*gauss*" ) ]) 10 Nothing)
+            )
+
+        Just page ->
+            ( { model | page = page }, Cmd.none )
+
+
+encodeUrl : Search.State -> Paging.State -> String
+encodeUrl search paging =
+    UrlBuilder.absolute [ "#search" ]
+        ([ UrlBuilder.string "q" (search |> Search.encode |> Encode.encode 0) ]
+            |> consIf (not (List.isEmpty paging.previous)) (UrlBuilder.string "page" (paging |> Paging.encode |> Encode.encode 0))
+        )
+
+
+decodeUrlParts : Maybe String -> Maybe String -> Page
+decodeUrlParts maybeSearch maybePaging =
+    case ( maybeSearch, maybePaging ) of
+        ( Just searchJson, Nothing ) ->
+            case Decode.decodeString Search.decoder searchJson of
+                Ok search ->
+                    Home search Paging.empty Results.empty
+
+                _ ->
+                    NotFound
+
+        ( Just searchJson, Just pagingJson ) ->
+            case ( Decode.decodeString Search.decoder searchJson, Decode.decodeString Paging.decoder pagingJson ) of
+                ( Ok search, Ok paging ) ->
+                    Home search paging Results.empty
+
+                _ ->
+                    NotFound
+
+        _ ->
+            NotFound
 
 
 routeParser : UrlParser.Parser (Page -> a) a
 routeParser =
     UrlParser.oneOf
-        [ UrlParser.map (Home Search.init Paging.init Results.empty) UrlParser.top
-
-        -- TODO
-        --, UrlParser.map (\search page -> Home search page Results.empty) (UrlParser.s "search" <?> Search.urlParser UrlParser.fragment Paging.cursorParser)
+        [ UrlParser.map (Home Search.init Paging.empty Results.empty) UrlParser.top
+        , UrlParser.s "search"
+            <?> UrlQueryParser.map2 decodeUrlParts
+                    (UrlQueryParser.string "q")
+                    (UrlQueryParser.string "page")
         , UrlParser.map (Example Results.empty) (UrlParser.s "example")
         , UrlParser.map Syntax (UrlParser.s "syntax")
         , UrlParser.map Imprint (UrlParser.s "imprint")
@@ -262,8 +317,8 @@ executeFacetQuery : String -> FacetQuery -> Int -> Cmd Msg
 executeFacetQuery apiBaseUrl query id =
     Http.post
         { url = apiBaseUrl ++ "/v1/facet"
-        , body = jsonBody (encodeFacetQuery query)
-        , expect = expectJson (FacetResult id) decode
+        , body = jsonBody (Query.encodeFacetQuery query)
+        , expect = expectJson (FacetResult id) Query.decode
         }
 
 
@@ -271,7 +326,7 @@ executeFilterQuery : String -> FilterQuery -> Cmd Msg
 executeFilterQuery apiBaseUrl query =
     Http.post
         { url = apiBaseUrl ++ "/v1/search"
-        , body = jsonBody (encodeFilterQuery query)
+        , body = jsonBody (Query.encodeFilterQuery query)
         , expect = expectJson FilterResult Entities.decoder
         }
 
@@ -286,7 +341,7 @@ subscriptions model =
         (Navbar.subscriptions model.navState NavbarMsg
             :: (case model.page of
                     Home searcher _ _ ->
-                        [ Search.subscriptions searcher SearchMsg ]
+                        [ Search.subscriptions searcher InternalSearchMsg ]
 
                     _ ->
                         []
@@ -315,6 +370,10 @@ view model =
                 |> Navbar.view model.navState
             , Grid.container [] <|
                 case model.page of
+                    Locked search paging results ->
+                        -- TODO maybe lock buttons?
+                        pageHome search paging results
+
                     Home search paging results ->
                         pageHome search paging results
 
@@ -343,18 +402,18 @@ pageHome search paging results =
                     [ text
                         ("Search"
                             ++ (case results of
-                                    Results.Empty ->
-                                        ""
+                                    Results.Result count _ _ ->
+                                        " - " ++ String.fromInt count ++ " Results"
 
                                     _ ->
-                                        " - " ++ String.fromInt paging.totalResults ++ " Results"
+                                        ""
                                )
                         )
                     ]
                 ]
             ]
         , br [] []
-        , Grid.row [] [ Grid.col [] (Search.view search (Search.Config SearchMsg QueryChanged Batch ExecuteQuery)) ]
+        , Grid.row [] [ Grid.col [] (Search.view search (Search.Config InternalSearchMsg SearchMsg ExecuteQuery)) ]
         , br [] []
         , Grid.row [] [ Grid.col [] (Results.view ResultsMsg results) ]
         , br [] []

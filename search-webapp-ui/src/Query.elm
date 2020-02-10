@@ -9,6 +9,8 @@ module Query exposing
     , decode
     , encodeFacetQuery
     , encodeFilterQuery
+    , fieldDecoder
+    , fieldFromString
     , fieldToString
     )
 
@@ -243,14 +245,28 @@ facetDecode =
     Decode.dict Decode.int
 
 
-toFieldAnyDict : Dict String Facet -> Decoder (AnyDict String Field Facet)
+fieldDecoder : Decoder Field
+fieldDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\s ->
+                case fieldFromString s of
+                    Ok res ->
+                        Decode.succeed res
+
+                    Err e ->
+                        Decode.fail e
+            )
+
+
+toFieldAnyDict : Dict String Facet -> Decoder FacetResult
 toFieldAnyDict untypedDict =
-    let
-        typedRes =
-            Dict.toList untypedDict
-                |> List.map (\( fieldStr, facet ) -> fieldFromString fieldStr |> Result.map (\x -> ( x, facet )))
-    in
-    case Result.Extra.combine typedRes of
+    case
+        untypedDict
+            |> Dict.toList
+            |> List.map (\( str, v ) -> fieldFromString str |> Result.map (\k -> ( k, v )))
+            |> Result.Extra.combine
+    of
         Ok res ->
             Decode.succeed (AnyDict.fromList fieldToString res)
 

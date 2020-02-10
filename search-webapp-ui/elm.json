@@ -15,6 +15,7 @@
             "elm-community/array-extra": "2.1.0",
             "elm-community/html-extra": "3.3.0",
             "elm-community/list-extra": "8.2.3",
+            "elm-community/maybe-extra": "5.1.0",
             "elm-community/result-extra": "2.3.0",
             "rundis/elm-bootstrap": "5.2.0",
             "turboMaCk/any-dict": "2.1.0"

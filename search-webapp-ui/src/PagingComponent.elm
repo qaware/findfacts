@@ -1,9 +1,10 @@
-module PagingComponent exposing (Config, State, buildFilterQuery, cursorParser, init, view)
+module PagingComponent exposing (Config, State, buildFilterQuery, decoder, empty, encode, update, view)
 
+import Entities exposing (ResultShortlist)
 import Html exposing (Html)
-import List.Extra as ListExtra
+import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode exposing (Value)
 import Query exposing (AbstractFQ, FilterQuery)
-import Url.Parser as UrlParser
 
 
 
@@ -23,29 +24,38 @@ type alias Config msg =
 
 
 type alias State =
-    { pageCursors : List String
-    , totalResults : Int
+    { -- Next cursor is not set when query was executed but result is not there yet
+      nextCursor : Maybe String
+    , previous : List String
     }
 
 
-init : State
-init =
-    State [] 0
+empty : State
+empty =
+    State Nothing []
+
+
+update : ResultShortlist -> State -> State
+update res state =
+    { state | nextCursor = Just res.nextCursor }
 
 
 
--- ENCODING/DECODING
+-- ENCODING
 
 
-stateFromString : String -> State
-stateFromString s =
-    -- TODO
-    init
+encode : State -> Value
+encode state =
+    Encode.list Encode.string state.previous
 
 
-cursorParser : UrlParser.Parser (State -> a) a
-cursorParser =
-    UrlParser.map stateFromString UrlParser.string
+
+--DECODING
+
+
+decoder : Decoder State
+decoder =
+    Decode.map (State Nothing) (Decode.list Decode.string)
 
 
 
@@ -54,7 +64,7 @@ cursorParser =
 
 buildFilterQuery : AbstractFQ -> State -> FilterQuery
 buildFilterQuery fq state =
-    FilterQuery fq pageSize (ListExtra.last state.pageCursors)
+    FilterQuery fq pageSize state.nextCursor
 
 
 
