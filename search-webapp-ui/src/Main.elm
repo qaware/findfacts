@@ -243,7 +243,7 @@ urlUpdate url model =
             in
             case model.page of
                 Locked oldSearch oldPaging oldResults ->
-                    if oldSearch.lastQuery == Just fq && oldPaging.previous == paging.previous then
+                    if oldSearch.lastQuery == Just fq && Paging.samePage oldPaging paging then
                         -- Page was loaded before, so re-use results if filter and page didn't change
                         ( { model | page = Home newSearch oldPaging oldResults }, Cmd.none )
 
@@ -272,7 +272,7 @@ encodeUrl : Search.State -> Paging.State -> String
 encodeUrl search paging =
     UrlBuilder.absolute [ "#search" ]
         ([ UrlBuilder.string "q" (search |> Search.encode |> Encode.encode 0) ]
-            |> consIf (not (List.isEmpty paging.previous)) (UrlBuilder.string "page" (paging |> Paging.encode |> Encode.encode 0))
+            |> consIf (not (Paging.isEmpty paging)) (UrlBuilder.string "page" (paging |> Paging.encode |> Encode.encode 0))
         )
 
 
@@ -417,7 +417,7 @@ pageHome search paging results =
         , br [] []
         , Grid.row [] [ Grid.col [] (Results.view ResultsMsg results) ]
         , br [] []
-        , Grid.row [] [ Grid.col [] (Paging.view PagingMsg paging) ]
+        , Grid.row [] [ Grid.col [] (Paging.config PagingMsg |> Paging.view paging) ]
         ]
     ]
 
