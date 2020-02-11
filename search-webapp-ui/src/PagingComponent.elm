@@ -41,6 +41,7 @@ import Json.Encode as Encode exposing (Value)
 import List.Extra
 import Maybe.Extra
 import Query exposing (AbstractFQ, FilterQuery)
+import Util exposing (ite, toMaybe)
 
 
 
@@ -112,24 +113,15 @@ view (State state) (Config toMsg) =
         []
 
     else
-        let
-            numPagesRound =
-                state.totalResults // pageSize
-
-            numPages =
-                if numPagesRound * pageSize < state.totalResults then
-                    numPagesRound + 1
-
-                else
-                    numPagesRound
-
-            currentPage =
-                Array.length state.previous
-        in
         [ Grid.row []
             [ Grid.col []
                 [ ButtonGroup.buttonGroup []
-                    (renderButtons numPages currentPage toMsg state)
+                    (renderButtons
+                        (ceiling (toFloat state.totalResults / pageSize))
+                        (Array.length state.previous)
+                        toMsg
+                        state
+                    )
                 ]
             ]
         ]
@@ -192,69 +184,43 @@ renderButton label conf buttonState =
             ButtonGroup.button [ Button.primary ] [ text label ]
 
 
-renderButtons numPages currentPage conf state =
+renderButtons numPages numPrevious conf state =
     Maybe.Extra.values
         [ -- first
-          if currentPage > 0 then
-            Just (renderButton "1" conf (Enabled { state | previous = Array.empty, next = Array.get 0 state.previous }))
-
-          else
-            Nothing
+          toMaybe (numPrevious > 0) (renderButton "1" conf (Enabled { state | previous = Array.empty, next = Array.get 0 state.previous }))
         , -- ...
-          Array.get 2 state.previous
-            |> Maybe.map (\_ -> renderButton "..." conf Disabled)
+          toMaybe (numPrevious > 2) (renderButton "..." conf Disabled)
         , -- previous
-          Array.get 1 state.previous
-            |> Maybe.andThen (\_ -> Array.get (currentPage - 1) state.previous)
+          toMaybe (numPrevious > 1) (Array.get (numPrevious - 1) state.previous)
+            |> Maybe.Extra.join
             |> Maybe.map
                 (\c ->
                     renderButton
-                        (if currentPage == 2 then
-                            "2"
-
-                         else
-                            "<"
-                        )
+                        (ite (numPrevious == 2) "2" "<")
                         conf
-                        (Enabled { state | previous = Array.slice 0 (currentPage - 1) state.previous, next = Just c })
+                        (Enabled { state | previous = Array.slice 0 (numPrevious - 1) state.previous, next = Just c })
                 )
         , -- current
-          Just (renderButton (String.fromInt (currentPage + 1)) conf Active)
+          Just (renderButton (String.fromInt (numPrevious + 1)) conf Active)
 
         -- loading/next
-        , if currentPage + 1 < numPages then
-            let
+        , toMaybe (numPrevious + 1 < numPages)
+            (let
                 symbol =
-                    if currentPage + 2 == numPages then
-                        String.fromInt numPages
-
-                    else
-                        ">"
-            in
-            case state.next of
-                Nothing ->
-                    Just (renderButton symbol conf Waiting)
-
-                Just cursor ->
-                    Just
-                        (renderButton
+                    ite (numPrevious + 2 == numPages) (String.fromInt numPages) ">"
+             in
+             state.next
+                |> Maybe.map
+                    (\c ->
+                        renderButton
                             symbol
                             conf
-                            (Enabled { state | previous = Array.push cursor state.previous, next = Nothing })
-                        )
-
-          else
-            Nothing
+                            (Enabled { state | previous = Array.push c state.previous, next = Nothing })
+                    )
+                |> Maybe.withDefault (renderButton symbol conf Waiting)
+            )
         , -- ...
-          if currentPage + 3 < numPages then
-            Just (renderButton "..." conf Disabled)
-
-          else
-            Nothing
+          toMaybe (numPrevious + 3 < numPages) (renderButton "..." conf Disabled)
         , -- last
-          if currentPage + 2 < numPages then
-            Just (renderButton (String.fromInt numPages) conf Disabled)
-
-          else
-            Nothing
+          toMaybe (numPrevious + 2 < numPages) (renderButton (String.fromInt numPages) conf Disabled)
         ]

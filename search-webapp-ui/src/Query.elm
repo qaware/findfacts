@@ -19,6 +19,7 @@ import Dict.Any as AnyDict exposing (AnyDict)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value, int, list, object, string)
 import List exposing (map)
+import Maybe.Extra
 import Result.Extra
 import Util
 
@@ -226,8 +227,11 @@ encodeFieldTerm ( field, term ) =
 
 encodeFilterQuery : FilterQuery -> Value
 encodeFilterQuery filterQuery =
-    [ ( "filter", encodeAbstractFQ filterQuery.filter ), ( "pageSize", int filterQuery.pageSize ) ]
-        |> Util.consMaybe (filterQuery.cursor |> Maybe.map (\c -> ( "cursor", string c )))
+    [ Just ( "filter", encodeAbstractFQ filterQuery.filter )
+    , Just ( "pageSize", int filterQuery.pageSize )
+    , filterQuery.cursor |> Maybe.map (\c -> ( "cursor", string c ))
+    ]
+        |> Maybe.Extra.values
         |> object
 
 

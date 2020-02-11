@@ -17,6 +17,7 @@ import Html.Events.Extra as ExtraEvents
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import List exposing (map)
+import Maybe.Extra
 import Query exposing (AbstractFQ(..), FacetQuery, FacetResult, Field(..), FilterTerm(..))
 import Result.Extra
 import Tuple as Pair
@@ -141,10 +142,11 @@ encodeFaceting faceting =
 encodeFieldSearcher : FieldSearcher -> Encode.Value
 encodeFieldSearcher fieldSearcher =
     Encode.object
-        ([ ( "field", Encode.string (Query.fieldToString fieldSearcher.field) )
-         , ( "value", Encode.string fieldSearcher.value )
+        ([ Just ( "field", Encode.string (Query.fieldToString fieldSearcher.field) )
+         , Just ( "value", Encode.string fieldSearcher.value )
+         , fieldSearcher.facetSelect |> Maybe.map (\( _, facet ) -> ( "facetSelect", encodeFacet facet ))
          ]
-            |> Util.consMaybe (fieldSearcher.facetSelect |> Maybe.map (\( _, facet ) -> ( "facetSelect", encodeFacet facet )))
+            |> Maybe.Extra.values
         )
 
 
