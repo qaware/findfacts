@@ -32,7 +32,7 @@ class MapperTest extends FunSuite {
     override val implicits = FieldImplicits()
   }
 
-  case class SimpleTestEt(name: SingleField.FieldType, nums: MultiField.FieldType)
+  case class SimpleTestEt(name: SingleField.T, nums: MultiField.T)
 
   test("simple mapper generation") {
     assertCompiles("FromSolrDoc[SimpleTestEt]")
@@ -40,7 +40,7 @@ class MapperTest extends FunSuite {
   }
 
   test("nested mapper generation") {
-    case class NestedTestEt(name: SingleField.FieldType, children: ChildField.FieldType)
+    case class NestedTestEt(name: SingleField.T, children: ChildField.T)
 
     assertCompiles("FromSolrDoc[NestedTestEt]")
     assertCompiles("ToSolrDoc[NestedTestEt]")
@@ -48,11 +48,11 @@ class MapperTest extends FunSuite {
 
   test("variant mapper generation") {
     sealed trait Base
-    case class VariantA(name: SingleField.FieldType)
+    case class VariantA(name: SingleField.T)
         extends Base
         with Discriminator[TestKind, VariantField.type, Kinds.A.type]
 
-    case class VariantB(nums: MultiField.FieldType)
+    case class VariantB(nums: MultiField.T)
         extends Base
         with Discriminator[TestKind, VariantField.type, Kinds.B.type]
 

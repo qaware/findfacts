@@ -4,14 +4,16 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BaseEt, ShortCmdEt}
+import de.qaware.findfacts.common.dt.BaseEt
+import de.qaware.findfacts.core.QueryService.{FacetResult, ResultList}
+import de.qaware.findfacts.core.dt.{ResolvedThyEt, ShortCmd}
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
 import de.qaware.findfacts.webapp.utils.JsonMappings
 
 // scalastyle:off
 import io.circe.syntax._
 // scalastyle:on
-import io.circe.{Json, Printer}
+import io.circe.Printer
 import io.swagger.annotations.{
   Api,
   ApiImplicitParam,
@@ -83,23 +85,17 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
   // Json printer defines output format
   implicit val jsonPrinter: Printer = Printer.noSpacesSortKeys.copy(dropNullValues = true)
 
-  protected def executeFilterQuery(query: FilterQuery): Result =
-    logIfErr(query.toString, queryService.getResultShortlist(query).map(_.asJson))
-
-  protected def executeFacetQuery(query: FacetQuery): Result =
-    logIfErr(query.toString, queryService.getFacetResults(query).map(_.asJson))
-
-  protected def logIfErr(query: String, json: Try[Json]): Result = json match {
+  protected def logQueryErr[A](query: String, value: Try[A], onSuccess: A => Result): Result = value match {
     case Failure(exception) =>
       logger.error(s"Error executing query $query", exception)
       InternalServerError(InternalErrorMsg)
-    case Success(value) => Ok(value)
+    case Success(a) => onSuccess(a)
   }
 
   @ApiOperation(
     value = "Search query",
     notes = "Accepts a search query and returns list of all results.",
-    response = classOf[ShortCmdEt],
+    response = classOf[ShortCmd],
     responseContainer = "List",
     httpMethod = "POST"
   )
@@ -115,26 +111,39 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
         examples = new Example(value = Array(new ExampleProperty(mediaType = "default", value = ExampleFilterQuery)))
       )))
   def search: Action[FilterQuery] = Action(circe.json[FilterQuery]) { implicit request: Request[FilterQuery] =>
-    executeFilterQuery(request.body)
+    val search = queryService.getResultShortlist(request.body)
+    //
+    logQueryErr(request.body.toString, search, (list: ResultList[ShortCmd]) => Ok(list.asJson))
   }
 
   @ApiOperation(
-    value = "Retrieves a single entity",
+    value = "Resolves a single entity",
     notes = "Retrieves information about a single entity",
-    response = classOf[BaseEt],
+    response = classOf[Option[BaseEt]],
     httpMethod = "GET")
   @ApiResponses(Array(new ApiResponse(code = 400, message = NotFoundMsg)))
   def entity(@ApiParam(value = "ID of result entity to fetch", required = true) id: String): Action[AnyContent] =
     Action { implicit request: Request[AnyContent] =>
-      queryService.getResult(id) match {
-        case Failure(exception) =>
-          logger.error(s"Error executing id query: $exception")
-          InternalServerError(InternalErrorMsg)
-        case Success(Some(value)) => Ok(value.asJson)
-        case Success(None) =>
+      val entity = queryService.getResult(id)
+      // Handle possible result values
+      logQueryErr[Option[BaseEt]](s"id:$id", entity, {
+        case Some(value) => Ok(value.asJson)
+        case None =>
           logger.error(s"Elem not found for id: $id")
           BadRequest(NotFoundMsg)
-      }
+      })
+    }
+
+  def resolved(id: String): Action[AnyContent] =
+    Action { implicit request: Request[AnyContent] =>
+      val resolved = queryService.getResultResolved(id)
+      // Handle possible result values
+      logQueryErr[Option[ResolvedThyEt]](s"id:$id", resolved, {
+        case Some(value) => Ok(value.asJson)
+        case None =>
+          logger.error(s"Found no thy et for id: $id")
+          BadRequest(NotFoundMsg)
+      })
     }
 
   @ApiOperation(
@@ -158,6 +167,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
     )
   )
   def facet: Action[FacetQuery] = Action(circe.json[FacetQuery]) { implicit request: Request[FacetQuery] =>
-    executeFacetQuery(request.body)
+    val facet = queryService.getResultFacet(request.body)
+    logQueryErr(request.body.toString, facet, (res: FacetResult) => Ok(res.asJson))
   }
 }

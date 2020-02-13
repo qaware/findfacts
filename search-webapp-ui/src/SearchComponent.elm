@@ -9,6 +9,7 @@ import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Text as Text
+import DataTypes exposing (..)
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, text)
@@ -16,12 +17,10 @@ import Html.Events as Events exposing (onClick)
 import Html.Events.Extra as ExtraEvents
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
-import List exposing (map)
 import Maybe.Extra
-import Query exposing (AbstractFQ(..), FacetQuery, FacetResult, Field(..), FilterTerm(..))
 import Result.Extra
 import Tuple as Pair
-import Util exposing (consIf)
+import Util exposing (anyDictDecoder, consIf)
 
 
 
@@ -68,7 +67,7 @@ type alias State =
     }
 
 
-type alias Facet =
+type alias FacetSelection =
     -- Name -> FacetEntry
     Dict String FacetEntry
 
@@ -81,32 +80,32 @@ type alias FacetEntry =
 
 type alias Faceting =
     -- Field -> (implicit dict key) -> Facet Values
-    AnyDict String Field Facet
+    AnyDict String Field FacetSelection
 
 
 type alias FieldSearcher =
     { fieldSelect : Dropdown.State
     , field : Field
     , value : String
-    , facetSelect : Maybe ( Dropdown.State, Facet )
+    , facetSelect : Maybe ( Dropdown.State, FacetSelection )
     }
 
 
 init : State
 init =
-    State Dropdown.initialState Nothing "" (AnyDict.empty Query.fieldToString) Array.empty
+    State Dropdown.initialState Nothing "" (AnyDict.empty fieldToString) Array.empty
 
 
 
 -- UTILITIES
 
 
-facetValues : Facet -> List String
+facetValues : FacetSelection -> List String
 facetValues f =
     Dict.filter (\_ -> .selected) f |> Dict.keys
 
 
-facetSelected : Facet -> Bool
+facetSelected : FacetSelection -> Bool
 facetSelected facet =
     facet |> Dict.values |> List.any .selected
 
@@ -129,7 +128,7 @@ encodeFacetEntry facetEntry =
     Encode.object [ ( "count", Encode.int facetEntry.count ), ( "selected", Encode.bool facetEntry.selected ) ]
 
 
-encodeFacet : Facet -> Encode.Value
+encodeFacet : FacetSelection -> Encode.Value
 encodeFacet facet =
     Encode.dict identity encodeFacetEntry facet
 
@@ -142,7 +141,7 @@ encodeFaceting faceting =
 encodeFieldSearcher : FieldSearcher -> Encode.Value
 encodeFieldSearcher fieldSearcher =
     Encode.object
-        ([ Just ( "field", Encode.string (Query.fieldToString fieldSearcher.field) )
+        ([ Just ( "field", Encode.string (fieldToString fieldSearcher.field) )
          , Just ( "value", Encode.string fieldSearcher.value )
          , fieldSearcher.facetSelect |> Maybe.map (\( _, facet ) -> ( "facetSelect", encodeFacet facet ))
          ]
@@ -169,37 +168,22 @@ facetEntryDecoder =
     Decode.map2 FacetEntry (Decode.field "count" Decode.int) (Decode.field "selected" Decode.bool)
 
 
-facetDecoder : Decoder Facet
-facetDecoder =
+facetSelectionDecoder : Decoder FacetSelection
+facetSelectionDecoder =
     Decode.dict facetEntryDecoder
-
-
-toFieldAnyDict : Dict String Facet -> Decoder Faceting
-toFieldAnyDict untypedDict =
-    case
-        untypedDict
-            |> Dict.toList
-            |> List.map (\( str, v ) -> Query.fieldFromString str |> Result.map (\k -> ( k, v )))
-            |> Result.Extra.combine
-    of
-        Ok res ->
-            Decode.succeed (AnyDict.fromList Query.fieldToString res)
-
-        Err e ->
-            Decode.fail e
 
 
 facetingDecoder : Decoder Faceting
 facetingDecoder =
-    Decode.dict facetDecoder |> Decode.andThen toFieldAnyDict
+    anyDictDecoder fieldFromString facetSelectionDecoder fieldToString
 
 
 fieldSearchersDecoder : Decoder FieldSearcher
 fieldSearchersDecoder =
     Decode.map3 (FieldSearcher Dropdown.initialState)
-        (Decode.field "field" Query.fieldDecoder)
+        (Decode.field "field" fieldDecoder)
         (Decode.field "value" Decode.string)
-        (Decode.field "facetSelect" facetDecoder |> Decode.map (Tuple.pair Dropdown.initialState) |> Decode.maybe)
+        (Decode.field "facetSelect" facetSelectionDecoder |> Decode.map (Tuple.pair Dropdown.initialState) |> Decode.maybe)
 
 
 decoder : Decoder State
@@ -219,7 +203,7 @@ buildSingleFQ field term =
     Filter [ ( field, term ) ]
 
 
-buildFacetFQ : Field -> Facet -> Maybe AbstractFQ
+buildFacetFQ : Field -> FacetSelection -> Maybe AbstractFQ
 buildFacetFQ field facet =
     case facetValues facet of
         [] ->
@@ -233,8 +217,8 @@ buildFacetFQ field facet =
                 (Union (buildSingleFQ field (Exact exp1))
                     (buildSingleFQ field (Exact exp2))
                     (exps
-                        |> map Exact
-                        |> map (buildSingleFQ field)
+                        |> List.map Exact
+                        |> List.map (buildSingleFQ field)
                     )
                 )
 
@@ -260,9 +244,9 @@ buildFQ state =
                     filterTerm =
                         getFilterTerm state.termSearcher
                 in
-                [ Union (buildSingleFQ Query.Name filterTerm)
-                    (buildSingleFQ Query.Src filterTerm)
-                    [ buildSingleFQ Query.Prop filterTerm ]
+                [ Union (buildSingleFQ Name filterTerm)
+                    (buildSingleFQ Src filterTerm)
+                    [ buildSingleFQ Prop filterTerm ]
                 ]
 
         fieldFQs =
@@ -291,12 +275,12 @@ buildFacetQuery state =
 -- UPDATE
 
 
-makeFacet : Query.Facet -> Facet
+makeFacet : Facet -> FacetSelection
 makeFacet queryFacet =
     Dict.map (\_ count -> FacetEntry count False) queryFacet
 
 
-updateCounts : Facet -> Query.Facet -> Facet
+updateCounts : FacetSelection -> Facet -> FacetSelection
 updateCounts facet queryFacets =
     facet
         |> Dict.map
@@ -310,7 +294,7 @@ updateCounts facet queryFacets =
             )
 
 
-updateFacet : Facet -> Maybe Query.Facet -> Facet
+updateFacet : FacetSelection -> Maybe Facet -> FacetSelection
 updateFacet facet queryFacet =
     case queryFacet of
         Nothing ->
@@ -412,7 +396,7 @@ view state conf =
                         , toggleMsg = \toggle -> conf.toInternal { state | newField = toggle }
                         , toggleButton = Dropdown.toggle [ Button.primary ] [ text "+" ]
                         , items =
-                            map
+                            List.map
                                 (\f ->
                                     Dropdown.buttonItem
                                         [ onClick
@@ -425,7 +409,7 @@ view state conf =
                                                 |> conf.toMsg
                                             )
                                         ]
-                                        [ text (Query.fieldToString f) ]
+                                        [ text (fieldToString f) ]
                                 )
                                 termFilterableFields
                         }
@@ -435,11 +419,11 @@ view state conf =
         ++ (state.facetSelectors
                 |> AnyDict.filter (\_ facet -> not (Dict.isEmpty facet) || facetSelected facet)
                 |> AnyDict.toList
-                |> map (renderFacetSearcher state conf)
+                |> List.map (renderFacetSearcher state conf)
            )
 
 
-selectFacetEntry : State -> Field -> Facet -> String -> FacetEntry -> State
+selectFacetEntry : State -> Field -> FacetSelection -> String -> FacetEntry -> State
 selectFacetEntry state field facet key val =
     { state
         | facetSelectors =
@@ -447,14 +431,14 @@ selectFacetEntry state field facet key val =
     }
 
 
-renderFacetSearcher : State -> Config msg -> ( Field, Facet ) -> Html msg
+renderFacetSearcher : State -> Config msg -> ( Field, FacetSelection ) -> Html msg
 renderFacetSearcher state conf ( field, facet ) =
     Grid.row []
         (List.append
-            [ Grid.col [ Col.xsAuto ] [ text (Query.fieldToString field) ]
+            [ Grid.col [ Col.xsAuto ] [ text (fieldToString field) ]
             , Grid.col [ Col.xs1 ] []
             ]
-            (map
+            (List.map
                 (\( key, val ) ->
                     Grid.col [ Col.xsAuto, Col.textAlign Text.alignXsLeft ]
                         [ (if val.selected then
@@ -485,9 +469,9 @@ renderFieldSearcher conf stateFromElem fieldSearcher =
             [ Dropdown.dropdown fieldSearcher.fieldSelect
                 { options = []
                 , toggleMsg = \toggle -> { fieldSearcher | fieldSelect = toggle } |> stateFromElem |> conf.toInternal
-                , toggleButton = Dropdown.toggle [ Button.secondary ] [ text (Query.fieldToString fieldSearcher.field) ]
+                , toggleButton = Dropdown.toggle [ Button.secondary ] [ text (fieldToString fieldSearcher.field) ]
                 , items =
-                    map
+                    List.map
                         (\f ->
                             Dropdown.buttonItem
                                 [ { fieldSearcher | field = f, fieldSelect = Dropdown.initialState }
@@ -495,7 +479,7 @@ renderFieldSearcher conf stateFromElem fieldSearcher =
                                     |> conf.toMsg
                                     |> onClick
                                 ]
-                                [ text (Query.fieldToString f) ]
+                                [ text (fieldToString f) ]
                         )
                         termFilterableFields
                 }

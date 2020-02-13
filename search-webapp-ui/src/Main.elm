@@ -5,30 +5,29 @@ import Bootstrap.Grid.Col as Col
 import Bootstrap.Navbar as Navbar
 import Browser
 import Browser.Navigation as Navigation
+import DataTypes exposing (..)
 import Debug exposing (log)
-import Entities exposing (ResultShortlist)
 import Html exposing (Html, br, div, h1, text)
 import Html.Attributes exposing (href)
-import Http exposing (Error(..), expectJson, jsonBody)
+import Http
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (Value)
 import List
 import PagingComponent as Paging
-import Query exposing (AbstractFQ(..), FacetQuery, FacetResult, FilterQuery, FilterTerm(..))
 import ResultsComponent as Results
 import SearchComponent as Search
 import Url exposing (Url)
 import Url.Builder as UrlBuilder
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 import Url.Parser.Query as UrlQueryParser
-import Util exposing (consIf)
+import Util exposing (consIf, toMaybe)
 
 
 
 -- APPLICATION
 
 
-{-| Main application entry point
+{-| Main application entry point.
 -}
 main : Program () Model Msg
 main =
@@ -42,7 +41,7 @@ main =
         }
 
 
-{-| Application initializer
+{-| Application initializer.
 -}
 init : () -> Url -> Navigation.Key -> ( Model, Cmd Msg )
 init _ url key =
@@ -63,7 +62,7 @@ init _ url key =
 -- MODEL
 
 
-{-| Model containing general state of the application
+{-| Model containing general state of the application.
 -}
 type alias Model =
     { apiBaseUrl : String
@@ -73,7 +72,7 @@ type alias Model =
     }
 
 
-{-| Page to use in model, stores state
+{-| Page to use in model, stores state.
 -}
 type Page
     = Home Search.State Paging.State Results.State
@@ -89,20 +88,26 @@ type Page
 -- UPDATE
 
 
+{-| Msg type.
+-}
 type Msg
     = -- Routing
       UrlChanged Url
     | LinkClicked Browser.UrlRequest
     | NavbarMsg Navbar.State
-      -- Updating state
-    | InternalSearchMsg Search.State
+      -- Search component
+    | SearchInternalMsg Search.State
     | SearchMsg Search.State
+    | SearchFacet FacetQuery Int
+    | SearchFacetResult Int (Result Http.Error FacetResult)
+      -- Paging component
     | PagingMsg Paging.State
+      -- Results component
     | ResultsMsg Results.State
-      -- Executing requests
-    | ExecuteQuery FacetQuery Int
-    | FilterResult (Result Http.Error ResultShortlist)
-    | FacetResult Int (Result Http.Error FacetResult)
+    | ResultsDetailMsg String
+    | ResultsUsingMsg (List String)
+    | FilterResult (Result Http.Error (ResultList ShortCmd))
+    | DetailResult (Result Http.Error ThyEt)
 
 
 {-| Main update loop.
@@ -128,7 +133,10 @@ update msg model =
         ( NavbarMsg state, _ ) ->
             ( { model | navState = state }, Cmd.none )
 
-        ( InternalSearchMsg state, Home _ paging results ) ->
+        ( ResultsDetailMsg entityId, _ ) ->
+            ( model, executeEntityQuery model.apiBaseUrl entityId )
+
+        ( SearchInternalMsg state, Home _ paging results ) ->
             -- internal messages only change state, not url
             ( { model | page = Home state paging results }, Cmd.none )
 
@@ -144,19 +152,19 @@ update msg model =
             in
             -- Store old state in locked page
             ( { model | page = Locked search paging results }
-            , Navigation.pushUrl model.navKey (encodeUrl newSearch newPaging)
+            , Navigation.pushUrl model.navKey (urlEncodeHome newSearch newPaging)
             )
 
         ( PagingMsg newPaging, Home search paging results ) ->
             -- Store old state in locked page
             ( { model | page = Locked search paging results }
-            , Navigation.pushUrl model.navKey (encodeUrl search newPaging)
+            , Navigation.pushUrl model.navKey (urlEncodeHome search newPaging)
             )
 
         ( ResultsMsg newResults, Home search paging _ ) ->
             ( { model | page = Home search paging newResults }, Cmd.none )
 
-        ( ExecuteQuery facetQuery id, _ ) ->
+        ( SearchFacet facetQuery id, _ ) ->
             ( model, executeFacetQuery model.apiBaseUrl facetQuery id )
 
         ( FilterResult result, Example _ ) ->
@@ -174,29 +182,11 @@ update msg model =
                     ( { model | page = Home search (Paging.update res paging) (Results.init (Ok res)) }, Cmd.none )
 
                 Err e ->
-                    let
-                        cause =
-                            case e of
-                                BadUrl _ ->
-                                    "Invalid backend configuration"
-
-                                Timeout ->
-                                    "Backend timed out"
-
-                                NetworkError ->
-                                    "Could not reach server"
-
-                                BadStatus status ->
-                                    "Server error: " ++ String.fromInt status
-
-                                BadBody body ->
-                                    "Could not read response" ++ body
-                    in
-                    ( { model | page = Home { search | lastQuery = Nothing } Paging.empty (Results.init (Err cause)) }
+                    ( { model | page = Home { search | lastQuery = Nothing } Paging.empty (Results.init (Err (explainHttpError e))) }
                     , Cmd.none
                     )
 
-        ( FacetResult id result, Home search paging results ) ->
+        ( SearchFacetResult id result, Home search paging results ) ->
             case result of
                 Ok res ->
                     ( { model | page = Home (Search.updateWithResult search res id) paging results }, Cmd.none )
@@ -208,6 +198,11 @@ update msg model =
                             log "Error in facet"
                     in
                     ( { model | page = Home search paging results }, Cmd.none )
+
+        ( DetailResult result, Home search paging results ) ->
+            ( { model | page = Home search paging (Results.update (Result.mapError explainHttpError result) results) }
+            , Cmd.none
+            )
 
         ( _, _ ) ->
             ( model, Cmd.none )
@@ -248,36 +243,40 @@ urlUpdate url model =
                         ( { model | page = Home newSearch oldPaging oldResults }, Cmd.none )
 
                     else
-                        ( { model | page = Home newSearch paging Results.Searching }
+                        ( { model | page = Home newSearch paging Results.searching }
                         , executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging)
                         )
 
                 _ ->
                     -- Page is load for the first time, so definitely query!
-                    ( { model | page = Home newSearch paging Results.Searching }
+                    ( { model | page = Home newSearch paging Results.searching }
                     , executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging)
                     )
 
         Just (Example _) ->
-            ( { model | page = Example Results.Searching }
+            ( { model | page = Example Results.searching }
             , executeFilterQuery model.apiBaseUrl
-                (FilterQuery (Query.Filter [ ( Query.Name, Query.Term "*gauss*" ) ]) 10 Nothing)
+                (FilterQuery (Filter [ ( Name, Term "*gauss*" ) ]) 10 Nothing)
             )
 
         Just page ->
             ( { model | page = page }, Cmd.none )
 
 
-encodeUrl : Search.State -> Paging.State -> String
-encodeUrl search paging =
+{-| Encodes search state as url.
+-}
+urlEncodeHome : Search.State -> Paging.State -> String
+urlEncodeHome search paging =
     UrlBuilder.absolute [ "#search" ]
         ([ UrlBuilder.string "q" (search |> Search.encode |> Encode.encode 0) ]
             |> consIf (not (Paging.isEmpty paging)) (UrlBuilder.string "page" (paging |> Paging.encode |> Encode.encode 0))
         )
 
 
-decodeUrlParts : Maybe String -> Maybe String -> Page
-decodeUrlParts maybeSearch maybePaging =
+{-| Recovers home page state from strings.
+-}
+homeFromStrings : Maybe String -> Maybe String -> Page
+homeFromStrings maybeSearch maybePaging =
     case ( maybeSearch, maybePaging ) of
         ( Just searchJson, Nothing ) ->
             case Decode.decodeString Search.decoder searchJson of
@@ -299,12 +298,14 @@ decodeUrlParts maybeSearch maybePaging =
             NotFound
 
 
+{-| Parser for the route. May not use fragment as that is already used for SPA routing.
+-}
 routeParser : UrlParser.Parser (Page -> a) a
 routeParser =
     UrlParser.oneOf
         [ UrlParser.map (Home Search.init Paging.empty Results.empty) UrlParser.top
         , UrlParser.s "search"
-            <?> UrlQueryParser.map2 decodeUrlParts
+            <?> UrlQueryParser.map2 homeFromStrings
                     (UrlQueryParser.string "q")
                     (UrlQueryParser.string "page")
         , UrlParser.map (Example Results.empty) (UrlParser.s "example")
@@ -313,35 +314,70 @@ routeParser =
         ]
 
 
+{-| Builds the command to execute a facet query.
+-}
 executeFacetQuery : String -> FacetQuery -> Int -> Cmd Msg
 executeFacetQuery apiBaseUrl query id =
     Http.post
         { url = apiBaseUrl ++ "/v1/facet"
-        , body = jsonBody (Query.encodeFacetQuery query)
-        , expect = expectJson (FacetResult id) Query.decode
+        , body = Http.jsonBody (encodeFacetQuery query)
+        , expect = Http.expectJson (SearchFacetResult id) facetResultDecoder
         }
 
 
+{-| Builds the command to execute a filter query.
+-}
 executeFilterQuery : String -> FilterQuery -> Cmd Msg
 executeFilterQuery apiBaseUrl query =
     Http.post
         { url = apiBaseUrl ++ "/v1/search"
-        , body = jsonBody (Query.encodeFilterQuery query)
-        , expect = expectJson FilterResult Entities.decoder
+        , body = Http.jsonBody (encodeFilterQuery query)
+        , expect = Http.expectJson FilterResult (resultListDecoder shortCmdDecoder)
         }
+
+
+{-| Builds the command to execute a query for a single entity by id.
+-}
+executeEntityQuery : String -> String -> Cmd Msg
+executeEntityQuery apiBaseUrl entityId =
+    Http.get
+        { url = apiBaseUrl ++ "/v1/resolved/" ++ entityId
+        , expect = Http.expectJson DetailResult thyEtDecoder
+        }
+
+
+explainHttpError : Http.Error -> String
+explainHttpError error =
+    case error of
+        Http.BadUrl _ ->
+            "Invalid backend configuration"
+
+        Http.Timeout ->
+            "Backend timed out"
+
+        Http.NetworkError ->
+            "Could not reach server"
+
+        Http.BadStatus status ->
+            "Server error: " ++ String.fromInt status
+
+        Http.BadBody body ->
+            "Could not read response" ++ body
 
 
 
 -- SUBSCRIPTIONS
 
 
+{-| All subscriptions.
+-}
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         (Navbar.subscriptions model.navState NavbarMsg
             :: (case model.page of
                     Home searcher _ _ ->
-                        [ Search.subscriptions searcher InternalSearchMsg ]
+                        [ Search.subscriptions searcher SearchInternalMsg ]
 
                     _ ->
                         []
@@ -353,6 +389,8 @@ subscriptions model =
 -- VIEW
 
 
+{-| Renders the view.
+-}
 view : Model -> Browser.Document Msg
 view model =
     { title = "FindFacts"
@@ -378,7 +416,7 @@ view model =
                         pageHome search paging results
 
                     Example results ->
-                        Results.view ResultsMsg results
+                        Results.config ResultsMsg ResultsDetailMsg ResultsUsingMsg |> Results.view results
 
                     Syntax ->
                         pageSyntax
@@ -393,6 +431,8 @@ view model =
     }
 
 
+{-| Renders the main home page.
+-}
 pageHome : Search.State -> Paging.State -> Results.State -> List (Html Msg)
 pageHome search paging results =
     [ div []
@@ -401,27 +441,31 @@ pageHome search paging results =
                 [ h1 []
                     [ text
                         ("Search"
-                            ++ (case results of
-                                    Results.Result count _ _ ->
-                                        " - " ++ String.fromInt count ++ " Results"
-
-                                    _ ->
-                                        ""
+                            ++ (Results.hasResults results
+                                    |> toMaybe (" - " ++ String.fromInt (Paging.numResults paging) ++ " Results")
+                                    |> Maybe.withDefault ""
                                )
                         )
                     ]
                 ]
             ]
         , br [] []
-        , Grid.row [] [ Grid.col [] (Search.view search (Search.Config InternalSearchMsg SearchMsg ExecuteQuery)) ]
+        , Grid.row [] [ Grid.col [] (Search.view search (Search.Config SearchInternalMsg SearchMsg SearchFacet)) ]
         , br [] []
-        , Grid.row [] [ Grid.col [] (Results.view ResultsMsg results) ]
+        , Grid.row []
+            [ Grid.col []
+                (Results.config ResultsMsg ResultsDetailMsg ResultsUsingMsg
+                    |> Results.view results
+                )
+            ]
         , br [] []
         , Grid.row [] [ Grid.col [] (Paging.config PagingMsg |> Paging.view paging) ]
         ]
     ]
 
 
+{-| Renders the 'syntax' page.
+-}
 pageSyntax : List (Html msg)
 pageSyntax =
     [ h1 [] [ text "Search syntax" ]
@@ -429,12 +473,16 @@ pageSyntax =
     ]
 
 
+{-| Renders the 'imprint' page.
+-}
 pageImprint : List (Html msg)
 pageImprint =
     [ h1 [] [ text "Imprint" ]
     ]
 
 
+{-| Renders the error 404 page.
+-}
 pageNotFound : List (Html msg)
 pageNotFound =
     [ h1 [] [ text "Not found" ]

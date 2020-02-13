@@ -1,6 +1,8 @@
 module Util exposing
     ( ite, toMaybe
-    , consIf, appIf
+    , singletonIf, consIf, appIf
+    , pairWith
+    , anyDictDecoder
     )
 
 {-| Utility module.
@@ -11,11 +13,24 @@ module Util exposing
 @docs ite, toMaybe
 
 
-# List conditional append helpers
+# List conditional helpers
 
-@docs consIf, appIf
+@docs singletonIf, consIf, appIf
+
+
+# Tuple helpers
+
+@docs pairWith
+
+
+# Decoding helper
+
+@docs anyDictDecoder
 
 -}
+
+import Dict.Any as AnyDict exposing (AnyDict)
+import Json.Decode as Decode exposing (Decoder)
 
 
 {-| Ternary operator. Unfortunately no infix notation since that's not allowed in user code any more.
@@ -36,13 +51,13 @@ ite cond a b =
 
 {-| Converts a condition and an element to a Maybe.
 
-    toMaybe True 1 == Just 1
+    toMaybe 1 True == Just 1
 
-    toMaybe False 1 == Nothing
+    toMaybe 1 False == Nothing
 
 -}
-toMaybe : Bool -> a -> Maybe a
-toMaybe cond a =
+toMaybe : a -> Bool -> Maybe a
+toMaybe a cond =
     if cond then
         Just a
 
@@ -72,3 +87,34 @@ appIf cond x xs =
 consIf : Bool -> a -> List a -> List a
 consIf cond x xs =
     ite cond (x :: xs) xs
+
+
+{-| Constructs a singleton or empty list, depending on the condition.
+
+    singletonIf True 1 == [ 1 ]
+
+    singletonIf False 1 == []
+
+-}
+singletonIf : Bool -> a -> List a
+singletonIf b a =
+    consIf b a []
+
+
+{-| Pair method to specify value first.
+
+    "key" |> pairWith "value" == ( "key", "value" )
+
+-}
+pairWith : b -> a -> ( a, b )
+pairWith b a =
+    Tuple.pair a b
+
+
+anyDictDecoder : (String -> Decoder k) -> Decoder v -> (k -> comparable) -> Decoder (AnyDict comparable k v)
+anyDictDecoder kFromString vDecoder compare =
+    Decode.keyValuePairs vDecoder
+        -- Decode (List (String, v))
+        |> Decode.andThen (\l -> List.foldl (\( kStr, v ) dec -> Decode.map2 (\k xs -> ( k, v ) :: xs) (kFromString kStr) dec) (Decode.succeed []) l)
+        -- Decoder (List (k, v))
+        |> Decode.map (AnyDict.fromList compare)

@@ -15,7 +15,7 @@ trait Field {
   type BaseType
 
   /** Type of the whole field, tagged with the field type. */
-  type FieldType <: Tagged[this.type]
+  type T <: Tagged[this.type]
 
   /** Wrapper for all implicit of basetype for fields (that have to be supplied at construction time!).
     *
@@ -23,7 +23,7 @@ trait Field {
     * @param jsonEncoder [[Encoder]] implicit for base type
     * @tparam A base type. Needs to be a parameter since base type gets restricted in subclasses
     */
-  protected final case class FieldImplicits[A]()(implicit val jsonDecoder: Decoder[A], val jsonEncoder: Encoder[A])
+  final case class FieldImplicits[A]()(implicit val jsonDecoder: Decoder[A], val jsonEncoder: Encoder[A])
 
   /** Member for implicit wrapper. Override with new instance of FindImplicits.
     *
@@ -43,13 +43,13 @@ trait Field {
   }
 
   /** Decoder for field values. */
-  implicit lazy val valueDecoder: Decoder[FieldType] = implicitly[Decoder[FieldType]]
+  implicit lazy val valueDecoder: Decoder[T] = implicitly[Decoder[T]]
 
   /** Encoder for field values.
     *
     * @return value encoder
     */
-  implicit def valueEncoder: Encoder[FieldType]
+  implicit def valueEncoder: Encoder[T]
 }
 
 /** Single-valued fields.
@@ -58,9 +58,9 @@ trait Field {
   */
 trait SingleValuedField[A] extends Field {
   override type BaseType = A
-  override type FieldType = BaseType @@ this.type
+  override type T = BaseType @@ this.type
 
-  override implicit lazy val valueEncoder: Encoder[FieldType] = {
+  override implicit lazy val valueEncoder: Encoder[T] = {
     implicitly[Encoder[BaseType]](implicits.jsonEncoder).contramap(apply)
   }
 
@@ -70,7 +70,7 @@ trait SingleValuedField[A] extends Field {
     * @return tagged field
     */
   @SuppressWarnings(Array("AsInstanceOf"))
-  implicit def apply(elem: BaseType): FieldType = elem.asInstanceOf[FieldType]
+  implicit def apply(elem: BaseType): T = elem.asInstanceOf[T]
 }
 
 /** Field that is not necessarily present.
@@ -79,9 +79,9 @@ trait SingleValuedField[A] extends Field {
   */
 trait OptionalField[A] extends Field {
   override type BaseType = A
-  override type FieldType = Option[BaseType] @@ this.type
+  override type T = Option[BaseType] @@ this.type
 
-  override implicit lazy val valueEncoder: Encoder[FieldType] = {
+  override implicit lazy val valueEncoder: Encoder[T] = {
     implicit val enc: Encoder[BaseType] = implicits.jsonEncoder
     implicitly[Encoder[Option[BaseType]]].contramap(apply)
   }
@@ -92,7 +92,7 @@ trait OptionalField[A] extends Field {
     * @return tagged field
     */
   @SuppressWarnings(Array("AsInstanceOf"))
-  implicit def apply(elem: Option[BaseType]): FieldType = elem.asInstanceOf[FieldType]
+  implicit def apply(elem: Option[BaseType]): T = elem.asInstanceOf[T]
 }
 
 /** Multi-valued fields. Represented as list of base types.
@@ -101,9 +101,9 @@ trait OptionalField[A] extends Field {
   */
 trait MultiValuedField[A] extends Field {
   override type BaseType = A
-  override type FieldType = List[BaseType] @@ this.type
+  override type T = List[BaseType] @@ this.type
 
-  override implicit lazy val valueEncoder: Encoder[FieldType] = {
+  override implicit lazy val valueEncoder: Encoder[T] = {
     implicit val enc: Encoder[BaseType] = implicits.jsonEncoder
     implicitly[Encoder[List[BaseType]]].contramap(apply)
   }
@@ -114,7 +114,7 @@ trait MultiValuedField[A] extends Field {
     * @return tagged field
     */
   @SuppressWarnings(Array("AsInstanceOf"))
-  implicit def apply(elem: List[BaseType]): FieldType = elem.asInstanceOf[FieldType]
+  implicit def apply(elem: List[BaseType]): T = elem.asInstanceOf[T]
 }
 
 /** Children fields.
@@ -123,9 +123,9 @@ trait MultiValuedField[A] extends Field {
   */
 trait ChildrenField[A] extends Field {
   override type BaseType = A
-  override type FieldType = List[BaseType] @@ this.type
+  override type T = List[BaseType] @@ this.type
 
-  override implicit lazy val valueEncoder: Encoder[FieldType] = {
+  override implicit lazy val valueEncoder: Encoder[T] = {
     implicit val enc: Encoder[BaseType] = implicits.jsonEncoder
     implicitly[Encoder[List[BaseType]]].contramap(apply)
   }
@@ -136,5 +136,5 @@ trait ChildrenField[A] extends Field {
     * @return tagged field
     */
   @SuppressWarnings(Array("AsInstanceOf"))
-  implicit def apply(elem: List[BaseType]): FieldType = elem.asInstanceOf[FieldType]
+  implicit def apply(elem: List[BaseType]): T = elem.asInstanceOf[T]
 }

@@ -1,7 +1,17 @@
 package de.qaware.findfacts.webapp.utils
 
-import de.qaware.findfacts.common.dt.{BaseEt, ShortCmdEt, ShortThyEt}
-import de.qaware.findfacts.core.{FacetQuery, FilterQuery, ResultShortlist}
+import de.qaware.findfacts.common.dt.BaseEt
+import de.qaware.findfacts.core.QueryService.ResultList
+import de.qaware.findfacts.core.dt.{
+  ResolvedConstant,
+  ResolvedFact,
+  ResolvedThyEt,
+  ResolvedType,
+  ShortBlock,
+  ShortCmd,
+  ShortDocumentation
+}
+import de.qaware.findfacts.core.{FacetQuery, FilterQuery}
 import io.circe.{Decoder, Encoder}
 // scalastyle:off
 import io.circe.generic.semiauto._
@@ -12,26 +22,29 @@ class JsonMappings {
   // scalastyle:off scaladoc
 
   // Encoding
-  implicit val baseEtEncoder: Encoder[BaseEt] = deriveEncoder[BaseEt]
-
-  // Custom encodings: encode trait values and not full union types
-  implicit val shortThyEncoder: Encoder[ShortThyEt] =
-    Encoder.forProduct4("id", "kind", "name", "description") { thyEt =>
-      (thyEt.id, thyEt.kind, thyEt.name, thyEt.shortDescription)
-    }
-  implicit val shortEncoder: Encoder[ShortCmdEt] = Encoder.forProduct5("id", "kind", "file", "src", "entities") {
-    et: ShortCmdEt =>
-      (et.id, et.kind, et.file, et.src, et.entities.asInstanceOf[List[ShortThyEt]])
+  implicit val baseEtEncoder: Encoder[BaseEt] = deriveEncoder
+  private val resolvedConstantEncoder = deriveEncoder[ResolvedConstant]
+  private val resolvedFactEncoder = deriveEncoder[ResolvedFact]
+  private val resolvedTypeEncoder = deriveEncoder[ResolvedType]
+  implicit val resolvedEncoder: Encoder[ResolvedThyEt] = Encoder.instance {
+    // Remove top union type layer from json
+    case c: ResolvedConstant => resolvedConstantEncoder(c)
+    case f: ResolvedFact => resolvedFactEncoder(f)
+    case t: ResolvedType => resolvedTypeEncoder(t)
   }
-  implicit val resultShortlistEncoder: Encoder[ResultShortlist] = deriveEncoder[ResultShortlist]
+  implicit val shortCmdEtEncoder: Encoder[ShortCmd] = Encoder.instance {
+    case e: ShortBlock =>
+      Encoder.forProduct4("id", "theory", "src", "entities") { e: ShortBlock =>
+        (e.id, e.theory, e.src, e.entities)
+      } apply e
+    case e: ShortDocumentation =>
+      Encoder.forProduct4("id", "theory", "src", "docKind") { e: ShortDocumentation =>
+        (e.id, e.theory, e.src, e.docKind)
+      } apply e
+  }
+  implicit val resultShortlistEncoder: Encoder[ResultList[ShortCmd]] = deriveEncoder
 
   // Decoding
-  implicit val filterQueryDecoder: Decoder[FilterQuery] = {
-    import io.circe.generic.auto._
-    deriveDecoder[FilterQuery]
-  }
-  implicit val facetQueryDecoder: Decoder[FacetQuery] = {
-    import io.circe.generic.auto._
-    deriveDecoder[FacetQuery]
-  }
+  implicit val filterQueryDecoder: Decoder[FilterQuery] = deriveDecoder
+  implicit val facetQueryDecoder: Decoder[FacetQuery] = deriveDecoder
 }

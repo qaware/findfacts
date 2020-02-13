@@ -7,13 +7,13 @@ import org.scalatest.{FunSuite, Matchers}
 
 class QueryTest extends FunSuite with Matchers {
   test("Json encoding/decoding for filter query") {
-    val query: FilterQuery = FilterQuery(Filter(Map(EtField.Name -> Term("*gauss*"))), 10)
+    val query: FilterQuery = FilterQuery(Filter(Map(EtField.Name -> Exact("*gauss*"))), 10)
     val json = query.asJson
     json.as[FilterQuery] should equal(Right(query))
   }
 
   test("Json encoding/decoding for facet query") {
-    val query: FacetQuery = FacetQuery(Filter(Map(EtField.Name -> Term("*gauss*"))), Set(EtField.Kind), 100)
+    val query: FacetQuery = FacetQuery(Filter(Map(EtField.Name -> Exact("*gauss*"))), Set(EtField.Kind), 100)
     val json = query.asJson
     json.as[FacetQuery] should equal(Right(query))
   }

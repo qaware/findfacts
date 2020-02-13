@@ -5,8 +5,11 @@ import java.util.regex.Matcher
 import scala.collection.mutable
 import scala.util.Failure
 
+import de.qaware.findfacts.common.dt.EtField
+import de.qaware.findfacts.common.dt.EtField.{Children, Id}
 import de.qaware.findfacts.common.dt.solr.SolrSchema
-import de.qaware.findfacts.common.dt.{EtField, IdEt}
+import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
+import de.qaware.findfacts.core.QueryService.ResultList
 import de.qaware.findfacts.core.solrimpl.SolrMapper.BiConnective
 import de.qaware.findfacts.core.{
   AbstractFQ,
@@ -76,6 +79,11 @@ object SolrMapper {
 /** Maps abstract filter terms to solr query strings. */
 class SolrFilterTermMapper {
 
+  /** Children for id-only blocks. */
+  case object IdChildren extends Children[Id.T] {
+    override implicit val implicits: FieldImplicits[Id.T] = FieldImplicits()
+  }
+
   /** Characters that need to be escaped. Special characters that may be used: * ? */
   final val SpecialCharacters =
     Set("\\+", "-", "&&", "\\|\\|", "!", "\\(", "\\)", "\\{", "\\}", "\\[", "\\]", "\\^", "\"", "~", ":", "\\\\", "\\/")
@@ -85,18 +93,31 @@ class SolrFilterTermMapper {
 
   /** Builds nested query by executing inner one */
   private def buildInnerQuery(fq: AbstractFQ, connective: BiConnective)(implicit queryService: SolrQueryService) = {
-    queryService.getListResults[IdEt](FilterQuery(fq, -1)) map {
-      case (Vector(), _, _) =>
+    queryService.getResultList[IdChildren.T](FilterQuery(fq, -1))(FromSolrDoc[IdChildren.T]) map {
+      case ResultList(Vector(), _, _) =>
         connective match {
           case SolrMapper.And => s"${SolrMapper.All}"
           case SolrMapper.Or => s"(${SolrMapper.Not}${SolrMapper.All})"
         }
-      case (elems: Any, _, _) => s"(${elems.flatMap(_.children.map(_.id)).mkString(connective.str)})"
+      case ResultList(elems, _, _) => s"(${elems.mkString(connective.str)})"
     }
   }
 
-  private def escape(s: String): String = {
-    EscapeRegex.replaceAllIn(s, m => Matcher.quoteReplacement(s"\\$m"))
+  /** Escapes a value string.
+    *
+    * @param value to escape
+    * @param exact whether the value is used for exact mathing
+    * @return escaped string, to be used in solr query
+    */
+  def escape(value: String, exact: Boolean): String = {
+    val escaped = EscapeRegex.replaceAllIn(value, m => Matcher.quoteReplacement(s"\\$m"))
+    if (exact) {
+      "\"" + escaped + "\""
+    } else if (escaped == "") {
+      "\"\""
+    } else {
+      s"($escaped)"
+    }
   }
 
   /** Builds a filter string.
@@ -106,8 +127,8 @@ class SolrFilterTermMapper {
     * @return query string or exception if rescursive call failed
     */
   def buildFilterQuery(filter: FilterTerm)(implicit queryService: SolrQueryService): Try[String] = filter match {
-    case Term(inner) => Try(s"(${escape(inner)})")
-    case Exact(inner) => Try("\"" + escape(inner) + "\"")
+    case Term(inner) => Try(escape(inner, exact = false))
+    case Exact(inner) => Try(escape(inner, exact = true))
     case InRange(from, to) => Try(s"[$from TO $to]")
     case AnyInResult(fq) => buildInnerQuery(fq, SolrMapper.Or)
     case AllInResult(fq) => buildInnerQuery(fq, SolrMapper.And)
@@ -185,7 +206,7 @@ class SolrFilterMapper(termMapper: SolrFilterTermMapper) {
   *
   * @param filterMapper to map filter queries
   */
-class SolrQueryMapper(filterMapper: SolrFilterMapper) {
+class SolrQueryMapper(filterMapper: SolrFilterMapper, filterTermMapper: SolrFilterTermMapper) {
 
   /** Query name of '_childDocuments_' field. */
   final val ChildField = s"[child parentFilter=${SolrMapper.ParentFilter} limit=-1]"
@@ -272,7 +293,9 @@ class SolrQueryMapper(filterMapper: SolrFilterMapper) {
     * @param id to search for
     * @return built solr query
     */
-  def buildSingleQuery(id: EtField.Id.FieldType): solrj.SolrQuery = {
-    new solrj.SolrQuery().setQuery(s"${EtField.Id.name}:$id").setFields(SolrMapper.All, ChildField)
+  def buildSingleQuery(id: EtField.Id.T): solrj.SolrQuery = {
+    new solrj.SolrQuery()
+      .setQuery(s"${EtField.Id.name}:${filterTermMapper.escape(id, exact = false)}")
+      .setFields(SolrMapper.All, ChildField)
   }
 }

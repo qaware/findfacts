@@ -1,7 +1,28 @@
-module ResultsComponent exposing (Config, State(..), empty, init, view)
+module ResultsComponent exposing
+    ( Config, State
+    , config, empty, searching, init, update, view
+    , hasResults
+    )
 
-import Array exposing (Array)
-import Array.Extra
+{-| This component displays results.
+
+
+# Types
+
+@docs Config, State
+
+
+# Component
+
+@docs config, empty, searching, init, update, view
+
+
+# Helpers
+
+@docs nonEmpty
+
+-}
+
 import Bootstrap.Badge as Badge
 import Bootstrap.Button as Button
 import Bootstrap.Card as Card
@@ -11,60 +32,128 @@ import Bootstrap.Grid.Col as Col
 import Bootstrap.ListGroup as ListGroup
 import Bootstrap.Spinner as Spinner
 import Bootstrap.Text as Text
-import Entities exposing (Kind(..), ResultShortlist, ShortBlock, ShortEt, compareByKind, kindToString)
+import DataTypes exposing (..)
+import Dict exposing (Dict)
 import Html exposing (Html, br, pre, text)
+import Html.Attributes exposing (class)
+import Maybe.Extra
+import Util exposing (ite, pairWith, singletonIf, toMaybe)
 
 
-
--- CONFIG
-
-
-type alias Config msg =
-    State -> msg
+{-| Opaque config type for the results component.
+-}
+type Config msg
+    = Config (ConfigInternal msg)
 
 
+type alias ConfigInternal msg =
+    { toMsg : State -> msg
+    , toDetailMsg : String -> msg
+    , toUsageMsg : List String -> msg
+    }
 
--- STATE
 
-
+{-| Opaque state type for the results component.
+-}
 type State
     = Empty
     | Searching
     | Error String
-      -- count cursor results
-    | Result Int String (Array ResultBlock)
+    | Values StateInternal
 
 
-type alias ResultBlock =
-    { open : Bool
-    , block : ShortBlock
+type alias StateInternal =
+    { blocks : List ShortCmd
+    , blockState : Dict String Bool
+    , entityState : Dict String EntityState
     }
 
 
+type alias EntityState =
+    { open : Bool
+    , detail : Maybe ThyEt
+    }
+
+
+{-| Creates a config for a results component.
+-}
+config : (State -> msg) -> (String -> msg) -> (List String -> msg) -> Config msg
+config toMsg toDetailMsg toUsageMsg =
+    Config (ConfigInternal toMsg toDetailMsg toUsageMsg)
+
+
+{-| Creates an initial empty state for the results component.
+-}
 empty : State
 empty =
     Empty
 
 
-init : Result String ResultShortlist -> State
+{-| Creates an initial searching state for the results component.
+-}
+searching : State
+searching =
+    Searching
+
+
+{-| Initializes a new state with the given results. Not an update function since Old results can be discarded.
+-}
+init : Result String (ResultList ShortCmd) -> State
 init result =
     case result of
         Ok resultList ->
-            resultList.values
-                |> List.map (ResultBlock False)
-                |> Array.fromList
-                |> Result resultList.count resultList.nextCursor
+            Values
+                { blocks = resultList.values
+                , blockState =
+                    resultList.values
+                        |> getBlocks
+                        |> List.map .id
+                        |> List.map (pairWith False)
+                        |> Dict.fromList
+                , entityState =
+                    resultList.values
+                        |> getBlocks
+                        |> List.concatMap .entities
+                        |> List.map .id
+                        |> List.map (pairWith (EntityState False Nothing))
+                        |> Dict.fromList
+                }
 
         Err cause ->
             Error cause
 
 
+{-| Updates the state with a detail result.
+-}
+update : Result String ThyEt -> State -> State
+update result state =
+    case ( result, state ) of
+        ( Ok res, Values vals ) ->
+            let
+                id =
+                    case res of
+                        ThyConstant constantEt ->
+                            constantEt.id
 
--- VIEW
+                        ThyFact factEt ->
+                            factEt.id
+
+                        ThyType typeEt ->
+                            typeEt.id
+            in
+            updateEntityDetail id res vals
+
+        ( Ok _, _ ) ->
+            state
+
+        ( Err e, _ ) ->
+            Error e
 
 
-view : Config msg -> State -> List (Html msg)
-view config state =
+{-| Renders the results component.
+-}
+view : State -> Config msg -> List (Html msg)
+view state (Config conf) =
     case state of
         Empty ->
             []
@@ -75,77 +164,147 @@ view config state =
         Error err ->
             [ text err ]
 
-        Result count cursor res ->
-            res
-                |> Array.indexedMap
-                    (\i r ->
-                        renderResult config
-                            r
-                            (\newRes -> Result count cursor (Array.Extra.update i (\_ -> newRes) res))
+        Values res ->
+            res.blocks
+                |> List.map
+                    (\cmd ->
+                        case cmd of
+                            Doc doc ->
+                                renderDoc doc
+
+                            Block block ->
+                                renderBlock res conf block
                     )
-                |> Array.toList
                 |> List.concat
 
 
-renderResult : Config msg -> ResultBlock -> (ResultBlock -> State) -> List (Html msg)
-renderResult conf res updateState =
-    [ Card.config [ Card.align Text.alignXsLeft, Card.outlineSecondary ]
-        |> Card.header [] []
-        |> Card.block [ Block.textColor Text.secondary ]
-            [ Block.text [] [ pre [] [ text res.block.src ] ]
-            ]
-        -- Render entity list if necessary
-        |> Card.listGroup
-            (if res.open then
-                ListGroup.li [] [] :: (res.block.entities |> List.sortBy compareByKind |> List.map renderEntity)
+{-| Checks if the results list is filed with results.
+-}
+hasResults : State -> Bool
+hasResults state =
+    case state of
+        Values _ ->
+            True
 
-             else
-                []
+        _ ->
+            False
+
+
+
+-- UPDATE
+
+
+updateEntityDetail : String -> ThyEt -> StateInternal -> State
+updateEntityDetail id thyEt state =
+    Values { state | entityState = Dict.update id (\_ -> Just (EntityState True (Just thyEt))) state.entityState }
+
+
+toggleBlockOpen : String -> StateInternal -> State
+toggleBlockOpen id state =
+    Values { state | blockState = Dict.update id (Maybe.map not) state.blockState }
+
+
+closeEntity : String -> StateInternal -> State
+closeEntity id state =
+    Values { state | entityState = Dict.update id (Maybe.map (\es -> { es | open = False })) state.entityState }
+
+
+
+-- INTERNALS
+
+
+getBlocks cmds =
+    cmds
+        |> List.filterMap
+            (\cmd ->
+                case cmd of
+                    Block block ->
+                        Just block
+
+                    _ ->
+                        Nothing
             )
-        -- Render summary if necessary
-        |> Card.block [ Block.align Text.alignXsLeft ]
-            (if List.isEmpty res.block.entities || res.open then
-                []
 
-             else
-                [ renderEntitySummary res.block.entities ]
+
+toggleButton conf state label id =
+    Button.button
+        [ Button.secondary
+        , Button.small
+        , Button.onClick
+            (state
+                |> toggleBlockOpen id
+                |> conf.toMsg
             )
-        -- Render open/close buttons if necessary
-        |> Card.block [ Block.align Text.alignXsRight ]
-            (if List.isEmpty res.block.entities then
-                []
+        ]
+        [ text label ]
 
-             else
-                [ Block.custom <|
-                    Button.button
-                        [ Button.secondary
-                        , Button.small
-                        , Button.onClick ({ res | open = not res.open } |> updateState |> conf)
-                        ]
-                        [ text
-                            (if res.open then
-                                "show less"
 
-                             else
-                                "show more"
-                            )
-                        ]
-                ]
-            )
-        |> Card.footer [] [ text res.block.file ]
+renderDoc : Documentation -> List (Html msg)
+renderDoc doc =
+    [ Card.config [ Card.outlineSecondary ]
+        |> Card.header [] [ text (documentationKindToString doc.docKind) ]
+        |> Card.block [ Block.textColor Text.secondary ] [ Block.text [] [ pre [] [ text doc.src ] ] ]
+        |> Card.footer [] [ text doc.file ]
         |> Card.view
     , br [] []
     ]
 
 
-renderEntitySummary : List ShortEt -> Block.Item msg
+renderBlock : StateInternal -> ConfigInternal msg -> ShortBlock -> List (Html msg)
+renderBlock state conf block =
+    let
+        open =
+            Dict.get block.id state.blockState |> Maybe.withDefault False
+    in
+    [ Card.config [ Card.outlineSecondary ]
+        |> Card.header [ class "text-right" ]
+            (singletonIf
+                (List.isEmpty block.entities |> not)
+                (Button.button
+                    [ Button.small, Button.onClick (conf.toUsageMsg (block.entities |> List.map .id)) ]
+                    [ text "find usage" ]
+                )
+            )
+        |> Card.block [ Block.textColor Text.secondary ]
+            (Block.text [] [ pre [] [ text block.src ] ]
+                :: singletonIf (not (open || List.isEmpty block.entities))
+                    (Block.custom
+                        (Grid.row [] [ Grid.col [] [ renderEntitySummary block.entities ] ])
+                    )
+            )
+        |> (if open then
+                -- render entity list if block is open
+                Card.listGroup
+                    -- Empty li as spacer
+                    (ListGroup.li [ ListGroup.light ] []
+                        :: (block.entities
+                                |> List.sortBy (\a -> kindToString a.kind)
+                                |> List.map (renderShortEt state conf)
+                           )
+                    )
+
+            else
+                identity
+           )
+        |> Card.footer []
+            [ Grid.row []
+                [ Grid.col [] [ text block.file ]
+                , Grid.col [ Col.textAlign Text.alignXsRight ]
+                    [ toggleButton conf state (ite open "show less" "show more") block.id ]
+                ]
+            ]
+        |> Card.view
+    , br [] []
+    ]
+
+
+renderEntitySummary : List ShortEt -> Html msg
 renderEntitySummary blocks =
     let
         counts =
             ( "Types", List.filter (\et -> et.kind == Type) blocks |> List.length )
                 :: ( "Constants", List.filter (\et -> et.kind == Constant) blocks |> List.length )
-                :: ( "Facts", List.filter (\et -> et.kind == Fact) blocks |> List.length )
-                :: []
+                :: [ ( "Facts", List.filter (\et -> et.kind == Fact) blocks |> List.length ) ]
 
         cols =
             counts
@@ -156,26 +315,76 @@ renderEntitySummary blocks =
                             [ Badge.badgePrimary [] [ text (name ++ ": " ++ String.fromInt count) ] ]
                     )
     in
-    Block.custom <| Grid.container [] [ Grid.row [] cols ]
+    Grid.row [] cols
 
 
-renderEntity : ShortEt -> ListGroup.Item msg
-renderEntity et =
-    ListGroup.li [ ListGroup.light ]
+renderShortEt : StateInternal -> ConfigInternal msg -> ShortEt -> ListGroup.Item msg
+renderShortEt state conf et =
+    let
+        ( open, detailMaybe ) =
+            state.entityState
+                |> Dict.get et.id
+                |> Maybe.map (\s -> ( s.open, s.detail ))
+                |> Maybe.withDefault ( False, Nothing )
+    in
+    ListGroup.li
+        [ ListGroup.light ]
         [ Grid.container []
-            (Grid.row []
-                [ Grid.col [ Col.xs, Col.lg2 ] [ text (kindToString et.kind) ]
+            ([ Grid.row []
+                [ Grid.col [ Col.sm2 ] [ text (kindToString et.kind) ]
                 , Grid.col [] [ text et.name ]
-                ]
-                :: (if String.isEmpty et.shortDescription then
-                        []
-
-                    else
-                        [ Grid.row []
-                            [ Grid.col [ Col.xs, Col.lg2 ] []
-                            , Grid.col [] [ text et.shortDescription ]
-                            ]
+                , Grid.col [ Col.textAlign Text.alignXsRight, Col.sm2 ]
+                    [ Button.button
+                        [ Button.small
+                        , Button.onClick
+                            (ite open (conf.toMsg (state |> closeEntity et.id)) (conf.toDetailMsg et.id))
                         ]
+                        [ text (ite open "close" "details") ]
+                    ]
+                , Grid.col [ Col.textAlign Text.alignXsRight, Col.sm2 ]
+                    [ Button.button [ Button.small, Button.onClick (conf.toUsageMsg [ et.id ]) ] [ text "find usage" ] ]
+                ]
+             ]
+                ++ (detailMaybe
+                        |> Maybe.andThen (\detail -> open |> toMaybe (renderThyEt state conf detail))
+                        |> Maybe.Extra.toList
+                        |> List.concat
                    )
             )
+        ]
+
+
+renderThyEt : StateInternal -> ConfigInternal msg -> ThyEt -> List (Html msg)
+renderThyEt state conf detail =
+    case detail of
+        ThyConstant const ->
+            [ br [] [], pre [] [ text const.typ ] ]
+                ++ renderEntitiesSummary "Type uses" const.typUses
+                ++ renderEntitiesSummary "Proposition uses" const.propUses
+
+        ThyFact fact ->
+            br [] []
+                :: renderEntitiesSummary "Proposition uses" fact.propUses
+                ++ renderEntitiesSummary "Proof uses" fact.proofUses
+
+        ThyType typ ->
+            br [] []
+                :: renderEntitiesSummary "Type uses" typ.ctorUses
+
+
+renderEntitiesSummary : String -> List ShortEt -> List (Html msg)
+renderEntitiesSummary name entities =
+    ite (List.isEmpty entities)
+        []
+        [ Card.config []
+            |> Card.header [] [ text name ]
+            |> Card.listGroup
+                (entities
+                    |> List.map .name
+                    |> List.map text
+                    |> List.map List.singleton
+                    |> List.map (ListGroup.li [])
+                )
+            |> Card.view
+        , br [] []
         ]

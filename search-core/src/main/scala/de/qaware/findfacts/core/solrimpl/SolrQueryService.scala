@@ -5,12 +5,14 @@ import scala.language.{postfixOps, reflectiveCalls}
 import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BaseEt, EtField, ShortCmdEt}
+import de.qaware.findfacts.common.dt.{BaseEt, ConstantEt, EtField, FactEt, TypeEt}
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.common.utils.TryUtils._
-import de.qaware.findfacts.core.QueryService.{FacetResult, SingleResult}
-import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService, ResultShortlist}
+import de.qaware.findfacts.core.QueryService.{FacetResult, ResultList}
+import de.qaware.findfacts.core.dt.{ResolvedConstant, ResolvedFact, ResolvedThyEt, ResolvedType, ShortCmd, ShortThyEt}
+import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
 import org.apache.solr.client.solrj
+import org.apache.solr.client.solrj.SolrRequest.METHOD
 import org.apache.solr.client.solrj.request.json.JsonQueryRequest
 import org.apache.solr.client.solrj.response.QueryResponse
 import org.apache.solr.client.solrj.{SolrClient, SolrServerException}
@@ -29,7 +31,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
       logger.info(s"Executing query $query")
 
       val resp = query match {
-        case Left(query) => connection.query(query)
+        case Left(query) => connection.query(query, METHOD.POST)
         case Right(query) => query.process(connection)
       }
 
@@ -41,7 +43,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     }
   }
 
-  override def getFacetResults(facetQuery: FacetQuery): Try[FacetResult] = {
+  override def getResultFacet(facetQuery: FacetQuery): Try[FacetResult] = {
     for {
       solrQuery <- mapper.buildFacetQuery(this, facetQuery)
       solrResult <- getSolrResult(Right(solrQuery))
@@ -78,30 +80,67 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     * @tparam A type of result
     * @return vector containing results, result count, and next cursor or error
     */
-  private[solrimpl] def getListResults[A](filterQuery: FilterQuery)(
-      implicit docMapper: FromSolrDoc[A]): Try[(Vector[A], Long, String)] = {
+  def getResultList[A](filterQuery: FilterQuery)(implicit docMapper: FromSolrDoc[A]): Try[ResultList[A]] = {
     val results = for {
       query <- mapper.buildFilterQuery(this, filterQuery)
       () = docMapper.getSolrFields.foreach(f => query.addField(f.name))
       solrRes <- getSolrResult(Left(query))
     } yield {
       val resList: Try[Seq[A]] = solrRes.getResults.asScala.map(docMapper.fromSolrDoc)
-      resList.map(r => (r.toVector, solrRes.getResults.getNumFound, solrRes.getNextCursorMark))
+      resList.map(r => ResultList(r.toVector, solrRes.getResults.getNumFound, solrRes.getNextCursorMark))
     }
     results.flatten
   }
 
-  override def getResult(id: EtField.Id.FieldType): Try[SingleResult] = {
-    val query = mapper.buildSingleQuery(id)
-    getSolrResult(Left(query)).map(_.getResults.asScala.toList) flatMap {
-      case List(elem) => FromSolrDoc[BaseEt].fromSolrDoc(elem).map(Some(_))
-      case _ => Success(None)
-    }
+  /** Get single doc by id and map to entity.
+    *
+    * @param query solr query to search for
+    * @param docMapper for result type
+    * @tparam A type of result
+    * @return option containing result if found
+    */
+  def getResult[A](query: solrj.SolrQuery)(implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] = {
+    docMapper.getSolrFields.foreach(f => query.addField(f.name))
+    val res: Try[Try[Seq[A]]] = for {
+      solrRes <- getSolrResult(Left(query))
+    } yield solrRes.getResults.asScala.map(docMapper.fromSolrDoc)
+
+    res.flatten.map(_.toVector)
   }
 
-  override def getResultShortlist(filterQuery: FilterQuery): Try[ResultShortlist] = {
-    getListResults(filterQuery)(FromSolrDoc[ShortCmdEt]) map {
-      case (values, count, nextCursor) => ResultShortlist(values, count, nextCursor)
-    }
+  override def getResultResolved(id: EtField.Id.T): Try[Option[ResolvedThyEt]] = {
+    val res: Try[Option[Try[ResolvedThyEt]]] = for {
+      resOpt <- getResult(id)
+    } yield
+      for {
+        res <- resOpt
+      } yield
+        res match {
+          case ConstantEt(id, _, _, propositionUses, typeUses, constantType) =>
+            for {
+              propUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(propositionUses.mkString(" ")))
+              typeUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(typeUses.mkString(" ")))
+            } yield ResolvedConstant(id, constantType, typeUsesRes.toList, propUsesRes.toList)
+          case FactEt(id, _, _, propositionUses, proofUses) =>
+            for {
+              propUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(propositionUses.mkString(" ")))
+              proofUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(proofUses.mkString(" ")))
+            } yield ResolvedFact(id, propUsesRes.toList, proofUsesRes.toList)
+          case TypeEt(id, _, _, propositionUses) =>
+            for {
+              propUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(propositionUses.mkString(" ")))
+            } yield ResolvedType(id, propUsesRes.toList)
+          case _ => return Success(None)
+        }
+    res.map(_.map(_.toEither.left.map(t => return Failure(t)).merge))
   }
+
+  override def getResult(id: EtField.Id.T): Try[Option[BaseEt]] =
+    getResult[BaseEt](mapper.buildSingleQuery(id)) map {
+      case Vector(elem) => Some(elem)
+      case _ => None
+    }
+
+  override def getResultShortlist(filterQuery: FilterQuery): Try[ResultList[ShortCmd]] =
+    getResultList[ShortCmd](filterQuery)
 }

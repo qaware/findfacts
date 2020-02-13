@@ -3,6 +3,7 @@ package de.qaware.findfacts.core
 import de.qaware.findfacts.common.dt.EtField.{Kind, Name, PropositionUses, StartPosition}
 import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, ITSolr, ThyEtKind}
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
+import de.qaware.findfacts.core.dt.ShortBlock
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import org.apache.solr.client.solrj.{SolrClient, SolrQuery}
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Inside, Matchers, TryValues}
@@ -36,58 +37,57 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val result = queryModule.service.getResults(query)
 
     val resList = result.success.value
-    resList should have size 1
-    inside(resList) {
-      case Vector(b: CodeblockEt) =>
-        b.startPosition should be(12)
-        b.endPosition should be(14)
-        b.entities should have size 1
-        b.entities.head.name should equal("ConstIsFact")
+    resList.count should be(1)
+    resList.values should have size 1
+    inside(resList.values) {
+      case Vector(ShortBlock(id, theory, src, entities)) =>
+        id should equal("ExampleThy.12")
+        entities should have size 1
+        entities.head.name should equal("ConstIsFact")
     }
   }
 
   test("Filter query shortlist") {
-    val query = FilterQuery(Filter(Map(Kind -> Term(ThyEtKind.Constant.entryName))), 10)
-    val result = queryModule.service.getShortResults(query)
+    val query = FilterQuery(Filter(Map(Kind -> Exact(ThyEtKind.Constant.entryName))))
+    val result = queryModule.service.getResultShortlist(query)
 
     val resList = result.success.value
-    resList should have size 1
+    resList.values should have size 1
 
-    val thyRes = resList.head.entities
+    val thyRes = resList.values.head.entities
     thyRes should have size 1
     thyRes.head.kind should equal(ThyEtKind.Constant)
-    thyRes.head.shortDescription should equal("Const1 :: 'a => 'b")
   }
 
   test("Recursive query") {
-    val innerQuery = Filter(Map(Kind -> Term(ThyEtKind.Constant.toString)))
-    val query = FilterQuery(Filter(Map(PropositionUses -> AnyInResult(innerQuery))), 10)
-    val result = queryModule.service.getShortResults(query)
+    val innerQuery = Filter(Map(Kind -> Exact(ThyEtKind.Constant.toString)))
+    val query = FilterQuery(Filter(Map(PropositionUses -> AnyInResult(innerQuery))))
+    val result = queryModule.service.getResultShortlist(query)
 
-    result.success.value should have size 1
-    result.success.value.head.entities should have size 1
-    result.success.value.head.entities.head.name should equal("ConstIsFact")
+    result.success.value.values should have size 1
+    result.success.value.values.head.entities should have size 1
+    result.success.value.values.head.entities.head.name should equal("ConstIsFact")
   }
 
   test("Query set operations") {
     // matches nothing
-    val noMatchQuery = Filter(Map(Name -> Term("does not exist")))
+    val noMatchQuery = Filter(Map(Name -> Exact("does not exist")))
     // matches all
     val query1 = Filter(Map(PropositionUses -> AllInResult(noMatchQuery)))
     // matches kind:Constant
-    val query2 = Filter(Map(Kind -> Term(ThyEtKind.Constant.toString)))
+    val query2 = Filter(Map(Kind -> Exact(ThyEtKind.Constant.toString)))
     // matches all intersect kind:Constant
     val query = FilterQuery(FilterIntersection(query1, query2), 10)
     val result = queryModule.service.getShortResults(query)
 
-    result.success.value should have size 1
-    result.success.value.head.entities should have size 1
-    result.success.value.head.entities.head.name should equal("Const1")
+    result.success.value.values should have size 1
+    result.success.value.values.head.entities should have size 1
+    result.success.value.values.head.entities.head.name should equal("Const1")
   }
 
   test("Facet query") {
     val query = FacetQuery(Filter(Map.empty), Set(EtField.StartPosition))
-    val result = queryModule.service.getFacetResults(query)
+    val result = queryModule.service.getResultFacet(query)
 
     val resultFacet = result.success.value
     resultFacet should equal(Map(EtField.StartPosition -> Map("1" -> 1, "12" -> 1)))

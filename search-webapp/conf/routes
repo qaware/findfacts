@@ -16,6 +16,8 @@ GET     /assets/*file                  controllers.Assets.versioned(file)
 ### RESTful interface
 # Retrieves detailed information about a single entity
 GET     /v1/entities/:id               de.qaware.findfacts.webapp.controllers.QueryController.entity(id: String)
+# Resolves a theory entity one level deep
+GET     /v1/resolved/:id               de.qaware.findfacts.webapp.controllers.QueryController.resolved(id: String)
 # Searches by a complete query
 POST    /v1/search                     de.qaware.findfacts.webapp.controllers.QueryController.search
 # Retrieves facet results for each field

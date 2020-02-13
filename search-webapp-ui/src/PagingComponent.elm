@@ -2,10 +2,10 @@ module PagingComponent exposing
     ( Config, State
     , config, empty, encode, decoder, update, view
     , buildFilterQuery
-    , isEmpty, samePage
+    , isEmpty, samePage, numResults
     )
 
-{-| This module controls results pagination.
+{-| This component controls results pagination.
 
 
 # Types
@@ -25,7 +25,7 @@ module PagingComponent exposing
 
 # Helpers
 
-@docs isEmpty, samePage
+@docs isEmpty, samePage, numResults
 
 -}
 
@@ -34,13 +34,12 @@ import Bootstrap.Button as Button
 import Bootstrap.ButtonGroup as ButtonGroup exposing (ButtonItem)
 import Bootstrap.Grid as Grid
 import Bootstrap.Spinner as Spinner
-import Entities exposing (ResultShortlist)
+import DataTypes exposing (..)
 import Html exposing (Html, text)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import List.Extra
 import Maybe.Extra
-import Query exposing (AbstractFQ, FilterQuery)
 import Util exposing (ite, toMaybe)
 
 
@@ -48,13 +47,13 @@ import Util exposing (ite, toMaybe)
 -- CONFIG
 
 
-{-| Opaque config for the paging component.
+{-| Opaque config type for the paging component.
 -}
 type Config msg
     = Config (State -> msg)
 
 
-{-| Opaque state for the paging component.
+{-| Opaque state type for the paging component.
 -}
 type State
     = State StateInternal
@@ -68,7 +67,7 @@ type alias StateInternal =
     }
 
 
-{-| Creates an initial config for a paging component.
+{-| Creates a config for a paging component.
 -}
 config : (State -> msg) -> Config msg
 config toMsg =
@@ -100,12 +99,12 @@ decoder =
 
 {-| Update state with new results.
 -}
-update : ResultShortlist -> State -> State
+update : ResultList a -> State -> State
 update res (State state) =
     State { state | next = Just res.nextCursor, totalResults = res.count }
 
 
-{-| Render the component.
+{-| Renders the paging component.
 -}
 view : State -> Config msg -> List (Html msg)
 view (State state) (Config toMsg) =
@@ -156,6 +155,17 @@ samePage (State s1) (State s2) =
     s1.previous == s2.previous
 
 
+{-| Gets the total number of results.
+-}
+numResults : State -> Int
+numResults (State state) =
+    state.totalResults
+
+
+
+-- INTERNALS
+
+
 pageSize =
     10
 
@@ -167,6 +177,7 @@ type ButtonState
     | Active
 
 
+renderButton : String -> (State -> msg) -> ButtonState -> ButtonItem msg
 renderButton label conf buttonState =
     case buttonState of
         Disabled ->
@@ -184,14 +195,16 @@ renderButton label conf buttonState =
             ButtonGroup.button [ Button.primary ] [ text label ]
 
 
+renderButtons : Int -> Int -> (State -> msg) -> StateInternal -> List (ButtonItem msg)
 renderButtons numPages numPrevious conf state =
     Maybe.Extra.values
         [ -- first
-          toMaybe (numPrevious > 0) (renderButton "1" conf (Enabled { state | previous = Array.empty, next = Array.get 0 state.previous }))
+          numPrevious > 0 |> toMaybe (renderButton "1" conf (Enabled { state | previous = Array.empty, next = Array.get 0 state.previous }))
         , -- ...
-          toMaybe (numPrevious > 2) (renderButton "..." conf Disabled)
+          numPrevious > 2 |> toMaybe (renderButton "..." conf Disabled)
         , -- previous
-          toMaybe (numPrevious > 1) (Array.get (numPrevious - 1) state.previous)
+          (numPrevious > 1)
+            |> toMaybe (Array.get (numPrevious - 1) state.previous)
             |> Maybe.Extra.join
             |> Maybe.map
                 (\c ->
@@ -202,25 +215,25 @@ renderButtons numPages numPrevious conf state =
                 )
         , -- current
           Just (renderButton (String.fromInt (numPrevious + 1)) conf Active)
-
-        -- loading/next
-        , toMaybe (numPrevious + 1 < numPages)
-            (let
-                symbol =
-                    ite (numPrevious + 2 == numPages) (String.fromInt numPages) ">"
-             in
-             state.next
-                |> Maybe.map
-                    (\c ->
-                        renderButton
-                            symbol
-                            conf
-                            (Enabled { state | previous = Array.push c state.previous, next = Nothing })
-                    )
-                |> Maybe.withDefault (renderButton symbol conf Waiting)
-            )
+        , -- loading/next
+          (numPrevious + 1 < numPages)
+            |> toMaybe
+                (let
+                    symbol =
+                        ite (numPrevious + 2 == numPages) (String.fromInt numPages) ">"
+                 in
+                 state.next
+                    |> Maybe.map
+                        (\c ->
+                            renderButton
+                                symbol
+                                conf
+                                (Enabled { state | previous = Array.push c state.previous, next = Nothing })
+                        )
+                    |> Maybe.withDefault (renderButton symbol conf Waiting)
+                )
         , -- ...
-          toMaybe (numPrevious + 3 < numPages) (renderButton "..." conf Disabled)
+          numPrevious + 3 < numPages |> toMaybe (renderButton "..." conf Disabled)
         , -- last
-          toMaybe (numPrevious + 2 < numPages) (renderButton (String.fromInt numPages) conf Disabled)
+          numPrevious + 2 < numPages |> toMaybe (renderButton (String.fromInt numPages) conf Disabled)
         ]

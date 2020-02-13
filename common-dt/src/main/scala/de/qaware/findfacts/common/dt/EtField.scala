@@ -4,9 +4,6 @@ import de.qaware.findfacts.common.da.api.{ChildrenField, Field, MultiValuedField
 import de.qaware.findfacts.common.dt.solr.SolrSchema
 import de.qaware.findfacts.common.utils.DefaultEnum
 import enumeratum.EnumEntry
-// scalastyle:off
-import io.circe.generic.auto._
-// scalastyle:on
 
 /** Seal field types so only existing fields can be used. */
 sealed trait EtField extends EnumEntry with Field {
@@ -64,21 +61,12 @@ object EtField extends DefaultEnum[EtField] {
     override val implicits = FieldImplicits()
   }
 
-  /** Child theory entities. */
-  case object ChildEntities extends ChildrenField[TheoryEt] with ParentField {
-    override final val name = SolrSchema.Children
-    override val implicits = FieldImplicits()
-  }
-
-  /** Child short entries. */
-  case object ChildShorts extends ChildrenField[ShortThyEt] with ParentField {
-    override final val name = SolrSchema.Children
-    override val implicits = FieldImplicits()
-  }
-
-  case object ChildIds extends ChildrenField[IdChild] with ParentField {
-    override final val name: String = SolrSchema.Children
-    override val implicits = FieldImplicits()
+  /** Field for child entities.
+    *
+    * @tparam A Children type
+    */
+  abstract class Children[A] extends ChildrenField[A] with ParentField {
+    override val name: String = SolrSchema.Children
   }
 
   /** Kind of theory entity. Possible values in [[Kind]]. */
@@ -92,7 +80,7 @@ object EtField extends DefaultEnum[EtField] {
     override final val name = SolrSchema.Name
     override val implicits = FieldImplicits()
   }
-  
+
   case object NameFacet extends SingleValuedField[String] with ChildField {
     override final val name = SolrSchema.NameFacet
     override val implicits = FieldImplicits()
