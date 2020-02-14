@@ -16,10 +16,13 @@ object Markup_Blocks
 
   def from_XML(body: XML.Body): Markup_Blocks =
   {
-    val blocks = body.map(XML.content).foldLeft(Nil: List[Block]) {
+    val blocks = body.foldLeft(Nil: List[Block]) {
       case (acc, text) =>
         val start_index = if (acc.isEmpty) 1 else acc.last.range.stop
-        acc :+ Block(Text.Range(start_index, start_index + Symbol.length(text)), text)
+        val content = XML.content(text)
+        val html = HTML.output(Symbol.decode_yxml(content), hidden = true, structural = true)
+
+        acc :+ Block(Text.Range(start_index, start_index + Symbol.length(content)), html)
     }
 
     new Markup_Blocks(blocks)

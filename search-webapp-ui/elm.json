@@ -6,6 +6,7 @@
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
+            "aforemny/material-components-web-elm": "2.1.0",
             "elm/browser": "1.0.2",
             "elm/core": "1.0.4",
             "elm/html": "1.0.0",
@@ -18,6 +19,7 @@
             "elm-community/list-extra": "8.2.3",
             "elm-community/maybe-extra": "5.1.0",
             "elm-community/result-extra": "2.3.0",
+            "hecrj/html-parser": "2.3.4",
             "rundis/elm-bootstrap": "5.2.0",
             "turboMaCk/any-dict": "2.1.0"
         },
@@ -25,8 +27,11 @@
             "avh4/elm-color": "1.0.0",
             "elm/bytes": "1.0.8",
             "elm/file": "1.0.5",
+            "elm/parser": "1.1.0",
+            "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
-            "elm/virtual-dom": "1.0.2"
+            "elm/virtual-dom": "1.0.2",
+            "rtfeldman/elm-hex": "1.0.0"
         }
     },
     "test-dependencies": {

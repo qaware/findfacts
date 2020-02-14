@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Bootstrap.Accordion exposing (Card)
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Navbar as Navbar
@@ -13,6 +14,12 @@ import Http
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (Value)
 import List
+import Material.Button as Button
+import Material.Card as Card exposing (CardContent, cardPrimaryActionConfig)
+import Material.Chips as Chips
+import Material.IconButton as IconButton
+import Material.LayoutGrid as LayoutGrid
+import Material.Typography as Typography
 import PagingComponent as Paging
 import ResultsComponent as Results
 import SearchComponent as Search
@@ -470,6 +477,28 @@ pageSyntax : List (Html msg)
 pageSyntax =
     [ h1 [] [ text "Search syntax" ]
     , Grid.row [] []
+    , Card.card Card.cardConfig
+        { blocks =
+            Card.cardPrimaryAction
+                { cardPrimaryActionConfig
+                    | onClick = Nothing
+                }
+                [ Card.cardBlock <| LayoutGrid.layoutGrid [ LayoutGrid.alignLeft ] [ Html.div [ Typography.button ] [ text "Find Usage" ] ]
+                ]
+        , actions =
+            Just <|
+                Card.cardActions
+                    { buttons =
+                        [ Card.cardActionButton Button.buttonConfig
+                            "find usage"
+                        ]
+                    , icons =
+                        [ Card.cardActionIcon IconButton.iconButtonConfig
+                            "clear"
+                        ]
+                    }
+        }
+    , Chips.choiceChipSet [] [ Chips.choiceChip Chips.choiceChipConfig "chip" ]
     ]
 
 

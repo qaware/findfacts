@@ -14,6 +14,7 @@ import de.qaware.findfacts.core.dt.{
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery}
 import io.circe.{Decoder, Encoder}
 // scalastyle:off
+import io.circe.generic.auto._
 import io.circe.generic.semiauto._
 // scalastyle:on
 

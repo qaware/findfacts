@@ -34,8 +34,15 @@ import Bootstrap.Spinner as Spinner
 import Bootstrap.Text as Text
 import DataTypes exposing (..)
 import Dict exposing (Dict)
-import Html exposing (Html, br, pre, text)
-import Html.Attributes exposing (class)
+import Html exposing (Html, br, div, hr, node, pre, text)
+import Html.Attributes exposing (attribute, class, style, width)
+import Html.Parser
+import Html.Parser.Util
+import Material.Button as MButton exposing (buttonConfig)
+import Material.Card as MCard exposing (cardPrimaryActionConfig)
+import Material.Chips as Chips
+import Material.LayoutGrid as MGrid
+import Material.Typography as Typography
 import Maybe.Extra
 import Util exposing (ite, pairWith, singletonIf, toMaybe)
 
@@ -166,16 +173,8 @@ view state (Config conf) =
 
         Values res ->
             res.blocks
-                |> List.map
-                    (\cmd ->
-                        case cmd of
-                            Doc doc ->
-                                renderDoc doc
-
-                            Block block ->
-                                renderBlock res conf block
-                    )
-                |> List.concat
+                |> List.map (renderCmd conf res)
+                |> List.intersperse (br [] [])
 
 
 {-| Checks if the results list is filed with results.
@@ -191,6 +190,7 @@ hasResults state =
 
 
 
+-- INTERNALS
 -- UPDATE
 
 
@@ -210,7 +210,7 @@ closeEntity id state =
 
 
 
--- INTERNALS
+-- HELPERS
 
 
 getBlocks cmds =
@@ -237,6 +237,100 @@ toggleButton conf state label id =
             )
         ]
         [ text label ]
+
+
+
+-- RENDERING
+
+
+renderCmd : ConfigInternal msg -> StateInternal -> ShortCmd -> Html msg
+renderCmd conf state cmd =
+    case cmd of
+        Doc doc ->
+            renderDocItem <| renderDocContent doc
+
+        Block block ->
+            renderBlockItem conf state block <| renderBlockContent conf block
+
+
+renderDocItem : Html msg -> Html msg
+renderDocItem content =
+    MCard.card MCard.cardConfig
+        { blocks = [ MCard.cardBlock <| MGrid.layoutGrid [ MGrid.alignLeft ] [ content ] ], actions = Nothing }
+
+
+renderBlockItem : ConfigInternal msg -> StateInternal -> ShortBlock -> Html msg -> Html msg
+renderBlockItem conf state block content =
+    MCard.card MCard.cardConfig
+        { blocks =
+            MCard.cardPrimaryAction
+                { cardPrimaryActionConfig | onClick = Just <| conf.toMsg <| toggleBlockOpen block.id state }
+                [ MCard.cardBlock <| content ]
+        , actions =
+            Just <|
+                MCard.cardActions { buttons = [ block.entities |> List.map .id |> renderFindUsageButton conf ], icons = [] }
+        }
+
+
+renderFindUsageButton conf ids =
+    MCard.cardActionButton { buttonConfig | onClick = Just <| conf.toUsageMsg ids } "find usage"
+
+
+renderHtml : String -> Html msg
+renderHtml html =
+    let
+        renderedHtml =
+            case Html.Parser.run html of
+                Ok nodes ->
+                    div [] <| Html.Parser.Util.toVirtualDom nodes
+
+                _ ->
+                    text html
+    in
+    pre [] [ renderedHtml ]
+
+
+renderBlockContent : ConfigInternal msg -> ShortBlock -> Html msg
+renderBlockContent conf block =
+    MGrid.layoutGrid [ MGrid.alignLeft ]
+        [ div [ Typography.caption, style "margin-bottom" "10pt" ] [ text block.file ]
+        , renderHtml block.src
+        , div [] <| renderSummaryBadges block.entities
+        ]
+
+
+renderSummaryChip ( name, count ) =
+    count > 0 |> toMaybe (Chips.choiceChip Chips.choiceChipConfig <| name ++ ": " ++ String.fromInt count)
+
+
+renderBadge label =
+    Badge.pillSecondary [ style "margin-right" "10px", Typography.body2 ] [ text label ]
+
+
+renderSummaryBadges ets =
+    ( "Types", List.filter (\et -> et.kind == Type) ets |> List.length )
+        :: ( "Constants", List.filter (\et -> et.kind == Constant) ets |> List.length )
+        :: [ ( "Facts", List.filter (\et -> et.kind == Fact) ets |> List.length ) ]
+        |> List.filter (\( _, c ) -> c > 0)
+        |> List.map (\( name, count ) -> renderBadge (name ++ ": " ++ String.fromInt count))
+
+
+renderBlockSummary : List ShortEt -> Html msg
+renderBlockSummary ets =
+    ( "Types", List.filter (\et -> et.kind == Type) ets |> List.length )
+        :: ( "Constants", List.filter (\et -> et.kind == Constant) ets |> List.length )
+        :: [ ( "Facts", List.filter (\et -> et.kind == Fact) ets |> List.length ) ]
+        |> List.map renderSummaryChip
+        |> Maybe.Extra.values
+        |> Chips.choiceChipSet []
+
+
+renderDocContent : Documentation -> Html msg
+renderDocContent doc =
+    div []
+        [ div [ Typography.caption, style "margin-bottom" "10pt" ] [ text doc.file ]
+        , renderHtml doc.src
+        ]
 
 
 renderDoc : Documentation -> List (Html msg)
