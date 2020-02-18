@@ -20,18 +20,14 @@ module DetailsComponent exposing
 import Bootstrap.Spinner as Spinner
 import DataTypes exposing (..)
 import Dict exposing (Dict)
-import Html exposing (Html, br, div, hr, node, pre, text)
-import Html.Attributes exposing (attribute, class, style, width)
-import Html.Parser
-import Html.Parser.Util
-import Material.Button as Button exposing (buttonConfig)
+import Html exposing (Html, br, div, pre, text)
+import Html.Lazy exposing (lazy)
 import Material.Card as Card exposing (cardPrimaryActionConfig)
-import Material.Chips as Chips
 import Material.DataTable as Table
 import Material.LayoutGrid as Grid
 import Material.Typography as Typography
 import Maybe.Extra
-import Util exposing (ite, pairWith, renderHtml, singletonIf, toMaybe)
+import Util exposing (ite, pairWith, renderHtml)
 
 
 {-| Opaque config type for detail result component.
@@ -223,7 +219,7 @@ renderShortEt state conf et =
                         ]
                 ]
                 ++ (Dict.get et.id state.entityDetails
-                        |> Maybe.map (renderDetails >> Card.cardBlock >> List.singleton)
+                        |> Maybe.map (lazy renderDetails >> Card.cardBlock >> List.singleton)
                         |> Maybe.withDefault []
                    )
         , actions = Nothing
@@ -238,7 +234,7 @@ renderDetails entityState =
                 Spinner.spinner [] []
 
             Result res ->
-                renderThyEt res
+                lazy renderThyEt res
 
             None ->
                 div [] []

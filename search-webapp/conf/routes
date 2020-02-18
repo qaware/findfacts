@@ -23,4 +23,4 @@ GET     /v1/entities/theory/resolved/:id    de.qaware.findfacts.webapp.controlle
 # Searches by a complete query
 POST    /v1/search                          de.qaware.findfacts.webapp.controllers.QueryController.search
 # Retrieves facet results for each field
-POST /v1/facet                     de.qaware.findfacts.webapp.controllers.QueryController.facet
+POST    /v1/facet                           de.qaware.findfacts.webapp.controllers.QueryController.facet

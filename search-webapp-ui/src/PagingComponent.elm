@@ -35,7 +35,7 @@ import Bootstrap.ButtonGroup as ButtonGroup exposing (ButtonItem)
 import Bootstrap.Grid as Grid
 import Bootstrap.Spinner as Spinner
 import DataTypes exposing (..)
-import Html exposing (Html, text)
+import Html exposing (Html, div, text)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import List.Extra
@@ -106,24 +106,25 @@ update res (State state) =
 
 {-| Renders the paging component.
 -}
-view : State -> Config msg -> List (Html msg)
+view : State -> Config msg -> Html msg
 view (State state) (Config toMsg) =
-    if isEmpty (State state) then
-        []
+    div [] <|
+        if isEmpty (State state) then
+            []
 
-    else
-        [ Grid.row []
-            [ Grid.col []
-                [ ButtonGroup.buttonGroup []
-                    (renderButtons
-                        (ceiling (toFloat state.totalResults / pageSize))
-                        (Array.length state.previous)
-                        toMsg
-                        state
-                    )
+        else
+            [ Grid.row []
+                [ Grid.col []
+                    [ ButtonGroup.buttonGroup []
+                        (renderButtons
+                            (ceiling (toFloat state.totalResults / pageSize))
+                            (Array.length state.previous)
+                            toMsg
+                            state
+                        )
+                    ]
                 ]
             ]
-        ]
 
 
 {-| Builds a correctly paged filter query from a filter and the paging component.

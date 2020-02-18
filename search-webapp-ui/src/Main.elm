@@ -1,7 +1,5 @@
 module Main exposing (..)
 
-import Bootstrap.Grid as Grid
-import Bootstrap.Grid.Col as Col
 import Browser
 import Browser.Navigation as Navigation
 import DataTypes exposing (..)
@@ -9,6 +7,7 @@ import Debug exposing (log)
 import DetailsComponent as Details
 import Html exposing (Html, br, div, h1, span, text)
 import Html.Attributes exposing (attribute, href, style)
+import Html.Lazy exposing (lazy, lazy2)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (Value)
@@ -444,111 +443,108 @@ view model =
     { title = "FindFacts"
     , body =
         [ div (ite locked [ attribute "pointer-events" "none" ] [])
-            [ Drawer.modalDrawer
-                { modalDrawerConfig | open = drawerOpen, onClose = Just DrawerMsg }
-                [ Drawer.drawerContent []
-                    [ Material.List.list Material.List.listConfig
-                        [ Material.List.listItem Material.List.listItemConfig
-                            [ text "Home" ]
-                        , Material.List.listItem Material.List.listItemConfig [ Material.List.listItemGraphic [] [ Icon.icon Icon.iconConfig "star" ] ]
-                        , Material.List.listItem Material.List.listItemConfig
-                            [ text "Log out" ]
-                        ]
-                    ]
-                ]
+            [ lazy renderDrawer drawerOpen
             , Drawer.drawerScrim [] []
-            , div
-                [ Drawer.appContent
-                , style "background-color" "rgb(248,248,248)"
-                , style "min-height" "100vh"
+            , div [ Drawer.appContent, style "background-color" "rgb(248,248,248)", style "min-height" "100vh" ] <|
+                [ renderTopBar
+                , br [] []
+                , lazy renderPage page
                 ]
-              <|
-                TopAppBar.topAppBar { topAppBarConfig | dense = True }
-                    [ TopAppBar.row [ style "max-width" "1170px", style "margin" "0 auto" ]
-                        [ TopAppBar.section [ TopAppBar.alignStart ]
-                            [ IconButton.iconButton
-                                { iconButtonConfig
-                                    | additionalAttributes = [ TopAppBar.navigationIcon ]
-                                    , onClick = Just DrawerMsg
-                                }
-                                "menu"
-                            , span [ TopAppBar.title ]
-                                [ text "FindFacts" ]
-                            ]
-                        ]
-                    ]
-                    :: [ br [] []
-                       , MGrid.layoutGrid
-                            [ style "max-width" "1170px"
-                            , style "margin" "0 auto"
-                            , TopAppBar.denseFixedAdjust
-                            ]
-                         <|
-                            renderPage page
-                       ]
             ]
         ]
     }
 
 
-renderPage : Page -> List (Html Msg)
+{-| Renders the menu drawer.
+-}
+renderDrawer : Bool -> Html Msg
+renderDrawer open =
+    Drawer.modalDrawer
+        { modalDrawerConfig | open = open, onClose = Just DrawerMsg }
+        [ Drawer.drawerContent []
+            [ Material.List.list Material.List.listConfig
+                [ Material.List.listItem Material.List.listItemConfig
+                    [ text "Home" ]
+                , Material.List.listItem Material.List.listItemConfig
+                    [ Material.List.listItemGraphic [] [ Icon.icon Icon.iconConfig "star" ] ]
+                , Material.List.listItem Material.List.listItemConfig
+                    [ text "Log out" ]
+                ]
+            ]
+        ]
+
+
+{-| Renders the top bar.
+-}
+renderTopBar : Html Msg
+renderTopBar =
+    TopAppBar.topAppBar { topAppBarConfig | dense = True }
+        [ TopAppBar.row
+            [ style "max-width" "1170px", style "margin" "0 auto" ]
+            [ TopAppBar.section [ TopAppBar.alignStart ]
+                [ IconButton.iconButton
+                    { iconButtonConfig
+                        | additionalAttributes = [ TopAppBar.navigationIcon ]
+                        , onClick = Just DrawerMsg
+                    }
+                    "menu"
+                , span [ TopAppBar.title ]
+                    [ text "FindFacts" ]
+                ]
+            ]
+        ]
+
+
+{-| Renders the content page.
+-}
+renderPage : Page -> Html Msg
 renderPage page =
-    case page of
-        Home search paging results ->
-            pageHome search paging results
+    MGrid.layoutGrid [ style "max-width" "1170px", style "margin" "0 auto", TopAppBar.denseFixedAdjust ] <|
+        case page of
+            Home search paging results ->
+                renderPageHome search paging results
 
-        Details details ->
-            Details.config DetailsMsg |> Details.view details
+            Details details ->
+                Details.config DetailsMsg |> Details.view details
 
-        Syntax ->
-            pageSyntax
+            Syntax ->
+                renderPageSyntax
 
-        Imprint ->
-            pageImprint
+            Imprint ->
+                renderPageImprint
 
-        NotFound ->
-            pageNotFound
+            NotFound ->
+                renderPageNotFound
 
 
 {-| Renders the main home page.
 -}
-pageHome : Search.State -> Paging.State -> Results.State -> List (Html Msg)
-pageHome search paging results =
+renderPageHome : Search.State -> Paging.State -> Results.State -> List (Html Msg)
+renderPageHome search paging results =
     [ div []
-        [ Grid.row []
-            [ Grid.col [ Col.lg6 ]
-                [ h1 []
-                    [ text
-                        ("Search"
-                            ++ (Results.hasResults results
-                                    |> toMaybe (" - " ++ String.fromInt (Paging.numResults paging) ++ " Results")
-                                    |> Maybe.withDefault ""
-                               )
-                        )
-                    ]
-                ]
-            ]
-        , br [] []
-        , Grid.row [] [ Grid.col [] (Search.view search (Search.Config SearchInternalMsg SearchMsg SearchFacet)) ]
-        , br [] []
-        , Grid.row []
-            [ Grid.col []
-                (Results.config ResultsMsg ResultsDetail ResultsUsingMsg
-                    |> Results.view results
+        [ h1 []
+            [ text
+                ("Search"
+                    ++ (Results.hasResults results
+                            |> toMaybe (" - " ++ String.fromInt (Paging.numResults paging) ++ " Results")
+                            |> Maybe.withDefault ""
+                       )
                 )
             ]
-        , br [] []
-        , Grid.row [] [ Grid.col [] <| (Paging.config PagingMsg |> Paging.view paging) ]
-
-        --, div [ style "position" "absolute", style "bottom" "0" ] [ MGrid.layoutGrid [MGrid.alignRight] MGrid.layoutGridInner [] (Paging.config PagingMsg |> Paging.view paging) ] ]
         ]
+    , br [] []
+    , lazy2 Search.view search (Search.Config SearchInternalMsg SearchMsg SearchFacet)
+    , br [] []
+    , lazy2 Results.view results (Results.config ResultsMsg ResultsDetail ResultsUsingMsg)
+    , br [] []
+    , lazy2 Paging.view paging (Paging.config PagingMsg)
     ]
 
 
 {-| Renders the 'syntax' page.
 -}
-pageSyntax : List (Html msg)
-pageSyntax =
+renderPageSyntax : List (Html msg)
+renderPageSyntax =
     [ h1 [] [ text "Search syntax" ]
     , Chips.choiceChipSet [] [ Chips.choiceChip Chips.choiceChipConfig "chip" ]
     ]
@@ -556,16 +552,16 @@ pageSyntax =
 
 {-| Renders the 'imprint' page.
 -}
-pageImprint : List (Html msg)
-pageImprint =
+renderPageImprint : List (Html msg)
+renderPageImprint =
     [ h1 [] [ text "Imprint" ]
     ]
 
 
 {-| Renders the error 404 page.
 -}
-pageNotFound : List (Html msg)
-pageNotFound =
+renderPageNotFound : List (Html msg)
+renderPageNotFound =
     [ h1 [] [ text "Not found" ]
     , text "404 - Could not find requested page"
     ]

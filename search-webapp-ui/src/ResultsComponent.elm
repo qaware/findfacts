@@ -29,6 +29,7 @@ import DataTypes exposing (..)
 import Dict exposing (Dict)
 import Html exposing (Html, br, div, pre, text)
 import Html.Attributes exposing (style)
+import Html.Lazy exposing (lazy, lazy2)
 import Material.Button exposing (buttonConfig)
 import Material.Card as Card exposing (cardPrimaryActionConfig)
 import Material.DataTable as Table exposing (DataTableRow)
@@ -114,22 +115,23 @@ init result =
 
 {-| Renders the results component.
 -}
-view : State -> Config msg -> List (Html msg)
+view : State -> Config msg -> Html msg
 view state (Config conf) =
-    case state of
-        Empty ->
-            []
+    div [] <|
+        case state of
+            Empty ->
+                []
 
-        Searching ->
-            [ Spinner.spinner [] [] ]
+            Searching ->
+                [ Spinner.spinner [] [] ]
 
-        Error err ->
-            [ text err ]
+            Error err ->
+                [ text err ]
 
-        Values res ->
-            res.blocks
-                |> List.map (renderCmd conf res)
-                |> List.intersperse (br [] [])
+            Values res ->
+                res.blocks
+                    |> List.map (renderCmd conf res)
+                    |> List.intersperse (br [] [])
 
 
 {-| Checks if the results list is filed with results.
@@ -179,7 +181,7 @@ renderCmd : ConfigInternal msg -> StateInternal -> ShortCmd -> Html msg
 renderCmd conf state cmd =
     case cmd of
         Doc doc ->
-            renderDocItem <| renderDocContent doc
+            lazy renderDocItem (renderDocContent doc)
 
         Block block ->
             renderBlockItem conf state block
@@ -198,7 +200,7 @@ renderBlockItem conf state block =
             Card.cardPrimaryAction
                 { cardPrimaryActionConfig | onClick = Just <| conf.toMsg <| toggleBlockOpen block.id state }
                 [ Card.cardBlock <|
-                    renderBlockContent (state.blockState |> Dict.get block.id |> Maybe.withDefault False) block
+                    lazy2 renderBlockContent (state.blockState |> Dict.get block.id |> Maybe.withDefault False) block
                 ]
         , actions =
             Just <|
@@ -249,7 +251,7 @@ renderBlockContent open block =
                 }
 
           else
-            div [] <| renderEntitySummary block.entities
+            lazy renderEntitySummary block.entities
         ]
 
 
@@ -261,13 +263,14 @@ renderEntity et =
         ]
 
 
-renderEntitySummary : List ShortEt -> List (Html msg)
+renderEntitySummary : List ShortEt -> Html msg
 renderEntitySummary ets =
     ( "Types", List.filter (\et -> et.kind == Type) ets |> List.length )
         :: ( "Constants", List.filter (\et -> et.kind == Constant) ets |> List.length )
         :: [ ( "Facts", List.filter (\et -> et.kind == Fact) ets |> List.length ) ]
         |> List.filter (\( _, c ) -> c > 0)
         |> List.map (\( name, count ) -> renderBadge (name ++ ": " ++ String.fromInt count))
+        |> div []
 
 
 renderBadge : String -> Html msg

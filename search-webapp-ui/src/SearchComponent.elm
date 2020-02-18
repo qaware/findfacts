@@ -12,7 +12,7 @@ import Bootstrap.Text as Text
 import DataTypes exposing (..)
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
-import Html exposing (Html, text)
+import Html exposing (Html, div, text)
 import Html.Events as Events exposing (onClick)
 import Html.Events.Extra as ExtraEvents
 import Json.Decode as Decode exposing (Decoder)
@@ -361,66 +361,67 @@ changeEvents state conf =
     ]
 
 
-view : State -> Config msg -> List (Html msg)
+view : State -> Config msg -> Html msg
 view state conf =
-    Grid.row
-        []
-        [ Grid.col []
-            [ InputGroup.config
-                (InputGroup.text
-                    [ Input.placeholder "SearchComponent for"
-                    , Input.attrs (changeEvents state conf)
-                    , Input.onInput (\text -> conf.toInternal { state | termSearcher = text })
-                    , Input.value state.termSearcher
-                    ]
-                )
-                |> InputGroup.successors
-                    -- TODO force reload
-                    [ InputGroup.button
-                        [ Button.primary ]
-                        [ text "Go!" ]
-                    ]
-                |> InputGroup.view
-            ]
-        ]
-        :: (Array.indexedMap
-                (\i -> renderFieldSearcher conf (\f -> { state | fieldSearchers = Array.set i f state.fieldSearchers }))
-                state.fieldSearchers
-                |> Array.toList
-           )
-        ++ [ Grid.row []
-                [ Grid.col [ Col.xs1 ]
-                    [ Dropdown.dropdown
-                        state.newField
-                        { options = []
-                        , toggleMsg = \toggle -> conf.toInternal { state | newField = toggle }
-                        , toggleButton = Dropdown.toggle [ Button.primary ] [ text "+" ]
-                        , items =
-                            List.map
-                                (\f ->
-                                    Dropdown.buttonItem
-                                        [ onClick
-                                            ({ state
-                                                | fieldSearchers =
-                                                    Array.push
-                                                        (FieldSearcher Dropdown.initialState f "" Nothing)
-                                                        state.fieldSearchers
-                                             }
-                                                |> conf.toMsg
-                                            )
-                                        ]
-                                        [ text (fieldToString f) ]
-                                )
-                                termFilterableFields
-                        }
-                    ]
+    div [] <|
+        Grid.row
+            []
+            [ Grid.col []
+                [ InputGroup.config
+                    (InputGroup.text
+                        [ Input.placeholder "SearchComponent for"
+                        , Input.attrs (changeEvents state conf)
+                        , Input.onInput (\text -> conf.toInternal { state | termSearcher = text })
+                        , Input.value state.termSearcher
+                        ]
+                    )
+                    |> InputGroup.successors
+                        -- TODO force reload
+                        [ InputGroup.button
+                            [ Button.primary ]
+                            [ text "Go!" ]
+                        ]
+                    |> InputGroup.view
                 ]
-           ]
-        ++ (state.facetSelectors
-                |> AnyDict.filter (\_ facet -> not (Dict.isEmpty facet) || facetSelected facet)
-                |> AnyDict.toList
-                |> List.map (renderFacetSearcher state conf)
-           )
+            ]
+            :: (Array.indexedMap
+                    (\i -> renderFieldSearcher conf (\f -> { state | fieldSearchers = Array.set i f state.fieldSearchers }))
+                    state.fieldSearchers
+                    |> Array.toList
+               )
+            ++ [ Grid.row []
+                    [ Grid.col [ Col.xs1 ]
+                        [ Dropdown.dropdown
+                            state.newField
+                            { options = []
+                            , toggleMsg = \toggle -> conf.toInternal { state | newField = toggle }
+                            , toggleButton = Dropdown.toggle [ Button.primary ] [ text "+" ]
+                            , items =
+                                List.map
+                                    (\f ->
+                                        Dropdown.buttonItem
+                                            [ onClick
+                                                ({ state
+                                                    | fieldSearchers =
+                                                        Array.push
+                                                            (FieldSearcher Dropdown.initialState f "" Nothing)
+                                                            state.fieldSearchers
+                                                 }
+                                                    |> conf.toMsg
+                                                )
+                                            ]
+                                            [ text (fieldToString f) ]
+                                    )
+                                    termFilterableFields
+                            }
+                        ]
+                    ]
+               ]
+            ++ (state.facetSelectors
+                    |> AnyDict.filter (\_ facet -> not (Dict.isEmpty facet) || facetSelected facet)
+                    |> AnyDict.toList
+                    |> List.map (renderFacetSearcher state conf)
+               )
 
 
 selectFacetEntry : State -> Field -> FacetSelection -> String -> FacetEntry -> State

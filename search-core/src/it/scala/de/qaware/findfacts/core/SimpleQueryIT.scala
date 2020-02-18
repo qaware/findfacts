@@ -8,7 +8,8 @@ import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import org.apache.solr.client.solrj.{SolrClient, SolrQuery}
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Inside, Matchers}
 
-class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValues with Inside {
+/** Test base functionality of query module with a setupt that's as simple as possible.  */
+class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with Inside {
   final val solr = ITSolr.apply().solrConnection()
   final val queryModule: QueryModule = new SolrQueryModule { override lazy val solrClient: SolrClient = solr }
 
@@ -32,8 +33,8 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
   }
 
   test("Filter query") {
-    val query = FilterQuery(Filter(Map(StartPosition -> InRange(10, 30))), 10)
-    val result = queryModule.service.getResults(query)
+    val query = FilterQuery(Filter(Map(StartPosition -> InRange(10, 30))))
+    val result = queryModule.service.getResultShortlist(query)
 
     val resList = result.get
     resList.count should be(1)
@@ -76,8 +77,8 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     // matches kind:Constant
     val query2 = Filter(Map(Kind -> Exact(ThyEtKind.Constant.toString)))
     // matches all intersect kind:Constant
-    val query = FilterQuery(FilterIntersection(query1, query2), 10)
-    val result = queryModule.service.getShortResults(query)
+    val query = FilterQuery(FilterIntersection(query1, query2))
+    val result = queryModule.service.getResultShortlist(query)
 
     result.get.values should have size 1
     result.get.values.head.entities should have size 1
