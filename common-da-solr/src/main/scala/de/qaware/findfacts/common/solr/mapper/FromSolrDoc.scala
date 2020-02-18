@@ -4,7 +4,7 @@ import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 import de.qaware.findfacts.common.da.api.Variant.Discriminator
 import de.qaware.findfacts.common.da.api.{
@@ -62,7 +62,7 @@ object FromSolrDoc {
 
   /** CNil impl. */
   implicit val cnilFromSolrDoc: FromSolrDoc[CNil] = instance(Set.empty, doc => {
-    Try { throw new IllegalStateException(s"Coproduct variant not handled: $doc") }
+    Failure(new IllegalStateException(s"Coproduct variant not handled: $doc"))
   })
 
   /** Coproduct impl for discriminator tags only */

@@ -3,6 +3,7 @@ module Util exposing
     , singletonIf, consIf, appIf
     , pairWith
     , anyDictDecoder
+    , renderHtml
     )
 
 {-| Utility module.
@@ -27,9 +28,17 @@ module Util exposing
 
 @docs anyDictDecoder
 
+
+# HTML helper
+
+@docs renderHtml
+
 -}
 
 import Dict.Any as AnyDict exposing (AnyDict)
+import Html exposing (Html, div, text)
+import Html.Parser
+import Html.Parser.Util
 import Json.Decode as Decode exposing (Decoder)
 
 
@@ -111,6 +120,11 @@ pairWith b a =
     Tuple.pair a b
 
 
+{-| Decoder for AnyDicts.
+
+    anyDictDecoder keyDecoder valueDecoder compareFn
+
+-}
 anyDictDecoder : (String -> Decoder k) -> Decoder v -> (k -> comparable) -> Decoder (AnyDict comparable k v)
 anyDictDecoder kFromString vDecoder compare =
     Decode.keyValuePairs vDecoder
@@ -118,3 +132,18 @@ anyDictDecoder kFromString vDecoder compare =
         |> Decode.andThen (\l -> List.foldl (\( kStr, v ) dec -> Decode.map2 (\k xs -> ( k, v ) :: xs) (kFromString kStr) dec) (Decode.succeed []) l)
         -- Decoder (List (k, v))
         |> Decode.map (AnyDict.fromList compare)
+
+
+{-| Parses string to HTML and appends to div.
+
+    renderHtml "<br>Text with html"
+
+-}
+renderHtml : String -> Html msg
+renderHtml html =
+    case Html.Parser.run html of
+        Ok nodes ->
+            div [] <| Html.Parser.Util.toVirtualDom nodes
+
+        _ ->
+            text html

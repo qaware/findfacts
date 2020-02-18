@@ -9,7 +9,7 @@ import io.circe.generic.auto._
 
 /** Children for base theory blocks. */
 case object TheoryChildren extends Children[TheoryEt] {
-  override implicit def implicits: TheoryChildren.FieldImplicits[TheoryEt] = FieldImplicits()
+  override implicit val implicits: TheoryChildren.FieldImplicits[TheoryEt] = FieldImplicits()
 }
 
 /** Fields for all entities. */
@@ -35,25 +35,21 @@ sealed trait TheoryEt extends BaseEt {
 final case class CodeblockEt private (
     override val id: Id.T,
     /** Source in which entity was defined. */
-    sourceFile: SourceTheory.T,
+    theory: SourceTheory.T,
     /** Start pos of entity definition, in isabelle tokens. */
     startPosition: StartPosition.T,
     /** End pos of entity definition, in isabelle tokens. */
     endPosition: EndPosition.T,
     /** Source code of the entity. */
-    sourceText: SourceText.T,
+    src: SourceText.T,
     /** Entities from this bloock. */
     entities: TheoryChildren.T
 ) extends BaseEt
     with Discriminator[CmdKind, CommandKind.type, CmdKind.Codeblock.type] {
-  require(id == s"$sourceFile.$startPosition")
+  require(id == s"$theory.$startPosition")
 
-  def this(
-      sourceFile: SourceTheory.T,
-      startPosition: StartPosition.T,
-      endPosition: EndPosition.T,
-      sourceText: SourceText.T) =
-    this(s"$sourceFile.$startPosition", sourceFile, startPosition, endPosition, sourceText, List.empty)
+  def this(theory: SourceTheory.T, startPosition: StartPosition.T, endPosition: EndPosition.T, src: SourceText.T) =
+    this(s"$theory.$startPosition", theory, startPosition, endPosition, src, List.empty)
 }
 
 /** Documentation.
@@ -62,14 +58,14 @@ final case class CodeblockEt private (
   */
 final case class DocumentationEt private (
     override val id: Id.T,
-    sourceFile: SourceTheory.T,
+    theory: SourceTheory.T,
     startPosition: StartPosition.T,
     endPosition: EndPosition.T,
-    sourceText: SourceText.T,
+    src: SourceText.T,
     documentationKind: DocumentationKind.T
 ) extends BaseEt
     with Discriminator[CmdKind, CommandKind.type, dt.CmdKind.Documentation.type] {
-  require(id == s"$sourceFile.$startPosition.$documentationKind")
+  require(id == s"$theory.$startPosition.$documentationKind")
 
   def this(
       sourceFile: SourceTheory.T,

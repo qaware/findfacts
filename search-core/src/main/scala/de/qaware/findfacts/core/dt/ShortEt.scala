@@ -64,4 +64,4 @@ final case class ShortDocumentation(
   * @param kind of theory entity
   * @param name of theory entity
   */
-case class ShortThyEt(id: Id.T, kind: Kind.T, name: Name.T)
+final case class ShortThyEt(id: Id.T, kind: Kind.T, name: Name.T)

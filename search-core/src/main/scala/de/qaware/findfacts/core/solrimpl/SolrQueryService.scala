@@ -44,6 +44,10 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
   }
 
   override def getResultFacet(facetQuery: FacetQuery): Try[FacetResult] = {
+    if (facetQuery.maxFacets < 0) {
+      return Failure(new IllegalArgumentException("Maximum number of facets cannot be negative"))
+    }
+
     for {
       solrQuery <- mapper.buildFacetQuery(this, facetQuery)
       solrResult <- getSolrResult(Right(solrQuery))
@@ -81,6 +85,10 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     * @return vector containing results, result count, and next cursor or error
     */
   def getResultList[A](filterQuery: FilterQuery)(implicit docMapper: FromSolrDoc[A]): Try[ResultList[A]] = {
+    if (filterQuery.pageSize < 0) {
+      return Failure(new IllegalArgumentException("Page size cannot be negative"))
+    }
+
     val results = for {
       query <- mapper.buildFilterQuery(this, filterQuery)
       () = docMapper.getSolrFields.foreach(f => query.addField(f.name))
@@ -99,7 +107,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     * @tparam A type of result
     * @return option containing result if found
     */
-  def getResult[A](query: solrj.SolrQuery)(implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] = {
+  private def getResult[A](query: solrj.SolrQuery)(implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] = {
     docMapper.getSolrFields.foreach(f => query.addField(f.name))
     val res: Try[Try[Seq[A]]] = for {
       solrRes <- getSolrResult(Left(query))
@@ -140,6 +148,13 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
       case Vector(elem) => Some(elem)
       case _ => None
     }
+
+  override def getShortResult(id: EtField.Id.T): Try[Option[ShortCmd]] = {
+    getResult[ShortCmd](mapper.buildSingleQuery(id)) map {
+      case Vector(elem) => Some(elem)
+      case _ => None
+    }
+  }
 
   override def getResultShortlist(filterQuery: FilterQuery): Try[ResultList[ShortCmd]] =
     getResultList[ShortCmd](filterQuery)

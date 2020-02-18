@@ -10,9 +10,11 @@ import scala.collection.JavaConverters._
 import better.files.{File, Resource}
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.scala.Using
-import org.apache.solr.client.solrj.SolrClient
+import org.apache.solr.client.solrj.SolrRequest.METHOD
+import org.apache.solr.client.solrj.{SolrClient, SolrRequest, SolrResponse}
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
 import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}
+import org.apache.solr.common.util.NamedList
 
 /** Repository to provide connections to different types of solr instances. */
 sealed trait SolrRepository {
@@ -74,7 +76,18 @@ final class LocalSolr private (solrHome: File, core: String) extends SolrReposit
         }
     }
 
-    new EmbeddedSolrServer((solrHome / id).path, core)
+    val solrServer = new EmbeddedSolrServer((solrHome / id).path, core)
+    // Workaround for https://issues.apache.org/jira/browse/SOLR-12858
+    new SolrClient {
+      override def request(request: SolrRequest[_ <: SolrResponse], collection: String): NamedList[AnyRef] = {
+        val isContentStreamQuery = request.getParams == null || !request.getParams.getParameterNamesIterator.hasNext
+        if (request.getMethod == METHOD.POST && !isContentStreamQuery) {
+          request.setMethod(METHOD.GET)
+        }
+        solrServer.request(request, collection)
+      }
+      override def close(): Unit = solrServer.close()
+    }
   }
 }
 

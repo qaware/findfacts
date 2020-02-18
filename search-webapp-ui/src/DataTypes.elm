@@ -394,7 +394,7 @@ documentationKindDecoder =
 
 shortCmdDecoder : Decoder ShortCmd
 shortCmdDecoder =
-    Decode.oneOf [ Decode.map Block blockDecoder, Decode.map Doc documentationDecoder ]
+    Decode.oneOf [ Decode.map Block shortBlockDecoder, Decode.map Doc documentationDecoder ]
 
 
 documentationDecoder : Decoder Documentation
@@ -406,8 +406,8 @@ documentationDecoder =
         (Decode.field "docKind" (Decode.string |> Decode.andThen documentationKindFromString))
 
 
-blockDecoder : Decoder ShortBlock
-blockDecoder =
+shortBlockDecoder : Decoder ShortBlock
+shortBlockDecoder =
     Decode.map4 ShortBlock
         (Decode.field "id" Decode.string)
         (Decode.field "theory" Decode.string)

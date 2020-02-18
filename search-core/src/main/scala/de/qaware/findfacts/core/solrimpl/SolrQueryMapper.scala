@@ -78,6 +78,7 @@ object SolrMapper {
 
 /** Maps abstract filter terms to solr query strings. */
 class SolrFilterTermMapper {
+  final val MaxChildren = 10000
 
   /** Children for id-only blocks. */
   case object IdChildren extends Children[Id.T] {
@@ -93,7 +94,7 @@ class SolrFilterTermMapper {
 
   /** Builds nested query by executing inner one */
   private def buildInnerQuery(fq: AbstractFQ, connective: BiConnective)(implicit queryService: SolrQueryService) = {
-    queryService.getResultList[IdChildren.T](FilterQuery(fq, -1))(FromSolrDoc[IdChildren.T]) map {
+    queryService.getResultList[IdChildren.T](FilterQuery(fq, MaxChildren))(FromSolrDoc[IdChildren.T]) map {
       case ResultList(Vector(), _, _) =>
         connective match {
           case SolrMapper.And => s"${SolrMapper.All}"

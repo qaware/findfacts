@@ -26,7 +26,7 @@ class BaseEtTest extends FunSuite with Matchers {
 
     block.copy(endPosition = 2)
     const.copy(proposition = "prop")
-    doc.copy(sourceText = "src")
+    doc.copy(src = "src")
     fact.copy(proofUses = List("fact"))
     typ.copy(proposition = "prop")
   }

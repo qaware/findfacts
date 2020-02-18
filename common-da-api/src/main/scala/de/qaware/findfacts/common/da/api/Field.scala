@@ -42,8 +42,8 @@ trait Field {
       .getOrElse(throw new IllegalArgumentException(s"Could not decode $str"))
   }
 
-  /** Decoder for field values. */
-  implicit lazy val valueDecoder: Decoder[T] = implicitly[Decoder[T]]
+  /** Decoder for field values. Not lazy because of implicitly call. */
+  implicit val valueDecoder: Decoder[T] = implicitly[Decoder[T]]
 
   /** Encoder for field values.
     *

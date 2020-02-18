@@ -6,7 +6,7 @@ import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
 import de.qaware.findfacts.core.dt.ShortBlock
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import org.apache.solr.client.solrj.{SolrClient, SolrQuery}
-import org.scalatest.{BeforeAndAfterAll, FunSuite, Inside, Matchers, TryValues}
+import org.scalatest.{BeforeAndAfterAll, FunSuite, Inside, Matchers}
 
 class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValues with Inside {
   final val solr = ITSolr.apply().solrConnection()
@@ -22,8 +22,7 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val mapper = ToSolrDoc[BaseEt]
     solr.add(mapper.toSolrDoc(block1))
     solr.add(mapper.toSolrDoc(block2))
-    val status = solr.commit()
-    status.getStatus should (be(200) or be(0))
+    solr.commit().getStatus should (be(200) or be(0))
   }
 
   override def afterAll(): Unit = solr.close()
@@ -36,7 +35,7 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val query = FilterQuery(Filter(Map(StartPosition -> InRange(10, 30))), 10)
     val result = queryModule.service.getResults(query)
 
-    val resList = result.success.value
+    val resList = result.get
     resList.count should be(1)
     resList.values should have size 1
     inside(resList.values) {
@@ -51,7 +50,7 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val query = FilterQuery(Filter(Map(Kind -> Exact(ThyEtKind.Constant.entryName))))
     val result = queryModule.service.getResultShortlist(query)
 
-    val resList = result.success.value
+    val resList = result.get
     resList.values should have size 1
 
     val thyRes = resList.values.head.entities
@@ -64,9 +63,9 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val query = FilterQuery(Filter(Map(PropositionUses -> AnyInResult(innerQuery))))
     val result = queryModule.service.getResultShortlist(query)
 
-    result.success.value.values should have size 1
-    result.success.value.values.head.entities should have size 1
-    result.success.value.values.head.entities.head.name should equal("ConstIsFact")
+    result.get.values should have size 1
+    result.get.values.head.entities should have size 1
+    result.get.values.head.entities.head.name should equal("ConstIsFact")
   }
 
   test("Query set operations") {
@@ -80,16 +79,16 @@ class QueryIT extends FunSuite with BeforeAndAfterAll with Matchers with TryValu
     val query = FilterQuery(FilterIntersection(query1, query2), 10)
     val result = queryModule.service.getShortResults(query)
 
-    result.success.value.values should have size 1
-    result.success.value.values.head.entities should have size 1
-    result.success.value.values.head.entities.head.name should equal("Const1")
+    result.get.values should have size 1
+    result.get.values.head.entities should have size 1
+    result.get.values.head.entities.head.name should equal("Const1")
   }
 
   test("Facet query") {
     val query = FacetQuery(Filter(Map.empty), Set(EtField.StartPosition))
     val result = queryModule.service.getResultFacet(query)
 
-    val resultFacet = result.success.value
+    val resultFacet = result.get
     resultFacet should equal(Map(EtField.StartPosition -> Map("1" -> 1, "12" -> 1)))
   }
 }

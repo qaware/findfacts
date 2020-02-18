@@ -1,25 +1,25 @@
 module Main exposing (..)
 
-import Bootstrap.Accordion exposing (Card)
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
-import Bootstrap.Navbar as Navbar
 import Browser
 import Browser.Navigation as Navigation
 import DataTypes exposing (..)
 import Debug exposing (log)
-import Html exposing (Html, br, div, h1, text)
-import Html.Attributes exposing (href)
+import DetailsComponent as Details
+import Html exposing (Html, br, div, h1, span, text)
+import Html.Attributes exposing (attribute, href, style)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (Value)
 import List
-import Material.Button as Button
-import Material.Card as Card exposing (CardContent, cardPrimaryActionConfig)
 import Material.Chips as Chips
-import Material.IconButton as IconButton
-import Material.LayoutGrid as LayoutGrid
-import Material.Typography as Typography
+import Material.Drawer as Drawer exposing (modalDrawerConfig)
+import Material.Icon as Icon
+import Material.IconButton as IconButton exposing (iconButtonConfig)
+import Material.LayoutGrid as MGrid
+import Material.List
+import Material.TopAppBar as TopAppBar exposing (topAppBarConfig)
 import PagingComponent as Paging
 import ResultsComponent as Results
 import SearchComponent as Search
@@ -27,7 +27,7 @@ import Url exposing (Url)
 import Url.Builder as UrlBuilder
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 import Url.Parser.Query as UrlQueryParser
-import Util exposing (consIf, toMaybe)
+import Util exposing (consIf, ite, toMaybe)
 
 
 
@@ -51,18 +51,18 @@ main =
 {-| Application initializer.
 -}
 init : () -> Url -> Navigation.Key -> ( Model, Cmd Msg )
-init _ url key =
+init _ url navKey =
     let
         baseUrl =
             Url.toString { url | path = "", query = Nothing, fragment = Nothing }
 
-        ( navState, navCmd ) =
-            Navbar.initialState NavbarMsg
+        initialState =
+            Site False <| Home Search.init Paging.empty Results.empty
 
         ( model, urlCmd ) =
-            urlUpdate url (Model baseUrl key navState (Home Search.init Paging.empty Results.empty))
+            urlUpdate url (Model baseUrl navKey initialState)
     in
-    ( model, Cmd.batch [ urlCmd, navCmd ] )
+    ( model, urlCmd )
 
 
 
@@ -74,18 +74,23 @@ init _ url key =
 type alias Model =
     { apiBaseUrl : String
     , navKey : Navigation.Key
-    , navState : Navbar.State
-    , page : Page
+    , state : State
     }
+
+
+{-| For url updates, the page is locked temporarily until the urlChange event happens,
+so no more url changes are triggered.
+-}
+type State
+    = Locked Bool Page
+    | Site Bool Page
 
 
 {-| Page to use in model, stores state.
 -}
 type Page
     = Home Search.State Paging.State Results.State
-      -- The Home page is updated via url, but as urlChange is an external event, the state needs to be locked until it occurs.
-    | Locked Search.State Paging.State Results.State
-    | Example Results.State
+    | Details Details.State
     | Syntax
     | Imprint
     | NotFound
@@ -101,7 +106,7 @@ type Msg
     = -- Routing
       UrlChanged Url
     | LinkClicked Browser.UrlRequest
-    | NavbarMsg Navbar.State
+    | DrawerMsg
       -- Search component
     | SearchInternalMsg Search.State
     | SearchMsg Search.State
@@ -111,92 +116,115 @@ type Msg
     | PagingMsg Paging.State
       -- Results component
     | ResultsMsg Results.State
-    | ResultsDetailMsg String
+    | ResultsDetail String
     | ResultsUsingMsg (List String)
     | FilterResult (Result Http.Error (ResultList ShortCmd))
-    | DetailResult (Result Http.Error ThyEt)
+      -- Details component
+    | DetailsResult (Result Http.Error ShortBlock)
+    | DetailsMsg (Maybe String) Details.State
+    | DetailsEntityResult (Result Http.Error ThyEt)
 
 
 {-| Main update loop.
 -}
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case ( msg, model.page ) of
-        ( UrlChanged url, _ ) ->
-            urlUpdate url model
+    case model.state of
+        Locked _ _ ->
+            case msg of
+                UrlChanged url ->
+                    urlUpdate url model
 
-        ( _, Locked _ _ _ ) ->
-            -- only the UrlChanged event can free the locked state
-            ( model, Cmd.none )
+                _ ->
+                    -- only the UrlChanged event can free the locked state
+                    ( model, Cmd.none )
 
-        ( LinkClicked urlRequest, _ ) ->
-            case urlRequest of
-                Browser.Internal url ->
-                    ( model, Navigation.pushUrl model.navKey (Url.toString url) )
+        Site drawerOpen page ->
+            case ( msg, page ) of
+                ( UrlChanged url, _ ) ->
+                    urlUpdate url model
 
-                Browser.External href ->
-                    ( model, Navigation.load href )
+                ( DrawerMsg, _ ) ->
+                    ( { model | state = Site (not drawerOpen) page }, Cmd.none )
 
-        ( NavbarMsg state, _ ) ->
-            ( { model | navState = state }, Cmd.none )
+                -- URL transitions
+                ( LinkClicked urlRequest, _ ) ->
+                    case urlRequest of
+                        Browser.Internal url ->
+                            ( model, Navigation.pushUrl model.navKey (Url.toString url) )
 
-        ( ResultsDetailMsg entityId, _ ) ->
-            ( model, executeEntityQuery model.apiBaseUrl entityId )
+                        Browser.External href ->
+                            ( model, Navigation.load href )
+
+                ( ResultsDetail id, _ ) ->
+                    ( { model | state = Locked False page }, Navigation.pushUrl model.navKey <| urlEncodeDetail id )
+
+                ( SearchMsg newSearch, Home search paging _ ) ->
+                    -- Check if paging needs to be reset
+                    let
+                        newPaging =
+                            if (Search.update newSearch |> Tuple.second |> Just) == search.lastQuery then
+                                paging
+
+                            else
+                                Paging.empty
+                    in
+                    ( { model | state = Locked False page }
+                    , Navigation.pushUrl model.navKey (urlEncodeHome newSearch newPaging)
+                    )
+
+                ( PagingMsg newPaging, Home search paging results ) ->
+                    ( { model | state = Locked False (Home search paging results) }
+                    , Navigation.pushUrl model.navKey (urlEncodeHome search newPaging)
+                    )
+
+                -- messages that only update pages
+                ( _, _ ) ->
+                    let
+                        ( newPage, cmd ) =
+                            updatePage model.apiBaseUrl msg page
+                    in
+                    ( { model | state = Site drawerOpen newPage }, cmd )
+
+
+{-| Handles messages to update the current page.
+-}
+updatePage : String -> Msg -> Page -> ( Page, Cmd Msg )
+updatePage apiBaseUrl msg page =
+    case ( msg, page ) of
+        ( DetailsResult result, Details _ ) ->
+            ( Details <| Details.init <| Result.mapError explainHttpError result, Cmd.none )
+
+        ( DetailsMsg id details, Details _ ) ->
+            ( Details details, id |> Maybe.map (executeThyEtQuery apiBaseUrl) |> Maybe.withDefault Cmd.none )
+
+        ( DetailsEntityResult result, Details details ) ->
+            ( Details <| Details.update (Result.mapError explainHttpError result) details, Cmd.none )
 
         ( SearchInternalMsg state, Home _ paging results ) ->
-            -- internal messages only change state, not url
-            ( { model | page = Home state paging results }, Cmd.none )
-
-        ( SearchMsg newSearch, Home search paging results ) ->
-            -- Check if paging needs to be reset
-            let
-                newPaging =
-                    if (Search.update newSearch |> Tuple.second |> Just) == search.lastQuery then
-                        paging
-
-                    else
-                        Paging.empty
-            in
-            -- Store old state in locked page
-            ( { model | page = Locked search paging results }
-            , Navigation.pushUrl model.navKey (urlEncodeHome newSearch newPaging)
-            )
-
-        ( PagingMsg newPaging, Home search paging results ) ->
-            -- Store old state in locked page
-            ( { model | page = Locked search paging results }
-            , Navigation.pushUrl model.navKey (urlEncodeHome search newPaging)
-            )
+            ( Home state paging results, Cmd.none )
 
         ( ResultsMsg newResults, Home search paging _ ) ->
-            ( { model | page = Home search paging newResults }, Cmd.none )
+            ( Home search paging newResults, Cmd.none )
 
         ( SearchFacet facetQuery id, _ ) ->
-            ( model, executeFacetQuery model.apiBaseUrl facetQuery id )
-
-        ( FilterResult result, Example _ ) ->
-            case result of
-                Ok res ->
-                    ( { model | page = Example (Results.init (Ok res)) }, Cmd.none )
-
-                Err _ ->
-                    ( { model | page = Example (Results.init (Err "Error getting example")) }, Cmd.none )
+            ( page, executeFacetQuery apiBaseUrl facetQuery id )
 
         ( FilterResult result, Home search paging _ ) ->
             case result of
                 Ok res ->
                     -- The paging stores previous cursors in the URL
-                    ( { model | page = Home search (Paging.update res paging) (Results.init (Ok res)) }, Cmd.none )
+                    ( Home search (Paging.update res paging) (Results.init (Ok res)), Cmd.none )
 
                 Err e ->
-                    ( { model | page = Home { search | lastQuery = Nothing } Paging.empty (Results.init (Err (explainHttpError e))) }
+                    ( Home { search | lastQuery = Nothing } Paging.empty (Results.init (Err (explainHttpError e)))
                     , Cmd.none
                     )
 
         ( SearchFacetResult id result, Home search paging results ) ->
             case result of
                 Ok res ->
-                    ( { model | page = Home (Search.updateWithResult search res id) paging results }, Cmd.none )
+                    ( Home (Search.updateWithResult search res id) paging results, Cmd.none )
 
                 Err _ ->
                     -- TODO improve facet error strategy
@@ -204,15 +232,10 @@ update msg model =
                         _ =
                             log "Error in facet"
                     in
-                    ( { model | page = Home search paging results }, Cmd.none )
-
-        ( DetailResult result, Home search paging results ) ->
-            ( { model | page = Home search paging (Results.update (Result.mapError explainHttpError result) results) }
-            , Cmd.none
-            )
+                    ( Home search paging results, Cmd.none )
 
         ( _, _ ) ->
-            ( model, Cmd.none )
+            ( page, Cmd.none )
 
 
 {-| Parses url and updates model accordingly.
@@ -231,43 +254,78 @@ urlUpdate url model =
         query =
             List.drop 1 urlElems |> String.join "?"
     in
-    case UrlParser.parse routeParser { url | path = path, query = Just query, fragment = Nothing } of
+    case UrlParser.parse (routeParser model) { url | path = path, query = Just query, fragment = Nothing } of
         Nothing ->
-            ( { model | page = NotFound }
-            , Cmd.none
-            )
+            ( { model | state = Site False NotFound }, Cmd.none )
 
-        Just (Home search paging _) ->
-            let
-                -- Update search to retrieve up-to-date filter
-                ( newSearch, fq ) =
-                    Search.update search
-            in
-            case model.page of
-                Locked oldSearch oldPaging oldResults ->
-                    if oldSearch.lastQuery == Just fq && Paging.samePage oldPaging paging then
-                        -- Page was loaded before, so re-use results if filter and page didn't change
-                        ( { model | page = Home newSearch oldPaging oldResults }, Cmd.none )
+        Just ( page, cmd ) ->
+            ( { model | state = Site False page }, cmd )
 
-                    else
-                        ( { model | page = Home newSearch paging Results.searching }
-                        , executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging)
-                        )
+
+{-| Parser for the route. May not use fragment as that is already used for SPA routing.
+-}
+routeParser : Model -> UrlParser.Parser (( Page, Cmd Msg ) -> a) a
+routeParser model =
+    UrlParser.oneOf
+        [ UrlParser.map ( Home Search.init Paging.empty Results.empty, Cmd.none ) UrlParser.top
+        , UrlParser.s "search"
+            <?> UrlQueryParser.map2 (parseHome model)
+                    (UrlQueryParser.string "q")
+                    (UrlQueryParser.string "page")
+        , UrlParser.map (parseDetails model) (UrlParser.s "details" </> UrlParser.string)
+        , UrlParser.map ( Syntax, Cmd.none ) (UrlParser.s "syntax")
+        , UrlParser.map ( Imprint, Cmd.none ) (UrlParser.s "imprint")
+        ]
+
+
+{-| Parses the 'home' page, and executes queries if necessary.
+-}
+parseHome : Model -> Maybe String -> Maybe String -> ( Page, Cmd Msg )
+parseHome model maybeSearch maybePaging =
+    case maybeSearch of
+        Just searchJson ->
+            case
+                ( searchJson |> Decode.decodeString Search.decoder
+                , maybePaging
+                    |> Maybe.withDefault (Encode.encode 0 <| Paging.encode Paging.empty)
+                    |> Decode.decodeString Paging.decoder
+                )
+            of
+                ( Ok search, Ok paging ) ->
+                    let
+                        -- Update search to retrieve up-to-date filter
+                        ( newSearch, fq ) =
+                            Search.update search
+                    in
+                    case model.state of
+                        Locked _ (Home oldSearch oldPaging oldResults) ->
+                            if oldSearch.lastQuery == Just fq && Paging.samePage oldPaging paging then
+                                -- Page was loaded before, so re-use results if filter and page didn't change
+                                ( Home newSearch oldPaging oldResults, Cmd.none )
+
+                            else
+                                ( Home newSearch paging Results.searching
+                                , Cmd.batch [ executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging) ]
+                                )
+
+                        _ ->
+                            -- Page is load for the first time, so definitely query!
+                            ( Home newSearch paging Results.searching
+                            , executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging)
+                            )
 
                 _ ->
-                    -- Page is load for the first time, so definitely query!
-                    ( { model | page = Home newSearch paging Results.searching }
-                    , executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging)
-                    )
+                    ( NotFound, Cmd.none )
 
-        Just (Example _) ->
-            ( { model | page = Example Results.searching }
-            , executeFilterQuery model.apiBaseUrl
-                (FilterQuery (Filter [ ( Name, Term "*gauss*" ) ]) 10 Nothing)
-            )
+        Nothing ->
+            ( NotFound, Cmd.none )
 
-        Just page ->
-            ( { model | page = page }, Cmd.none )
+
+{-| Parses the url for the 'details' page, and executes query.
+-}
+parseDetails : Model -> String -> ( Page, Cmd Msg )
+parseDetails model id =
+    ( Details Details.empty, executeBlockQuery model.apiBaseUrl id )
 
 
 {-| Encodes search state as url.
@@ -280,45 +338,9 @@ urlEncodeHome search paging =
         )
 
 
-{-| Recovers home page state from strings.
--}
-homeFromStrings : Maybe String -> Maybe String -> Page
-homeFromStrings maybeSearch maybePaging =
-    case ( maybeSearch, maybePaging ) of
-        ( Just searchJson, Nothing ) ->
-            case Decode.decodeString Search.decoder searchJson of
-                Ok search ->
-                    Home search Paging.empty Results.empty
-
-                _ ->
-                    NotFound
-
-        ( Just searchJson, Just pagingJson ) ->
-            case ( Decode.decodeString Search.decoder searchJson, Decode.decodeString Paging.decoder pagingJson ) of
-                ( Ok search, Ok paging ) ->
-                    Home search paging Results.empty
-
-                _ ->
-                    NotFound
-
-        _ ->
-            NotFound
-
-
-{-| Parser for the route. May not use fragment as that is already used for SPA routing.
--}
-routeParser : UrlParser.Parser (Page -> a) a
-routeParser =
-    UrlParser.oneOf
-        [ UrlParser.map (Home Search.init Paging.empty Results.empty) UrlParser.top
-        , UrlParser.s "search"
-            <?> UrlQueryParser.map2 homeFromStrings
-                    (UrlQueryParser.string "q")
-                    (UrlQueryParser.string "page")
-        , UrlParser.map (Example Results.empty) (UrlParser.s "example")
-        , UrlParser.map Syntax (UrlParser.s "syntax")
-        , UrlParser.map Imprint (UrlParser.s "imprint")
-        ]
+urlEncodeDetail : String -> String
+urlEncodeDetail id =
+    UrlBuilder.absolute [ "#details", id ] []
 
 
 {-| Builds the command to execute a facet query.
@@ -343,16 +365,28 @@ executeFilterQuery apiBaseUrl query =
         }
 
 
-{-| Builds the command to execute a query for a single entity by id.
+{-| Builds the command to execute a entity query.
 -}
-executeEntityQuery : String -> String -> Cmd Msg
-executeEntityQuery apiBaseUrl entityId =
+executeBlockQuery : String -> String -> Cmd Msg
+executeBlockQuery apiBaseUrl blockId =
     Http.get
-        { url = apiBaseUrl ++ "/v1/resolved/" ++ entityId
-        , expect = Http.expectJson DetailResult thyEtDecoder
+        { url = apiBaseUrl ++ "/v1/entities/cmd/short/" ++ blockId
+        , expect = Http.expectJson DetailsResult shortBlockDecoder
         }
 
 
+{-| Builds the command to execute a query for a single entity by id.
+-}
+executeThyEtQuery : String -> String -> Cmd Msg
+executeThyEtQuery apiBaseUrl entityId =
+    Http.get
+        { url = apiBaseUrl ++ "/v1/entities/theory/resolved/" ++ entityId
+        , expect = Http.expectJson DetailsEntityResult thyEtDecoder
+        }
+
+
+{-| Transforms http error to explanation string.
+-}
 explainHttpError : Http.Error -> String
 explainHttpError error =
     case error of
@@ -381,14 +415,12 @@ explainHttpError error =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        (Navbar.subscriptions model.navState NavbarMsg
-            :: (case model.page of
-                    Home searcher _ _ ->
-                        [ Search.subscriptions searcher SearchInternalMsg ]
+        (case model.state of
+            Site _ (Home searcher _ _) ->
+                [ Search.subscriptions searcher SearchInternalMsg ]
 
-                    _ ->
-                        []
-               )
+            _ ->
+                []
         )
 
 
@@ -400,42 +432,82 @@ subscriptions model =
 -}
 view : Model -> Browser.Document Msg
 view model =
+    let
+        ( page, drawerOpen, locked ) =
+            case model.state of
+                Site open p ->
+                    ( p, open, False )
+
+                Locked open p ->
+                    ( p, open, True )
+    in
     { title = "FindFacts"
     , body =
-        [ div []
-            [ Navbar.config NavbarMsg
-                |> Navbar.withAnimation
-                |> Navbar.container
-                |> Navbar.brand [ href "#" ] [ text "Home" ]
-                |> Navbar.items
-                    [ Navbar.itemLink [ href "#example" ] [ text "Example" ]
-                    , Navbar.itemLink [ href "#syntax" ] [ text "Syntax" ]
-                    , Navbar.itemLink [ href "#imprint" ] [ text "Imprint" ]
+        [ div (ite locked [ attribute "pointer-events" "none" ] [])
+            [ Drawer.modalDrawer
+                { modalDrawerConfig | open = drawerOpen, onClose = Just DrawerMsg }
+                [ Drawer.drawerContent []
+                    [ Material.List.list Material.List.listConfig
+                        [ Material.List.listItem Material.List.listItemConfig
+                            [ text "Home" ]
+                        , Material.List.listItem Material.List.listItemConfig [ Material.List.listItemGraphic [] [ Icon.icon Icon.iconConfig "star" ] ]
+                        , Material.List.listItem Material.List.listItemConfig
+                            [ text "Log out" ]
+                        ]
                     ]
-                |> Navbar.view model.navState
-            , Grid.container [] <|
-                case model.page of
-                    Locked search paging results ->
-                        -- TODO maybe lock buttons?
-                        pageHome search paging results
-
-                    Home search paging results ->
-                        pageHome search paging results
-
-                    Example results ->
-                        Results.config ResultsMsg ResultsDetailMsg ResultsUsingMsg |> Results.view results
-
-                    Syntax ->
-                        pageSyntax
-
-                    Imprint ->
-                        pageImprint
-
-                    NotFound ->
-                        pageNotFound
+                ]
+            , Drawer.drawerScrim [] []
+            , div
+                [ Drawer.appContent
+                , style "background-color" "rgb(248,248,248)"
+                , style "min-height" "100vh"
+                ]
+              <|
+                TopAppBar.topAppBar { topAppBarConfig | dense = True }
+                    [ TopAppBar.row [ style "max-width" "1170px", style "margin" "0 auto" ]
+                        [ TopAppBar.section [ TopAppBar.alignStart ]
+                            [ IconButton.iconButton
+                                { iconButtonConfig
+                                    | additionalAttributes = [ TopAppBar.navigationIcon ]
+                                    , onClick = Just DrawerMsg
+                                }
+                                "menu"
+                            , span [ TopAppBar.title ]
+                                [ text "FindFacts" ]
+                            ]
+                        ]
+                    ]
+                    :: [ br [] []
+                       , MGrid.layoutGrid
+                            [ style "max-width" "1170px"
+                            , style "margin" "0 auto"
+                            , TopAppBar.denseFixedAdjust
+                            ]
+                         <|
+                            renderPage page
+                       ]
             ]
         ]
     }
+
+
+renderPage : Page -> List (Html Msg)
+renderPage page =
+    case page of
+        Home search paging results ->
+            pageHome search paging results
+
+        Details details ->
+            Details.config DetailsMsg |> Details.view details
+
+        Syntax ->
+            pageSyntax
+
+        Imprint ->
+            pageImprint
+
+        NotFound ->
+            pageNotFound
 
 
 {-| Renders the main home page.
@@ -461,12 +533,14 @@ pageHome search paging results =
         , br [] []
         , Grid.row []
             [ Grid.col []
-                (Results.config ResultsMsg ResultsDetailMsg ResultsUsingMsg
+                (Results.config ResultsMsg ResultsDetail ResultsUsingMsg
                     |> Results.view results
                 )
             ]
         , br [] []
-        , Grid.row [] [ Grid.col [] (Paging.config PagingMsg |> Paging.view paging) ]
+        , Grid.row [] [ Grid.col [] <| (Paging.config PagingMsg |> Paging.view paging) ]
+
+        --, div [ style "position" "absolute", style "bottom" "0" ] [ MGrid.layoutGrid [MGrid.alignRight] MGrid.layoutGridInner [] (Paging.config PagingMsg |> Paging.view paging) ] ]
         ]
     ]
 
@@ -476,28 +550,6 @@ pageHome search paging results =
 pageSyntax : List (Html msg)
 pageSyntax =
     [ h1 [] [ text "Search syntax" ]
-    , Grid.row [] []
-    , Card.card Card.cardConfig
-        { blocks =
-            Card.cardPrimaryAction
-                { cardPrimaryActionConfig
-                    | onClick = Nothing
-                }
-                [ Card.cardBlock <| LayoutGrid.layoutGrid [ LayoutGrid.alignLeft ] [ Html.div [ Typography.button ] [ text "Find Usage" ] ]
-                ]
-        , actions =
-            Just <|
-                Card.cardActions
-                    { buttons =
-                        [ Card.cardActionButton Button.buttonConfig
-                            "find usage"
-                        ]
-                    , icons =
-                        [ Card.cardActionIcon IconButton.iconButtonConfig
-                            "clear"
-                        ]
-                    }
-        }
     , Chips.choiceChipSet [] [ Chips.choiceChip Chips.choiceChipConfig "chip" ]
     ]
 

@@ -129,7 +129,7 @@ lazy val `search-core` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
-    libraryDependencies ++= loggingBackend.map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it")
+    libraryDependencies ++= loggingBackend.map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it", scalaMock % "it")
   )
   .dependsOn(`common-dt`, `common-da-solr`, `common-utils`, `common-dt` % "it->it")
 

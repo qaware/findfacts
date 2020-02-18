@@ -16,6 +16,13 @@ trait QueryService {
     */
   def getResult(id: EtField.Id.T): Try[Option[BaseEt]]
 
+  /** Returns the short version of an cmd by id.
+    *
+    * @param id to get
+    * @return query result
+    */
+  def getShortResult(id: EtField.Id.T): Try[Option[ShortCmd]]
+
   /** Finds an entity by id and resolves its references to short entities.
     *
     * @param id to get

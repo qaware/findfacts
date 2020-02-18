@@ -93,7 +93,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
   }
 
   @ApiOperation(
-    value = "Search query",
+    value = "SearchComponent query",
     notes = "Accepts a search query and returns list of all results.",
     response = classOf[ShortCmd],
     responseContainer = "List",
@@ -117,7 +117,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
   }
 
   @ApiOperation(
-    value = "Resolves a single entity",
+    value = "Gets a single entity",
     notes = "Retrieves information about a single entity",
     response = classOf[Option[BaseEt]],
     httpMethod = "GET")
@@ -129,19 +129,44 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
       logQueryErr[Option[BaseEt]](s"id:$id", entity, {
         case Some(value) => Ok(value.asJson)
         case None =>
-          logger.error(s"Elem not found for id: $id")
+          logger.info(s"Elem not found for id: $id")
           BadRequest(NotFoundMsg)
       })
     }
 
-  def resolved(id: String): Action[AnyContent] =
+  @ApiOperation(
+    value = "Resolves a theory entity.",
+    notes = "Fetches values for relations of a theory entity",
+    response = classOf[Option[ResolvedThyEt]],
+    httpMethod = "GET")
+  @ApiResponses(Array(new ApiResponse(code = 400, message = NotFoundMsg)))
+  def resolved(@ApiParam(value = "ID of theory entity to fetch", required = true) id: String): Action[AnyContent] =
     Action { implicit request: Request[AnyContent] =>
       val resolved = queryService.getResultResolved(id)
       // Handle possible result values
       logQueryErr[Option[ResolvedThyEt]](s"id:$id", resolved, {
         case Some(value) => Ok(value.asJson)
         case None =>
-          logger.error(s"Found no thy et for id: $id")
+          logger.info(s"Found no thy et for id: $id")
+          BadRequest(NotFoundMsg)
+      })
+    }
+
+  @ApiOperation(
+    value = "Gets a single command.",
+    notes = "Retrieves the shortened information about a single command.",
+    response = classOf[Option[ShortCmd]],
+    httpMethod = "GET"
+  )
+  @ApiResponses(Array(new ApiResponse(code = 400, message = NotFoundMsg)))
+  def shortCmd(@ApiParam(value = "ID of cmd to fetch", required = true) id: String): Action[AnyContent] =
+    Action { implicit request: Request[AnyContent] =>
+      val entity = queryService.getShortResult(id)
+
+      logQueryErr[Option[ShortCmd]](s"id:$id", entity, {
+        case Some(value) => Ok(value.asJson)
+        case None =>
+          logger.info(s"Elem not found for id: $id")
           BadRequest(NotFoundMsg)
       })
     }

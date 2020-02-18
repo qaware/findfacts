@@ -1,24 +1,26 @@
 ### Application
 # Delivers app
-GET     /                              de.qaware.findfacts.webapp.controllers.HomeController.index
+GET     /                                   de.qaware.findfacts.webapp.controllers.HomeController.index
 
 ### Swagger-ui
 # Redirect to swagger doc index
-GET     /docs                          de.qaware.findfacts.webapp.controllers.HomeController.redirectDocs
+GET     /docs                               de.qaware.findfacts.webapp.controllers.HomeController.redirectDocs
 # Deliver swagger-ui assets
-GET     /docs/*file                    controllers.Assets.at(path:String="/public/lib/swagger-ui", file:String)
+GET     /docs/*file                         controllers.Assets.at(path:String="/public/lib/swagger-ui", file:String)
 # Deliver generated swagger.json
-GET     /swagger.json                  controllers.ApiHelpController.getResources
+GET     /swagger.json                       controllers.ApiHelpController.getResources
 
 # Map static resources from the /public folder to the /assets URL path
-GET     /assets/*file                  controllers.Assets.versioned(file)
+GET     /assets/*file                       controllers.Assets.versioned(file)
 
 ### RESTful interface
 # Retrieves detailed information about a single entity
-GET     /v1/entities/:id               de.qaware.findfacts.webapp.controllers.QueryController.entity(id: String)
+GET     /v1/entities/:id                    de.qaware.findfacts.webapp.controllers.QueryController.entity(id: String)
+# Retrieves short entry for a single command
+GET     /v1/entities/cmd/short/:id          de.qaware.findfacts.webapp.controllers.QueryController.shortCmd(id: String)
 # Resolves a theory entity one level deep
-GET     /v1/resolved/:id               de.qaware.findfacts.webapp.controllers.QueryController.resolved(id: String)
+GET     /v1/entities/theory/resolved/:id    de.qaware.findfacts.webapp.controllers.QueryController.resolved(id: String)
 # Searches by a complete query
-POST    /v1/search                     de.qaware.findfacts.webapp.controllers.QueryController.search
+POST    /v1/search                          de.qaware.findfacts.webapp.controllers.QueryController.search
 # Retrieves facet results for each field
 POST /v1/facet                     de.qaware.findfacts.webapp.controllers.QueryController.facet
