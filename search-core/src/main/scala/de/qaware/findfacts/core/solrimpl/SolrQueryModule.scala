@@ -14,8 +14,8 @@ trait SolrQueryModule extends QueryModule {
   def solrClient: SolrClient
 
   // Internal modules
-  private lazy val solrTermMapper: SolrFilterTermMapper = wire[SolrFilterTermMapper]
-  private lazy val solrFilterMapper: SolrAbstractFqMapper = wire[SolrAbstractFqMapper]
+  private lazy val solrTermMapper: SolrFilterMapper = wire[SolrFilterMapper]
+  private lazy val solrFilterMapper: SolrFieldFilterMapper = wire[SolrFieldFilterMapper]
   private lazy val solrQueryMapper: SolrQueryMapper = wire[SolrQueryMapper]
 
   /** Finally provide the service */

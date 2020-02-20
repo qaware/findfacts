@@ -46,33 +46,31 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
   private final val ExampleFilterQuery =
     """
 {
-  "filter": {
-    "Filter": {
-      "fieldTerms": {
-        "Name": {
-          "Term": {
-            "inner": "*gauss*"
-          }
+  "filters" : [
+    {
+      "field" : "Name",
+      "filter" : {
+        "Exact" : {
+          "inner" : "*gauss*"
         }
       }
     }
-  },
-  "pageSize": 10
+  ],
+  "pageSize" : 10
 }
 """
   private final val ExampleFacetQuery = """
 {
-  "filter" : {
-    "Filter" : {
-      "fieldTerms" : {
-        "Name" : {
-          "Term" : {
-            "inner" : "*gauss*"
-          }
+  "filters" : [
+    {
+      "field" : "Name",
+      "filter" : {
+        "Exact" : {
+          "inner" : "*gauss*"
         }
       }
     }
-  },
+  ],
   "fields" : [ "Kind", "NameFacet", "SourceTheory" ],
   "maxFacets": 10
 }

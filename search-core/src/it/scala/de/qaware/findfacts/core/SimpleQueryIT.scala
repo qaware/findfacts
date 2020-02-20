@@ -33,7 +33,7 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
   }
 
   test("Filter query") {
-    val query = FilterQuery(Filter(Map(StartPosition -> InRange(10, 30))))
+    val query = FilterQuery(List(FieldFilter(StartPosition, InRange(10, 30))))
     val result = queryModule.service.getResultShortlist(query)
 
     val resList = result.get
@@ -48,7 +48,7 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
   }
 
   test("Filter query shortlist") {
-    val query = FilterQuery(Filter(Map(Kind -> Exact(ThyEtKind.Constant.entryName))))
+    val query = FilterQuery(List(FieldFilter(Kind, Exact(ThyEtKind.Constant.entryName))))
     val result = queryModule.service.getResultShortlist(query)
 
     val resList = result.get
@@ -60,8 +60,8 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
   }
 
   test("Recursive query") {
-    val innerQuery = Filter(Map(Kind -> Exact(ThyEtKind.Constant.toString)))
-    val query = FilterQuery(Filter(Map(PropositionUses -> AnyInResult(innerQuery))))
+    val innerQuery = List(FieldFilter(Kind, Exact(ThyEtKind.Constant.toString)))
+    val query = FilterQuery(List(FieldFilter(PropositionUses, InResult(innerQuery))))
     val result = queryModule.service.getResultShortlist(query)
 
     result.get.values should have size 1
@@ -69,24 +69,8 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
     result.get.values.head.entities.head.name should equal("ConstIsFact")
   }
 
-  test("Query set operations") {
-    // matches nothing
-    val noMatchQuery = Filter(Map(Name -> Exact("does not exist")))
-    // matches all
-    val query1 = Filter(Map(PropositionUses -> AllInResult(noMatchQuery)))
-    // matches kind:Constant
-    val query2 = Filter(Map(Kind -> Exact(ThyEtKind.Constant.toString)))
-    // matches all intersect kind:Constant
-    val query = FilterQuery(FilterIntersection(query1, query2))
-    val result = queryModule.service.getResultShortlist(query)
-
-    result.get.values should have size 1
-    result.get.values.head.entities should have size 1
-    result.get.values.head.entities.head.name should equal("Const1")
-  }
-
   test("Facet query") {
-    val query = FacetQuery(Filter(Map.empty), Set(EtField.StartPosition))
+    val query = FacetQuery(List(), Set(EtField.StartPosition))
     val result = queryModule.service.getResultFacet(query)
 
     val resultFacet = result.get

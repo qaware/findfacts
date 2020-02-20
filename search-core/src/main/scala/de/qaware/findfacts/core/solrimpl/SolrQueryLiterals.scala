@@ -20,4 +20,10 @@ object SolrQueryLiterals {
 
   /** Query to get all values. */
   final val QueryAll = "*:*"
+
+  /** Tag local parameter. */
+  final val TagParam = "tag"
+
+  /** Tag for parent filters. */
+  final val ParentTag = "top"
 }
