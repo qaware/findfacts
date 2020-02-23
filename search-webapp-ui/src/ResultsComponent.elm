@@ -14,7 +14,7 @@ module ResultsComponent exposing
 
 # Component
 
-@docs config, empty, searching, init, update, view
+@docs config, empty, searching, init, view
 
 
 # Helpers

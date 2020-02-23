@@ -3,7 +3,6 @@ module Main exposing (..)
 import Browser
 import Browser.Navigation as Navigation
 import DataTypes exposing (..)
-import Debug exposing (log)
 import DetailsComponent as Details
 import Html exposing (Html, br, div, h1, span, text)
 import Html.Attributes exposing (attribute, href, style)
@@ -16,8 +15,9 @@ import Material.Chips as Chips
 import Material.Drawer as Drawer exposing (modalDrawerConfig)
 import Material.Icon as Icon
 import Material.IconButton as IconButton exposing (iconButtonConfig)
-import Material.LayoutGrid as MGrid
-import Material.List
+import Material.LayoutGrid as Grid
+import Material.List as MList exposing (listItemConfig)
+import Material.Select as Select exposing (selectConfig, selectOptionConfig)
 import Material.TopAppBar as TopAppBar exposing (topAppBarConfig)
 import PagingComponent as Paging
 import ResultsComponent as Results
@@ -56,7 +56,7 @@ init _ url navKey =
             Url.toString { url | path = "", query = Nothing, fragment = Nothing }
 
         initialState =
-            Site False <| Home Search.init Paging.empty Results.empty
+            Site False <| Home Search.empty Paging.empty Results.empty
 
         ( model, urlCmd ) =
             urlUpdate url (Model baseUrl navKey initialState)
@@ -158,18 +158,14 @@ update msg model =
                 ( ResultsDetail id, _ ) ->
                     ( { model | state = Locked False page }, Navigation.pushUrl model.navKey <| urlEncodeDetail id )
 
-                ( SearchMsg newSearch, Home search paging _ ) ->
-                    -- Check if paging needs to be reset
+                ( SearchMsg newSearch, Home oldSearch paging _ ) ->
                     let
+                        -- on query change, reset paging
                         newPaging =
-                            if (Search.update newSearch |> Tuple.second |> Just) == search.lastQuery then
-                                paging
-
-                            else
-                                Paging.empty
+                            ite (Search.sameQuery oldSearch newSearch) paging Paging.empty
                     in
                     ( { model | state = Locked False page }
-                    , Navigation.pushUrl model.navKey (urlEncodeHome newSearch newPaging)
+                    , Navigation.pushUrl model.navKey <| urlEncodeHome newSearch newPaging
                     )
 
                 ( PagingMsg newPaging, Home search paging results ) ->
@@ -216,22 +212,20 @@ updatePage apiBaseUrl msg page =
                     ( Home search (Paging.update res paging) (Results.init (Ok res)), Cmd.none )
 
                 Err e ->
-                    ( Home { search | lastQuery = Nothing } Paging.empty (Results.init (Err (explainHttpError e)))
-                    , Cmd.none
-                    )
+                    ( Home search Paging.empty <| Results.init (Err <| explainHttpError e), Cmd.none )
 
         ( SearchFacetResult id result, Home search paging results ) ->
             case result of
                 Ok res ->
-                    ( Home (Search.updateWithResult search res id) paging results, Cmd.none )
+                    ( Home (Search.update res id search) paging results, Cmd.none )
 
-                Err _ ->
-                    -- TODO improve facet error strategy
+                Err e ->
                     let
                         _ =
-                            log "Error in facet"
+                            Debug.log "Error in facet: " e
                     in
-                    ( Home search paging results, Cmd.none )
+                    -- TODO display error in searcher
+                    ( page, Cmd.none )
 
         ( _, _ ) ->
             ( page, Cmd.none )
@@ -266,7 +260,7 @@ urlUpdate url model =
 routeParser : Model -> UrlParser.Parser (( Page, Cmd Msg ) -> a) a
 routeParser model =
     UrlParser.oneOf
-        [ UrlParser.map ( Home Search.init Paging.empty Results.empty, Cmd.none ) UrlParser.top
+        [ UrlParser.map ( Home Search.empty Paging.empty Results.empty, Cmd.none ) UrlParser.top
         , UrlParser.s "search"
             <?> UrlQueryParser.map2 (parseHome model)
                     (UrlQueryParser.string "q")
@@ -290,28 +284,30 @@ parseHome model maybeSearch maybePaging =
                     |> Decode.decodeString Paging.decoder
                 )
             of
-                ( Ok search, Ok paging ) ->
+                ( Ok parsedSearch, Ok newPaging ) ->
                     let
-                        -- Update search to retrieve up-to-date filter
-                        ( newSearch, fq ) =
-                            Search.update search
+                        ( oldSearch, oldPaging, oldResults ) =
+                            case model.state of
+                                Locked _ (Home oldS oldP oldR) ->
+                                    ( oldS, oldP, oldR )
+
+                                _ ->
+                                    ( Search.empty, Paging.empty, Results.empty )
+
+                        ( newSearch, maybeQuery ) =
+                            Search.merge oldSearch parsedSearch
+
+                        cmd =
+                            maybeQuery
+                                |> Maybe.map (executeQueries model.apiBaseUrl newPaging)
+                                |> Maybe.withDefault Cmd.none
                     in
-                    case model.state of
-                        Locked _ (Home oldSearch oldPaging oldResults) ->
-                            if oldSearch.lastQuery == Just fq && Paging.samePage oldPaging paging then
-                                -- Page was loaded before, so re-use results if filter and page didn't change
-                                ( Home newSearch oldPaging oldResults, Cmd.none )
+                    if Search.sameQuery oldSearch newSearch && Paging.samePage oldPaging newPaging then
+                        -- Page was loaded before, so re-use results if filter and page didn't change
+                        ( Home newSearch oldPaging oldResults, Cmd.none )
 
-                            else
-                                ( Home newSearch paging Results.searching
-                                , Cmd.batch [ executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging) ]
-                                )
-
-                        _ ->
-                            -- Page is load for the first time, so definitely query!
-                            ( Home newSearch paging Results.searching
-                            , executeFilterQuery model.apiBaseUrl (Paging.buildFilterQuery fq paging)
-                            )
+                    else
+                        ( Home newSearch newPaging Results.searching, cmd )
 
                 _ ->
                     ( NotFound, Cmd.none )
@@ -340,6 +336,14 @@ urlEncodeHome search paging =
 urlEncodeDetail : String -> String
 urlEncodeDetail id =
     UrlBuilder.absolute [ "#details", id ] []
+
+
+executeQueries : String -> Paging.State -> List FieldFilter -> Cmd Msg
+executeQueries apiBaseUrl paging fq =
+    Cmd.batch
+        [ executeFilterQuery apiBaseUrl <| Paging.buildFilterQuery fq paging
+        , executeFacetQuery apiBaseUrl (Search.buildFacetQuery fq) -1
+        ]
 
 
 {-| Builds the command to execute a facet query.
@@ -402,7 +406,7 @@ explainHttpError error =
             "Server error: " ++ String.fromInt status
 
         Http.BadBody body ->
-            "Could not read response" ++ body
+            "Could not read response: " ++ body
 
 
 
@@ -412,15 +416,8 @@ explainHttpError error =
 {-| All subscriptions.
 -}
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.batch
-        (case model.state of
-            Site _ (Home searcher _ _) ->
-                [ Search.subscriptions searcher SearchInternalMsg ]
-
-            _ ->
-                []
-        )
+subscriptions _ =
+    Sub.none
 
 
 
@@ -462,13 +459,12 @@ renderDrawer open =
     Drawer.modalDrawer
         { modalDrawerConfig | open = open, onClose = Just DrawerMsg }
         [ Drawer.drawerContent []
-            [ Material.List.list Material.List.listConfig
-                [ Material.List.listItem Material.List.listItemConfig
-                    [ text "Home" ]
-                , Material.List.listItem Material.List.listItemConfig
-                    [ Material.List.listItemGraphic [] [ Icon.icon Icon.iconConfig "star" ] ]
-                , Material.List.listItem Material.List.listItemConfig
-                    [ text "Log out" ]
+            [ MList.list MList.listConfig
+                [ MList.listItem { listItemConfig | href = Just "#" } [ text "Home" ]
+                , MList.listItem { listItemConfig | href = Just "#syntax" }
+                    [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "help" ], text "Syntax" ]
+                , MList.listItem { listItemConfig | href = Just "#feedback" }
+                    [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "question_answer" ], text "Feedback" ]
                 ]
             ]
         ]
@@ -499,7 +495,7 @@ renderTopBar =
 -}
 renderPage : Page -> Html Msg
 renderPage page =
-    MGrid.layoutGrid [ style "max-width" "1170px", style "margin" "0 auto", TopAppBar.denseFixedAdjust ] <|
+    Grid.layoutGrid [ style "max-width" "1170px", style "margin" "0 auto", TopAppBar.denseFixedAdjust ] <|
         case page of
             Home search paging results ->
                 renderPageHome search paging results
@@ -533,7 +529,7 @@ renderPageHome search paging results =
             ]
         ]
     , br [] []
-    , lazy2 Search.view search (Search.Config SearchInternalMsg SearchMsg SearchFacet)
+    , lazy2 Search.view search (Search.config SearchInternalMsg SearchMsg SearchFacet)
     , br [] []
     , lazy2 Results.view results (Results.config ResultsMsg ResultsDetail ResultsUsingMsg)
     , br [] []
@@ -547,6 +543,19 @@ renderPageSyntax : List (Html msg)
 renderPageSyntax =
     [ h1 [] [ text "Search syntax" ]
     , Chips.choiceChipSet [] [ Chips.choiceChip Chips.choiceChipConfig "chip" ]
+    , Select.filledSelect
+        { selectConfig
+            | label = "Fruit"
+            , value = Just ""
+            , onChange = Nothing
+        }
+        [ Select.selectOption
+            { selectOptionConfig | value = "" }
+            [ text "" ]
+        , Select.selectOption
+            { selectOptionConfig | value = "Apple" }
+            [ text "Apple" ]
+        ]
     ]
 
 

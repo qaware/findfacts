@@ -129,7 +129,7 @@ view (State state) (Config toMsg) =
 
 {-| Builds a correctly paged filter query from a filter and the paging component.
 -}
-buildFilterQuery : AbstractFQ -> State -> FilterQuery
+buildFilterQuery : List FieldFilter -> State -> FilterQuery
 buildFilterQuery fq (State state) =
     FilterQuery fq pageSize (state.previous |> Array.toList |> List.Extra.last)
 

@@ -2,7 +2,7 @@ module Util exposing
     ( ite, toMaybe
     , singletonIf, consIf, appIf
     , pairWith
-    , anyDictDecoder
+    , dictDecoder, anyDictDecoder, resultStringDecoder
     , renderHtml
     )
 
@@ -26,7 +26,7 @@ module Util exposing
 
 # Decoding helper
 
-@docs anyDictDecoder
+@docs dictDecoder, anyDictDecoder, resultStringDecoder
 
 
 # HTML helper
@@ -35,11 +35,14 @@ module Util exposing
 
 -}
 
+import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, div, text)
 import Html.Parser
 import Html.Parser.Util
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as Decode exposing (Decoder, Error)
+import Json.Encode as Encode
+import Result.Extra
 
 
 {-| Ternary operator. Unfortunately no infix notation since that's not allowed in user code any more.
@@ -120,18 +123,79 @@ pairWith b a =
     Tuple.pair a b
 
 
+listKeyFold : Decoder k -> ( String, v ) -> Result String (List ( k, v )) -> Result String (List ( k, v ))
+listKeyFold kDecoder ( kStr, v ) lRes =
+    Result.andThen
+        (\l ->
+            Decode.decodeValue kDecoder (Encode.string kStr)
+                |> Result.mapError (always <| "Error decoding key: " ++ kStr)
+                |> Result.map (\k -> ( k, v ) :: l)
+        )
+        lRes
+
+
+listKeyDecoder : Decoder k -> List ( String, v ) -> Decoder (List ( k, v ))
+listKeyDecoder kDecoder l =
+    List.foldl (listKeyFold kDecoder) (Ok []) l
+        |> Result.map Decode.succeed
+        |> Result.mapError Decode.fail
+        |> Result.Extra.merge
+
+
+{-| Decoder for typed dicts.
+-}
+dictDecoder : Decoder comparable -> Decoder v -> Decoder (Dict comparable v)
+dictDecoder comparableDecoder vDecoder =
+    Decode.keyValuePairs vDecoder
+        |> Decode.andThen (listKeyDecoder comparableDecoder)
+        |> Decode.map Dict.fromList
+
+
 {-| Decoder for AnyDicts.
 
     anyDictDecoder keyDecoder valueDecoder compareFn
 
 -}
-anyDictDecoder : (String -> Decoder k) -> Decoder v -> (k -> comparable) -> Decoder (AnyDict comparable k v)
-anyDictDecoder kFromString vDecoder compare =
+anyDictDecoder : Decoder k -> Decoder v -> (k -> comparable) -> Decoder (AnyDict comparable k v)
+anyDictDecoder kDecoder vDecoder compare =
     Decode.keyValuePairs vDecoder
-        -- Decode (List (String, v))
-        |> Decode.andThen (\l -> List.foldl (\( kStr, v ) dec -> Decode.map2 (\k xs -> ( k, v ) :: xs) (kFromString kStr) dec) (Decode.succeed []) l)
-        -- Decoder (List (k, v))
+        |> Decode.andThen (listKeyDecoder kDecoder)
         |> Decode.map (AnyDict.fromList compare)
+
+
+{-| Builds a decoder from a fromString method.
+
+    type Day
+        = Weekday
+        | Weekend
+
+    fromString: String -> Result String Day
+    fromString str =
+        case str of
+            "Weekday" ->
+                Ok Weekday
+
+            "Weekend" ->
+                Ok Weekend
+
+            _ ->
+                Err <| "No such day: " ++ str
+
+    resultStringDecoder fromString
+
+-}
+resultStringDecoder : (String -> Result String a) -> Decoder a
+resultStringDecoder fromString =
+    Decode.string
+        |> Decode.andThen
+            (\str ->
+                case fromString str of
+                    Ok a ->
+                        Decode.succeed a
+
+                    Err e ->
+                        Decode.fail e
+            )
 
 
 {-| Parses string to HTML and appends to div.

@@ -11,7 +11,7 @@ import Dict.Any exposing (AnyDict)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value, object)
 import Maybe.Extra
-import Util exposing (anyDictDecoder)
+import Util exposing (anyDictDecoder, resultStringDecoder)
 
 
 type alias ResultList a =
@@ -92,21 +92,6 @@ type alias TypeEt =
 -- QUERY TYPES
 
 
-type FilterTerm
-    = Term String
-    | Exact String
-    | InRange Int Int
-    | AnyInResult AbstractFQ
-    | AllInResult AbstractFQ
-
-
-type AbstractFQ
-    = Filter (List ( Field, FilterTerm ))
-    | Intersection AbstractFQ AbstractFQ (List AbstractFQ)
-    | Union AbstractFQ AbstractFQ (List AbstractFQ)
-    | Complement AbstractFQ
-
-
 type Field
     = Id
     | CmdKind
@@ -120,26 +105,42 @@ type Field
     | DocKind
 
 
+type Filter
+    = Term String
+    | Exact String
+    | InRange Int Int
+    | InResult (List FieldFilter)
+    | Not Filter
+    | And Filter Filter (List Filter)
+    | Or Filter Filter (List Filter)
+
+
+type alias FieldFilter =
+    { field : Field
+    , filter : Filter
+    }
+
+
 type alias FilterQuery =
-    { filter : AbstractFQ
+    { filters : List FieldFilter
     , pageSize : Int
     , cursor : Maybe String
     }
 
 
 type alias FacetQuery =
-    { filter : AbstractFQ
+    { filters : List FieldFilter
     , fields : List Field
     , maxFacets : Int
     }
 
 
-type alias Facet =
+type alias ResultFacet =
     Dict String Int
 
 
 type alias FacetResult =
-    AnyDict String Field Facet
+    AnyDict String Field ResultFacet
 
 
 
@@ -207,85 +208,90 @@ fieldToString field =
 
 
 
--- STRING DECODERS
+-- STRING DECODINGS
 
 
-kindFromString : String -> Decoder Kind
-kindFromString string =
-    case string of
-        "Constant" ->
-            Decode.succeed Constant
-
-        "Fact" ->
-            Decode.succeed Fact
-
-        "Type" ->
-            Decode.succeed Type
-
-        _ ->
-            Decode.fail ("Invalid theory entity kind: " ++ string)
-
-
-fieldFromString : String -> Decoder Field
+fieldFromString : String -> Result String Field
 fieldFromString str =
     case str of
         "Id" ->
-            Decode.succeed Id
+            Ok Id
 
         "CommandKind" ->
-            Decode.succeed CmdKind
+            Ok CmdKind
 
         "SourceText" ->
-            Decode.succeed Src
+            Ok Src
 
         "SourceTheory" ->
-            Decode.succeed SrcFile
+            Ok SrcFile
 
         "Kind" ->
-            Decode.succeed Kind
+            Ok Kind
 
         "Name" ->
-            Decode.succeed Name
+            Ok Name
 
         "Proposition" ->
-            Decode.succeed Prop
+            Ok Prop
 
         "ConstantType" ->
-            Decode.succeed ConstType
+            Ok ConstType
 
         "ConstantTypeFacet" ->
-            Decode.succeed ConstTypeFacet
+            Ok ConstTypeFacet
 
         "DocumentationKind" ->
-            Decode.succeed DocKind
+            Ok DocKind
 
         _ ->
-            Decode.fail ("No such field: " ++ str)
+            Err ("No such field: " ++ str)
 
 
-documentationKindFromString : String -> Decoder DocumentationKind
+kindFromString : String -> Result String Kind
+kindFromString str =
+    case str of
+        "Constant" ->
+            Ok Constant
+
+        "Fact" ->
+            Ok Fact
+
+        "Type" ->
+            Ok Type
+
+        _ ->
+            Err <| "Invalid theory entity kind: " ++ str
+
+
+documentationKindFromString : String -> Result String DocumentationKind
 documentationKindFromString str =
     case str of
         "Meta" ->
-            Decode.succeed Meta
+            Ok Meta
 
         "Inline" ->
-            Decode.succeed Inline
+            Ok Inline
 
         "Latex" ->
-            Decode.succeed Latex
+            Ok Latex
 
         _ ->
-            Decode.fail ("No such documentation kind: " ++ str)
+            Err <| "No such documentation kind: " ++ str
 
 
 
 -- JSON ENCODINGS
 
 
-encodeFilterTerm : FilterTerm -> Value
-encodeFilterTerm term =
-    case term of
+encodeField : Field -> Value
+encodeField field =
+    field |> fieldToString |> Encode.string
+
+
+encodeFilter : Filter -> Value
+encodeFilter filter =
+    case filter of
         Term str ->
             object [ ( "Term", object [ ( "inner", Encode.string str ) ] ) ]
 
@@ -302,58 +308,27 @@ encodeFilterTerm term =
                   )
                 ]
 
-        AnyInResult fq ->
-            object [ ( "AnyInResult", encodeAbstractFQ fq ) ]
+        InResult fs ->
+            object [ ( "InResult", Encode.list encodeFieldFilter fs ) ]
 
-        AllInResult fq ->
-            object [ ( "AllInResult", encodeAbstractFQ fq ) ]
+        Not f ->
+            object [ ( "Not", encodeFilter f ) ]
 
+        And f1 f2 fn ->
+            object [ ( "And", object [ ( "f1", encodeFilter f1 ), ( "f2", encodeFilter f2 ), ( "fn", Encode.list encodeFilter fn ) ] ) ]
 
-encodeAbstractFQ : AbstractFQ -> Value
-encodeAbstractFQ fq =
-    case fq of
-        Filter filterFields ->
-            object
-                [ ( "Filter"
-                  , object
-                        [ ( "fieldTerms", object (List.map encodeFieldTerm filterFields) ) ]
-                  )
-                ]
-
-        Intersection fq1 fq2 fqs ->
-            object
-                [ ( "FilterIntersection"
-                  , object
-                        [ ( "f1", encodeAbstractFQ fq1 )
-                        , ( "f2", encodeAbstractFQ fq2 )
-                        , ( "fn", Encode.list encodeAbstractFQ fqs )
-                        ]
-                  )
-                ]
-
-        Union fq1 fq2 fqs ->
-            object
-                [ ( "FilterUnion"
-                  , object
-                        [ ( "f1", encodeAbstractFQ fq1 )
-                        , ( "f2", encodeAbstractFQ fq2 )
-                        , ( "fn", Encode.list encodeAbstractFQ fqs )
-                        ]
-                  )
-                ]
-
-        Complement fq1 ->
-            object [ ( "FilterComplement", object [ ( "filter", encodeAbstractFQ fq1 ) ] ) ]
+        Or f1 f2 fn ->
+            object [ ( "Or", object [ ( "f1", encodeFilter f1 ), ( "f2", encodeFilter f2 ), ( "fn", Encode.list encodeFilter fn ) ] ) ]
 
 
-encodeFieldTerm : ( Field, FilterTerm ) -> ( String, Value )
-encodeFieldTerm ( field, term ) =
-    ( fieldToString field, encodeFilterTerm term )
+encodeFieldFilter : FieldFilter -> Value
+encodeFieldFilter filter =
+    object [ ( "field", encodeField filter.field ), ( "filter", encodeFilter filter.filter ) ]
 
 
 encodeFilterQuery : FilterQuery -> Value
 encodeFilterQuery filterQuery =
-    [ Just ( "filter", encodeAbstractFQ filterQuery.filter )
+    [ Just ( "filters", Encode.list encodeFieldFilter filterQuery.filters )
     , Just ( "pageSize", Encode.int filterQuery.pageSize )
     , filterQuery.cursor |> Maybe.map (\c -> ( "cursor", Encode.string c ))
     ]
@@ -364,7 +339,7 @@ encodeFilterQuery filterQuery =
 encodeFacetQuery : FacetQuery -> Value
 encodeFacetQuery facetQuery =
     object
-        [ ( "filter", encodeAbstractFQ facetQuery.filter )
+        [ ( "filters", Encode.list encodeFieldFilter facetQuery.filters )
         , ( "fields", Encode.list (\f -> f |> fieldToString |> Encode.string) facetQuery.fields )
         , ( "maxFacets", Encode.int facetQuery.maxFacets )
         ]
@@ -384,12 +359,12 @@ resultListDecoder aDecoder =
 
 kindDecoder : Decoder Kind
 kindDecoder =
-    Decode.string |> Decode.andThen kindFromString
+    resultStringDecoder kindFromString
 
 
 documentationKindDecoder : Decoder DocumentationKind
 documentationKindDecoder =
-    Decode.string |> Decode.andThen documentationKindFromString
+    resultStringDecoder documentationKindFromString
 
 
 shortCmdDecoder : Decoder ShortCmd
@@ -403,7 +378,7 @@ documentationDecoder =
         (Decode.field "id" Decode.string)
         (Decode.field "theory" Decode.string)
         (Decode.field "src" Decode.string)
-        (Decode.field "docKind" (Decode.string |> Decode.andThen documentationKindFromString))
+        (Decode.field "docKind" documentationKindDecoder)
 
 
 shortBlockDecoder : Decoder ShortBlock
@@ -423,19 +398,19 @@ shortEtDecoder =
         (Decode.field "name" Decode.string)
 
 
-facetDecoder : Decoder Facet
-facetDecoder =
+resultFacetDecoder : Decoder ResultFacet
+resultFacetDecoder =
     Decode.dict Decode.int
 
 
 fieldDecoder : Decoder Field
 fieldDecoder =
-    Decode.string |> Decode.andThen fieldFromString
+    resultStringDecoder fieldFromString
 
 
 facetResultDecoder : Decoder FacetResult
 facetResultDecoder =
-    anyDictDecoder fieldFromString facetDecoder fieldToString
+    anyDictDecoder fieldDecoder resultFacetDecoder fieldToString
 
 
 constantEtDecoder : Decoder ConstantEt

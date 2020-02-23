@@ -1,26 +1,397 @@
-module SearchComponent exposing (Config, State, decoder, encode, init, subscriptions, update, updateWithResult, view)
+module SearchComponent exposing
+    ( Config, State
+    , config, empty, encode, decoder, update, view
+    , sameQuery, buildFacetQuery
+    , merge
+    )
 
-import Array exposing (Array)
-import Bootstrap.Badge as Badge
-import Bootstrap.Button as Button
-import Bootstrap.Dropdown as Dropdown
-import Bootstrap.Form.Input as Input
-import Bootstrap.Form.InputGroup as InputGroup
-import Bootstrap.Grid as Grid
-import Bootstrap.Grid.Col as Col
-import Bootstrap.Text as Text
+{-| This components controls the search form.
+
+
+# Types
+
+@docs Config, State
+
+
+# Component
+
+@docs config, empty, encode, decoder, update, updateState, view
+
+
+# Helpers
+
+@docs sameQuery, buildFacetQuery
+
+-}
+
 import DataTypes exposing (..)
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
-import Html exposing (Html, div, text)
-import Html.Events as Events exposing (onClick)
+import Html exposing (Html, br, div, text)
+import Html.Events as Events
 import Html.Events.Extra as ExtraEvents
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
+import List.Extra
+import Material.Chips as Chip exposing (FilterChip, filterChipConfig)
+import Material.LayoutGrid as Grid
+import Material.Select as Select exposing (selectConfig, selectOptionConfig)
+import Material.TextField as TextField exposing (textFieldConfig)
+import MaterialExtra
 import Maybe.Extra
-import Result.Extra
-import Tuple as Pair
-import Util exposing (anyDictDecoder, consIf)
+import Util exposing (anyDictDecoder, consIf, dictDecoder, pairWith, toMaybe)
+
+
+{-| Opaque config type for the search component.
+-}
+type Config msg
+    = Config (ConfigInternal msg)
+
+
+type alias ConfigInternal msg =
+    { toInternal : State -> msg
+    , toMsg : State -> msg
+    , exec : FacetQuery -> Int -> msg
+    }
+
+
+{-| Creates a config for the search component.
+-}
+config : (State -> msg) -> (State -> msg) -> (FacetQuery -> Int -> msg) -> Config msg
+config toInternal toMsg exec =
+    Config <| ConfigInternal toInternal toMsg exec
+
+
+{-| Opaque state type for the search component.
+-}
+type State
+    = State StateInternal
+
+
+type alias StateInternal =
+    { filters : List FieldFilter
+    , term : String
+    , facets : Faceting
+    , fieldSearchers : Dict Int FieldSearcher
+    }
+
+
+{-| Allows only one facet per field.
+-}
+type alias Faceting =
+    AnyDict String Field Facet
+
+
+{-| Value -> (Count, Selected)
+-}
+type alias Facet =
+    Dict String FacetEntry
+
+
+type alias FacetEntry =
+    { count : Maybe Int
+    , selected : Bool
+    }
+
+
+type alias FieldSearcher =
+    { field : Field
+    , term : String
+    , facet : Maybe Facet
+    }
+
+
+{-| Creates an empty searcher.
+-}
+empty : State
+empty =
+    State <| StateInternal [] "" (AnyDict.empty fieldToString) Dict.empty
+
+
+{-| Updates the search component with a new facet result.
+-}
+update : FacetResult -> Int -> State -> State
+update result id (State state) =
+    if id < 0 then
+        -- no information about selection, but new counts
+        State { state | facets = updateFaceting result state.facets }
+
+    else
+        State { state | fieldSearchers = Dict.update id (Maybe.map <| updateFieldSearcherFacet result) state.fieldSearchers }
+
+
+{-| Adds information from previous state that was not encoded in url.
+-}
+merge : State -> State -> ( State, Maybe (List FieldFilter) )
+merge (State oldState) (State newState) =
+    let
+        facets =
+            -- information about selection, but no counts
+            mergeFaceting oldState.facets newState.facets
+
+        fieldSearchers =
+            mergeFieldSearchers oldState.fieldSearchers newState.fieldSearchers
+
+        outQuery =
+            if oldState.filters == newState.filters then
+                Nothing
+
+            else
+                Just newState.filters
+    in
+    ( State { newState | filters = newState.filters, facets = facets, fieldSearchers = fieldSearchers }, outQuery )
+
+
+{-| Builds a facet query with search facet fields from filters.
+-}
+buildFacetQuery : List FieldFilter -> FacetQuery
+buildFacetQuery fqs =
+    FacetQuery fqs facetableFields 10
+
+
+{-| Renders the search component
+-}
+view : State -> Config msg -> Html msg
+view (State state) (Config conf) =
+    div [] <|
+        [ TextField.textField
+            { textFieldConfig
+                | placeholder = Just "Fuzzy search term with * wildcards"
+                , fullwidth = True
+                , value = state.term
+                , onInput = Just <| setTerm state >> conf.toInternal
+                , additionalAttributes = changeEvents state conf
+            }
+        , br [] []
+        ]
+            ++ (state.fieldSearchers
+                    |> Dict.map (renderFieldSearcher conf << setFieldSearcher state)
+                    |> Dict.values
+               )
+            ++ [ Select.filledSelect
+                    { selectConfig
+                        | label = "+"
+                        , value = Nothing
+                        , onChange = Just <| addFieldSearcher state >> conf.toMsg
+                    }
+                    (termFilterableFields |> List.map (fieldToString >> selectCfg))
+               ]
+            ++ (state.facets
+                    |> AnyDict.filter (always (Dict.isEmpty >> not))
+                    |> AnyDict.map (\field -> renderFieldFacet conf (setFieldFacet state field) field)
+                    |> AnyDict.values
+                    |> List.intersperse MaterialExtra.divider
+               )
+
+
+{-| Checks if two search components yield the same query.
+-}
+sameQuery : State -> State -> Bool
+sameQuery (State state1) (State state2) =
+    state1.filters == state2.filters
+
+
+
+-- INTERNALS
+-- ENCODING
+
+
+{-| Encodes the search component persistent parts as JSON.
+-}
+encode : State -> Value
+encode (State state) =
+    Encode.object
+        ([]
+            |> consIf (state.facets |> AnyDict.filter (always facetActive) |> AnyDict.isEmpty >> not)
+                ( "facets", encodeFaceting state.facets )
+            |> consIf (state.fieldSearchers |> Dict.isEmpty >> not)
+                ( "fields", Encode.dict String.fromInt encodeFieldSearcher state.fieldSearchers )
+            |> consIf (not (String.isEmpty state.term)) ( "term", Encode.string state.term )
+        )
+
+
+{-| Encode term if nonempty and facet if present and active
+-}
+encodeFieldSearcher : FieldSearcher -> Encode.Value
+encodeFieldSearcher fieldSearcher =
+    Encode.object <|
+        Maybe.Extra.values <|
+            [ Just ( "field", Encode.string (fieldToString fieldSearcher.field) )
+            , toMaybe ( "term", Encode.string fieldSearcher.term ) (not <| String.isEmpty fieldSearcher.term)
+            , fieldSearcher.facet |> Maybe.andThen (\f -> toMaybe ( "facet", encodeFacet f ) (facetActive f))
+            ]
+
+
+{-| Encode only facets where values are selected
+-}
+encodeFaceting : Faceting -> Encode.Value
+encodeFaceting faceting =
+    faceting
+        |> AnyDict.toDict
+        |> Dict.filter (always facetActive)
+        |> Encode.dict identity encodeFacet
+
+
+{-| Encode only selected values
+-}
+encodeFacet : Facet -> Encode.Value
+encodeFacet facet =
+    facet |> facetSelected |> Dict.keys |> Encode.list Encode.string
+
+
+
+-- DECODING
+
+
+decoder : Decoder State
+decoder =
+    Decode.map State <|
+        Decode.map3
+            (\term facets fields ->
+                StateInternal (buildFQs <| StateInternal [] term facets fields) term facets fields
+            )
+            (Decode.map (Maybe.withDefault "") <| Decode.maybe <| Decode.field "term" Decode.string)
+            (Decode.map (Maybe.withDefault <| AnyDict.empty fieldToString)
+                (Decode.maybe <| Decode.field "facets" facetingDecoder)
+            )
+            (Decode.map (Maybe.withDefault Dict.empty)
+                (Decode.maybe <| Decode.field "fields" <| dictDecoder Decode.int fieldSearcherDecoder)
+            )
+
+
+facetingDecoder : Decoder Faceting
+facetingDecoder =
+    anyDictDecoder fieldDecoder facetDecoder fieldToString
+
+
+facetDecoder : Decoder Facet
+facetDecoder =
+    Decode.map (Dict.fromList << List.map (pairWith (FacetEntry Nothing True))) <|
+        Decode.list Decode.string
+
+
+fieldSearcherDecoder : Decoder FieldSearcher
+fieldSearcherDecoder =
+    Decode.map3 FieldSearcher
+        (Decode.field "field" fieldDecoder)
+        (Decode.map (Maybe.withDefault "") <| Decode.maybe <| Decode.field "term" Decode.string)
+        (Decode.maybe <| Decode.field "facet" facetDecoder)
+
+
+
+-- UPDATING/MERGING
+
+
+updateFaceting : FacetResult -> Faceting -> Faceting
+updateFaceting result faceting =
+    let
+        -- Inactive facets can be filtered out
+        activeFacets =
+            AnyDict.filter (always facetActive) faceting
+
+        resultFacets =
+            result
+                |> AnyDict.map
+                    (\field res ->
+                        AnyDict.get field activeFacets
+                            |> Maybe.map (\facet -> updateFacet res facet)
+                            |> Maybe.withDefault (initFacet res)
+                    )
+
+        -- Facets that were active, but can't be found in the results any more (likely because there's too many values)
+        -- Are marked as stale, i.e. their counts are removed
+        staleFacets =
+            AnyDict.diff activeFacets resultFacets
+                |> AnyDict.map (always <| Dict.map (always <| \entry -> { entry | count = Nothing }))
+    in
+    -- make sure that
+    AnyDict.union resultFacets staleFacets
+
+
+{-| Updates a facet, keeping facet selection but using new options/counts.
+-}
+updateFacet : ResultFacet -> Facet -> Facet
+updateFacet result facet =
+    facetSelectedValues facet |> List.foldl (selectFacetEntry <| FacetEntry (Just 0) True) (initFacet result)
+
+
+{-| Try to select an entry in a facet. If the entry can't be found, create a default one
+-}
+selectFacetEntry : FacetEntry -> String -> Facet -> Facet
+selectFacetEntry default k facet =
+    facet
+        |> Dict.update k
+            (Maybe.map (\entry -> { entry | selected = True }) >> Maybe.withDefault default >> Just)
+
+
+updateFieldSearcherFacet : FacetResult -> FieldSearcher -> FieldSearcher
+updateFieldSearcherFacet facetResult fieldSearcher =
+    case AnyDict.get fieldSearcher.field facetResult of
+        Nothing ->
+            fieldSearcher
+
+        Just result ->
+            { fieldSearcher
+                | facet =
+                    fieldSearcher.facet
+                        |> Maybe.map (updateFacet result)
+                        |> Maybe.withDefault (initFacet result)
+                        |> Just
+            }
+
+
+{-| Merges an old faceting with all its counts and values with a new one (parsed from url) that only contains selection.
+-}
+mergeFaceting : Faceting -> Faceting -> Faceting
+mergeFaceting info selection =
+    AnyDict.merge
+        -- No selection: unselect all
+        (\field facetInfo -> AnyDict.insert field (mergeFacet facetInfo Dict.empty))
+        -- Selection and facet: update accordingly
+        (\field facetInfo facetSel -> AnyDict.insert field (mergeFacet facetInfo facetSel))
+        -- Selection for a facet that does not yet exist: insert as 'stale' facet (happens at page reload).
+        AnyDict.insert
+        info
+        selection
+        (AnyDict.empty fieldToString)
+
+
+{-| Merges a facet with counts with a facet with selections.
+-}
+mergeFacet : Facet -> Facet -> Facet
+mergeFacet facet selection =
+    let
+        unselectedFacet =
+            Dict.map (always <| \e -> { e | selected = False }) facet
+    in
+    facetSelectedValues selection |> List.foldl (selectFacetEntry <| FacetEntry Nothing True) unselectedFacet
+
+
+mergeFieldSearchers : Dict Int FieldSearcher -> Dict Int FieldSearcher -> Dict Int FieldSearcher
+mergeFieldSearchers oldFieldSearchers newFieldSearchers =
+    Dict.merge
+        -- Ignore field searchers that are only in the old state
+        (always <| always <| identity)
+        -- Update field searchers that are in both
+        (\idx old new -> Dict.insert idx (mergeFieldSearcher old new))
+        -- Simply use field searchers that are only in new
+        Dict.insert
+        oldFieldSearchers
+        newFieldSearchers
+        Dict.empty
+
+
+mergeFieldSearcher : FieldSearcher -> FieldSearcher -> FieldSearcher
+mergeFieldSearcher old new =
+    case ( old.facet, new.facet ) of
+        ( Nothing, _ ) ->
+            new
+
+        ( Just facet, Nothing ) ->
+            { new | facet = Just facet }
+
+        ( Just oldFacet, Just newFacet ) ->
+            { new | facet = Just <| mergeFacet oldFacet newFacet }
 
 
 
@@ -37,494 +408,242 @@ termFilterableFields =
     [ CmdKind, Src, SrcFile, Name, Kind, Prop, ConstType, DocKind ]
 
 
-rangeFilterableFields =
-    []
-
-
-
--- CONFIG
-
-
-type alias Config msg =
-    { toInternal : State -> msg
-    , toMsg : State -> msg
-    , exec : FacetQuery -> Int -> msg
-    }
-
-
-
--- STATE
-
-
-{-| All state that needs to be kept track of
--}
-type alias State =
-    { newField : Dropdown.State
-    , lastQuery : Maybe AbstractFQ
-    , termSearcher : String
-    , facetSelectors : Faceting
-    , fieldSearchers : Array FieldSearcher
-    }
-
-
-type alias FacetSelection =
-    -- Name -> FacetEntry
-    Dict String FacetEntry
-
-
-type alias FacetEntry =
-    { count : Int
-    , selected : Bool
-    }
-
-
-type alias Faceting =
-    -- Field -> (implicit dict key) -> Facet Values
-    AnyDict String Field FacetSelection
-
-
-type alias FieldSearcher =
-    { fieldSelect : Dropdown.State
-    , field : Field
-    , value : String
-    , facetSelect : Maybe ( Dropdown.State, FacetSelection )
-    }
-
-
-init : State
-init =
-    State Dropdown.initialState Nothing "" (AnyDict.empty fieldToString) Array.empty
-
-
 
 -- UTILITIES
 
 
-facetValues : FacetSelection -> List String
-facetValues f =
-    Dict.filter (\_ -> .selected) f |> Dict.keys
-
-
-facetSelected : FacetSelection -> Bool
-facetSelected facet =
+facetActive : Facet -> Bool
+facetActive facet =
     facet |> Dict.values |> List.any .selected
 
 
-getFilterTerm : String -> FilterTerm
-getFilterTerm str =
-    if String.startsWith "\"" str && String.endsWith "\"" str then
-        str |> String.dropLeft 1 |> String.dropRight 1 |> Exact
-
-    else
-        Term str
+facetSelected : Facet -> Facet
+facetSelected facet =
+    facet |> Dict.filter (always .selected)
 
 
-
--- ENCODING
-
-
-encodeFacetEntry : FacetEntry -> Encode.Value
-encodeFacetEntry facetEntry =
-    Encode.object [ ( "count", Encode.int facetEntry.count ), ( "selected", Encode.bool facetEntry.selected ) ]
+facetSelectedValues : Facet -> List String
+facetSelectedValues f =
+    Dict.filter (always .selected) f |> Dict.keys
 
 
-encodeFacet : FacetSelection -> Encode.Value
-encodeFacet facet =
-    Encode.dict identity encodeFacetEntry facet
+changeEvents : StateInternal -> ConfigInternal msg -> List (Html.Attribute msg)
+changeEvents state conf =
+    [ Events.onBlur (conf.toMsg <| State <| state)
+    , ExtraEvents.onEnter (conf.toMsg <| State <| state)
+    ]
 
 
-encodeFaceting : Faceting -> Encode.Value
-encodeFaceting faceting =
-    faceting |> AnyDict.toDict |> Encode.dict identity encodeFacet
+selectCfg : String -> Select.SelectOption msg
+selectCfg option =
+    Select.selectOption { selectOptionConfig | value = option } [ text option ]
 
 
-encodeFieldSearcher : FieldSearcher -> Encode.Value
-encodeFieldSearcher fieldSearcher =
-    Encode.object
-        ([ Just ( "field", Encode.string (fieldToString fieldSearcher.field) )
-         , Just ( "value", Encode.string fieldSearcher.value )
-         , fieldSearcher.facetSelect |> Maybe.map (\( _, facet ) -> ( "facetSelect", encodeFacet facet ))
-         ]
-            |> Maybe.Extra.values
-        )
+setFieldFacet : StateInternal -> Field -> Facet -> State
+setFieldFacet state field facet =
+    State { state | facets = AnyDict.insert field facet state.facets }
 
 
-encode : State -> Value
-encode state =
-    Encode.object
-        ([ ( "facets", encodeFaceting state.facetSelectors )
-         , ( "fields", Encode.array encodeFieldSearcher state.fieldSearchers )
-         ]
-            |> consIf (not (String.isEmpty state.termSearcher)) ( "term", Encode.string state.termSearcher )
-        )
+setFacetEntry : Facet -> String -> FacetEntry -> Facet
+setFacetEntry facet key entry =
+    Dict.insert key entry facet
 
 
-
--- DECODING
-
-
-facetEntryDecoder : Decoder FacetEntry
-facetEntryDecoder =
-    Decode.map2 FacetEntry (Decode.field "count" Decode.int) (Decode.field "selected" Decode.bool)
+setTerm : StateInternal -> String -> State
+setTerm state term =
+    State { state | term = term }
 
 
-facetSelectionDecoder : Decoder FacetSelection
-facetSelectionDecoder =
-    Decode.dict facetEntryDecoder
+setFieldSearcher : StateInternal -> Int -> Maybe FieldSearcher -> State
+setFieldSearcher state idx fieldSarcherMaybe =
+    case fieldSarcherMaybe of
+        Nothing ->
+            State { state | fieldSearchers = Dict.remove idx state.fieldSearchers }
+
+        Just fieldSearcher ->
+            State { state | fieldSearchers = Dict.insert idx fieldSearcher state.fieldSearchers }
 
 
-facetingDecoder : Decoder Faceting
-facetingDecoder =
-    anyDictDecoder fieldFromString facetSelectionDecoder fieldToString
+addFieldSearcher : StateInternal -> String -> State
+addFieldSearcher state newField =
+    let
+        newIdx =
+            Dict.keys state.fieldSearchers |> List.Extra.last |> Maybe.map ((+) 1) |> Maybe.withDefault 0
+    in
+    State <|
+        case fieldFromString newField of
+            Ok field ->
+                { state | fieldSearchers = Dict.insert newIdx (FieldSearcher field "" Nothing) state.fieldSearchers }
+
+            Err e ->
+                let
+                    _ =
+                        Debug.log ("Invalid field: " ++ newField) e
+                in
+                state
 
 
-fieldSearchersDecoder : Decoder FieldSearcher
-fieldSearchersDecoder =
-    Decode.map3 (FieldSearcher Dropdown.initialState)
-        (Decode.field "field" fieldDecoder)
-        (Decode.field "value" Decode.string)
-        (Decode.field "facetSelect" facetSelectionDecoder |> Decode.map (Tuple.pair Dropdown.initialState) |> Decode.maybe)
+initFacet : ResultFacet -> Facet
+initFacet queryFacet =
+    Dict.map (\_ count -> FacetEntry (Just count) False) queryFacet
 
 
-decoder : Decoder State
-decoder =
-    Decode.map3 (State Dropdown.initialState Nothing)
-        (Decode.field "term" Decode.string |> Decode.maybe |> Decode.map (Maybe.withDefault ""))
-        (Decode.field "facets" facetingDecoder)
-        (Decode.field "fields" (Decode.array fieldSearchersDecoder))
+initFaceting : FacetResult -> Faceting
+initFaceting result =
+    AnyDict.map (always initFacet) result
 
 
 
 -- QUERYING
 
 
-buildSingleFQ : Field -> FilterTerm -> AbstractFQ
-buildSingleFQ field term =
-    Filter [ ( field, term ) ]
+buildFQs : StateInternal -> List FieldFilter
+buildFQs state =
+    Maybe.Extra.values <|
+        [ getFilter state.term |> Maybe.map (FieldFilter Src) ]
+            ++ (state.fieldSearchers |> Dict.values |> List.map buildFieldSearcherFQ)
+            ++ (state.facets
+                    |> AnyDict.toList
+                    |> List.map (\( field, facet ) -> buildFacetFQ facet |> Maybe.map (FieldFilter field))
+               )
 
 
-buildFacetFQ : Field -> FacetSelection -> Maybe AbstractFQ
-buildFacetFQ field facet =
-    case facetValues facet of
+getFilter : String -> Maybe Filter
+getFilter str =
+    if String.isEmpty str then
+        Nothing
+
+    else
+        Just <|
+            if String.startsWith "\"" str && String.endsWith "\"" str then
+                str |> String.dropLeft 1 |> String.dropRight 1 |> Exact
+
+            else
+                Term str
+
+
+buildFieldSearcherFQ : FieldSearcher -> Maybe FieldFilter
+buildFieldSearcherFQ fieldSearcher =
+    Maybe.map (FieldFilter fieldSearcher.field) <|
+        case getFilter fieldSearcher.term of
+            Nothing ->
+                fieldSearcher.facet |> Maybe.andThen buildFacetFQ
+
+            Just term ->
+                Just term
+
+
+buildFacetFQ : Facet -> Maybe Filter
+buildFacetFQ facet =
+    case facetSelectedValues facet of
         [] ->
             Nothing
 
-        exp :: [] ->
-            Just (buildSingleFQ field (Exact exp))
+        v :: [] ->
+            Just <| Exact v
 
-        exp1 :: exp2 :: exps ->
-            Just
-                (Union (buildSingleFQ field (Exact exp1))
-                    (buildSingleFQ field (Exact exp2))
-                    (exps
-                        |> List.map Exact
-                        |> List.map (buildSingleFQ field)
-                    )
-                )
-
-
-buildFieldSearcherFQ : FieldSearcher -> Maybe AbstractFQ
-buildFieldSearcherFQ fieldSearcher =
-    if String.isEmpty fieldSearcher.value then
-        fieldSearcher.facetSelect |> Maybe.map Pair.second |> Maybe.andThen (buildFacetFQ fieldSearcher.field)
-
-    else
-        fieldSearcher.value |> getFilterTerm |> buildSingleFQ fieldSearcher.field |> Just
-
-
-buildFQ : State -> AbstractFQ
-buildFQ state =
-    let
-        termFQ =
-            if String.isEmpty state.termSearcher then
-                []
-
-            else
-                let
-                    filterTerm =
-                        getFilterTerm state.termSearcher
-                in
-                [ Union (buildSingleFQ Name filterTerm)
-                    (buildSingleFQ Src filterTerm)
-                    [ buildSingleFQ Prop filterTerm ]
-                ]
-
-        fieldFQs =
-            state.fieldSearchers |> Array.toList |> List.filterMap buildFieldSearcherFQ
-
-        facetFQs =
-            state.facetSelectors |> AnyDict.toList |> List.filterMap (\( x, y ) -> buildFacetFQ x y)
-    in
-    case List.append termFQ (List.append fieldFQs facetFQs) of
-        [] ->
-            Filter []
-
-        fq :: [] ->
-            fq
-
-        fq1 :: fq2 :: fqn ->
-            Intersection fq1 fq2 fqn
-
-
-buildFacetQuery : State -> FacetQuery
-buildFacetQuery state =
-    FacetQuery (buildFQ state) facetableFields 10
-
-
-
--- UPDATE
-
-
-makeFacet : Facet -> FacetSelection
-makeFacet queryFacet =
-    Dict.map (\_ count -> FacetEntry count False) queryFacet
-
-
-updateCounts : FacetSelection -> Facet -> FacetSelection
-updateCounts facet queryFacets =
-    facet
-        |> Dict.map
-            (\name entry ->
-                case Dict.get name queryFacets of
-                    Nothing ->
-                        { entry | count = 0 }
-
-                    Just some ->
-                        { entry | count = some }
-            )
-
-
-updateFacet : FacetSelection -> Maybe Facet -> FacetSelection
-updateFacet facet queryFacet =
-    case queryFacet of
-        Nothing ->
-            facet
-
-        Just qFacet ->
-            if facetSelected facet then
-                updateCounts facet qFacet
-
-            else
-                -- re-build since no information is lost here
-                makeFacet qFacet
-
-
-makeFaceting : FacetResult -> Faceting
-makeFaceting result =
-    AnyDict.map (\_ -> makeFacet) result
-
-
-updateFaceting : Faceting -> FacetResult -> Faceting
-updateFaceting faceting result =
-    let
-        ( used, _ ) =
-            AnyDict.partition (\_ -> facetSelected) faceting
-
-        ( upd, new ) =
-            AnyDict.partition (\k _ -> AnyDict.member k used) result
-    in
-    makeFaceting new |> AnyDict.union (AnyDict.map (\field facet -> AnyDict.get field upd |> updateFacet facet) used)
-
-
-updateWithResult : State -> FacetResult -> Int -> State
-updateWithResult state result id =
-    { state | facetSelectors = updateFaceting state.facetSelectors result }
-
-
-update : State -> ( State, AbstractFQ )
-update state =
-    let
-        fq =
-            buildFQ state
-    in
-    ( { state | lastQuery = Just fq }, fq )
-
-
-
--- SUBSCRIPTIONS
-
-
-subscriptions : State -> (State -> msg) -> Sub msg
-subscriptions state toMsg =
-    Sub.batch [ Dropdown.subscriptions state.newField (\d -> toMsg { state | newField = d }) ]
+        v1 :: v2 :: vs ->
+            Just <| Or (Exact v1) (Exact v2) (vs |> List.map Exact)
 
 
 
 -- VIEW
 
 
-changeEvents : State -> Config msg -> List (Html.Attribute msg)
-changeEvents state conf =
-    -- TODO facets
-    [ Events.onBlur (state |> conf.toMsg)
-    , ExtraEvents.onEnter (state |> conf.toMsg)
-    ]
-
-
-view : State -> Config msg -> Html msg
-view state conf =
-    div [] <|
-        Grid.row
-            []
-            [ Grid.col []
-                [ InputGroup.config
-                    (InputGroup.text
-                        [ Input.placeholder "SearchComponent for"
-                        , Input.attrs (changeEvents state conf)
-                        , Input.onInput (\text -> conf.toInternal { state | termSearcher = text })
-                        , Input.value state.termSearcher
-                        ]
-                    )
-                    |> InputGroup.successors
-                        -- TODO force reload
-                        [ InputGroup.button
-                            [ Button.primary ]
-                            [ text "Go!" ]
-                        ]
-                    |> InputGroup.view
-                ]
-            ]
-            :: (Array.indexedMap
-                    (\i -> renderFieldSearcher conf (\f -> { state | fieldSearchers = Array.set i f state.fieldSearchers }))
-                    state.fieldSearchers
-                    |> Array.toList
-               )
-            ++ [ Grid.row []
-                    [ Grid.col [ Col.xs1 ]
-                        [ Dropdown.dropdown
-                            state.newField
-                            { options = []
-                            , toggleMsg = \toggle -> conf.toInternal { state | newField = toggle }
-                            , toggleButton = Dropdown.toggle [ Button.primary ] [ text "+" ]
-                            , items =
-                                List.map
-                                    (\f ->
-                                        Dropdown.buttonItem
-                                            [ onClick
-                                                ({ state
-                                                    | fieldSearchers =
-                                                        Array.push
-                                                            (FieldSearcher Dropdown.initialState f "" Nothing)
-                                                            state.fieldSearchers
-                                                 }
-                                                    |> conf.toMsg
-                                                )
-                                            ]
-                                            [ text (fieldToString f) ]
-                                    )
-                                    termFilterableFields
-                            }
-                        ]
-                    ]
-               ]
-            ++ (state.facetSelectors
-                    |> AnyDict.filter (\_ facet -> not (Dict.isEmpty facet) || facetSelected facet)
-                    |> AnyDict.toList
-                    |> List.map (renderFacetSearcher state conf)
-               )
-
-
-selectFacetEntry : State -> Field -> FacetSelection -> String -> FacetEntry -> State
-selectFacetEntry state field facet key val =
-    { state
-        | facetSelectors =
-            AnyDict.insert field (Dict.insert key { val | selected = not val.selected } facet) state.facetSelectors
-    }
-
-
-renderFacetSearcher : State -> Config msg -> ( Field, FacetSelection ) -> Html msg
-renderFacetSearcher state conf ( field, facet ) =
-    Grid.row []
-        (List.append
-            [ Grid.col [ Col.xsAuto ] [ text (fieldToString field) ]
-            , Grid.col [ Col.xs1 ] []
-            ]
-            (List.map
-                (\( key, val ) ->
-                    Grid.col [ Col.xsAuto, Col.textAlign Text.alignXsLeft ]
-                        [ (if val.selected then
-                            Badge.badgePrimary
-
-                           else
-                            Badge.badgeLight
-                          )
-                            []
-                            [ Button.button
-                                [ Button.small
-                                , Button.onClick (selectFacetEntry state field facet key val |> conf.toMsg)
-                                ]
-                                [ text (key ++ " (" ++ String.fromInt val.count ++ ")") ]
-                            ]
-                        ]
-                )
-                (Dict.toList facet)
-            )
-        )
-
-
-renderFieldSearcher : Config msg -> (FieldSearcher -> State) -> FieldSearcher -> Html msg
-renderFieldSearcher conf stateFromElem fieldSearcher =
-    -- TODO
-    Grid.row []
-        [ Grid.col []
-            [ Dropdown.dropdown fieldSearcher.fieldSelect
-                { options = []
-                , toggleMsg = \toggle -> { fieldSearcher | fieldSelect = toggle } |> stateFromElem |> conf.toInternal
-                , toggleButton = Dropdown.toggle [ Button.secondary ] [ text (fieldToString fieldSearcher.field) ]
-                , items =
-                    List.map
-                        (\f ->
-                            Dropdown.buttonItem
-                                [ { fieldSearcher | field = f, fieldSelect = Dropdown.initialState }
-                                    |> stateFromElem
-                                    |> conf.toMsg
-                                    |> onClick
-                                ]
-                                [ text (fieldToString f) ]
-                        )
-                        termFilterableFields
-                }
-            ]
-        , Grid.col []
-            [ InputGroup.config
-                (InputGroup.text
-                    [ Input.placeholder "SearchComponent for"
-                    , Input.onInput (\s -> { fieldSearcher | value = s } |> stateFromElem |> conf.toInternal)
-                    , Input.attrs (changeEvents (stateFromElem fieldSearcher) conf)
-                    , Input.value fieldSearcher.value
-                    ]
-                )
-                |> InputGroup.successors
-                    (case fieldSearcher.facetSelect of
-                        Nothing ->
-                            []
-
-                        Just ( facetDropdownState, facet ) ->
-                            [ InputGroup.dropdown facetDropdownState
-                                { options = []
-                                , toggleMsg =
-                                    \toggle ->
-                                        { fieldSearcher | facetSelect = Just ( toggle, facet ) }
-                                            |> stateFromElem
-                                            |> conf.toInternal
-                                , toggleButton =
-                                    Dropdown.toggle [ Button.secondary ]
-                                        [ text
-                                            (let
-                                                values =
-                                                    facetValues facet
-                                             in
-                                             if List.length values > 5 then
-                                                "..."
-
-                                             else
-                                                List.foldl (++) "" values
-                                            )
-                                        ]
-                                , items = []
-                                }
-                            ]
-                    )
-                |> InputGroup.view
+renderFieldFacet : ConfigInternal msg -> (Facet -> State) -> Field -> Facet -> Html msg
+renderFieldFacet conf updateFn field facet =
+    Grid.layoutGridInner []
+        [ Grid.layoutGridCell [ Grid.span2, Grid.alignMiddle ] [ text <| fieldToString field ]
+        , Grid.layoutGridCell [ Grid.span10 ]
+            [ facet
+                |> Dict.map (\k -> renderFacetEntry conf (updateFn << setFacetEntry facet k) k)
+                |> Dict.values
+                |> Chip.filterChipSet []
             ]
         ]
+
+
+renderFacetEntry : ConfigInternal msg -> (FacetEntry -> State) -> String -> FacetEntry -> FilterChip msg
+renderFacetEntry conf updateFn elem entry =
+    Chip.filterChip
+        { filterChipConfig
+            | selected = entry.selected
+            , onClick = Just <| conf.toMsg <| updateFn { entry | selected = not entry.selected }
+        }
+        (elem ++ (entry.count |> Maybe.map (\c -> " (" ++ String.fromInt c ++ ")") |> Maybe.withDefault ""))
+
+
+renderFieldSearcher : ConfigInternal msg -> (Maybe FieldSearcher -> State) -> FieldSearcher -> Html msg
+renderFieldSearcher conf stateFromElem fieldSearcher =
+    div [] [ text <| "FieldSearcher" ++ fieldSearcher.term ]
+
+
+
+{- }
+   -- TODO
+   Grid.row []
+       [ {- } Grid.col []
+                [ Dropdown.dropdown fieldSearcher.facet
+                    { options = []
+                    , toggleMsg = \toggle -> { fieldSearcher | fieldSelect = toggle } |> stateFromElem |> conf.toInternal
+                    , toggleButton = Dropdown.toggle [ Button.secondary ] [ text (fieldToString fieldSearcher.field) ]
+                    , items =
+                        List.map
+                            (\f ->
+                                Dropdown.buttonItem
+                                    [ { fieldSearcher | field = f, fieldSelect = Dropdown.initialState }
+                                        |> stateFromElem
+                                        |> conf.toMsg
+                                        |> onClick
+                                    ]
+                                    [ text (fieldToString f) ]
+                            )
+                            termFilterableFields
+                    }
+                ]
+            ,
+         -}
+         Grid.col []
+           [ InputGroup.config
+               (InputGroup.text
+                   [ Input.placeholder "SearchComponent for"
+                   , Input.onInput (\s -> { fieldSearcher | term = s } |> Just |> stateFromElem |> State |> conf.toInternal)
+                   , Input.attrs (changeEvents (stateFromElem <| Just fieldSearcher) conf)
+                   , Input.value fieldSearcher.term
+                   ]
+               )
+               |> InputGroup.successors
+                   (case fieldSearcher.facet of
+                       _ ->
+                           []
+                    {- Just ( facetDropdownState, facet ) ->
+                       [ InputGroup.dropdown facetDropdownState
+                           { options = []
+                           , toggleMsg =
+                               \toggle ->
+                                   { fieldSearcher | facet = Just ( toggle, facet ) }
+                                       |> stateFromElem
+                                       |> conf.toInternal
+                           , toggleButton =
+                               Dropdown.toggle [ Button.secondary ]
+                                   [ text
+                                       (let
+                                           values =
+                                               facetSelectedValues facet
+                                        in
+                                        if List.length values > 5 then
+                                           "..."
+
+                                        else
+                                           List.foldl (++) "" values
+                                       )
+                                   ]
+                           , items = []
+                           }
+                       ]
+                    -}
+                   )
+               |> InputGroup.view
+           ]
+       ]
+-}
