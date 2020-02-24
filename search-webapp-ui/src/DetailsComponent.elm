@@ -17,7 +17,6 @@ module DetailsComponent exposing
 
 -}
 
-import Bootstrap.Spinner as Spinner
 import DataTypes exposing (..)
 import Dict exposing (Dict)
 import Html exposing (Html, br, div, pre, text)
@@ -25,6 +24,7 @@ import Html.Lazy exposing (lazy)
 import Material.Card as Card exposing (cardPrimaryActionConfig)
 import Material.DataTable as Table
 import Material.LayoutGrid as Grid
+import Material.LinearProgress as Progress
 import Material.Typography as Typography
 import Maybe.Extra
 import Util exposing (ite, pairWith, renderHtml)
@@ -131,7 +131,7 @@ view state (Config conf) =
             [ text err ]
 
         Searching ->
-            [ Spinner.spinner [] [] ]
+            [ Progress.indeterminateLinearProgress Progress.linearProgressConfig ]
 
         Value stateInternal ->
             [ Card.card Card.cardConfig
@@ -231,7 +231,7 @@ renderDetails entityState =
     if entityState.open then
         case entityState.resultState of
             Fetching ->
-                Spinner.spinner [] []
+                Progress.indeterminateLinearProgress Progress.linearProgressConfig
 
             Result res ->
                 lazy renderThyEt res

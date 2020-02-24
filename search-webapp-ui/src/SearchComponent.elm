@@ -42,6 +42,7 @@ import Material.LayoutGrid as Grid
 import Material.List as MList exposing (listConfig, listItemConfig)
 import Material.Menu as Menu exposing (menuConfig)
 import Material.TextField as TextField exposing (textFieldConfig)
+import Material.Typography as Typography
 import MaterialExtra
 import Maybe.Extra
 import Util exposing (anyDictDecoder, consIf, dictDecoder, pairWith, singletonIf, toMaybe)
@@ -579,7 +580,7 @@ buildFacetFQ facet =
 
 renderFieldFacet : ConfigInternal msg -> (Facet -> State) -> Field -> Facet -> Html msg
 renderFieldFacet conf updateFn field facet =
-    Grid.layoutGridInner []
+    Grid.layoutGridInner [ Typography.body1 ]
         [ Grid.layoutGridCell [ Grid.span2, Grid.alignMiddle ] [ text <| fieldFacetDisplay field ]
         , Grid.layoutGridCell [ Grid.span10 ]
             [ facet
@@ -653,7 +654,7 @@ renderFieldSearcher : ConfigInternal msg -> (Maybe FieldSearcher -> State) -> Fi
 renderFieldSearcher conf stateFromElem fieldSearcher =
     Grid.layoutGridInner []
         [ Grid.layoutGridCell [ Grid.span3Phone, Grid.span7Tablet, Grid.span11Desktop ]
-            [ Grid.layoutGridInner []
+            [ Grid.layoutGridInner [ Typography.body1 ]
                 [ Grid.layoutGridCell [ Grid.alignMiddle, Grid.span2 ] [ text <| fieldFacetDisplay fieldSearcher.field ]
                 , Grid.layoutGridCell [ Grid.alignMiddle, Grid.span9 ] [ renderSelectableTextField conf (Just >> stateFromElem) fieldSearcher ]
                 ]

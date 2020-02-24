@@ -11,15 +11,14 @@ import Http
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (Value)
 import List
-import Material.Chips as Chips
 import Material.Drawer as Drawer exposing (modalDrawerConfig)
 import Material.Elevation as Elevation
 import Material.Icon as Icon
 import Material.IconButton as IconButton exposing (iconButtonConfig)
 import Material.LayoutGrid as Grid
 import Material.List as MList exposing (listItemConfig)
-import Material.Select as Select exposing (selectConfig, selectOptionConfig)
 import Material.TopAppBar as TopAppBar exposing (topAppBarConfig)
+import Material.Typography as Typography
 import PagingComponent as Paging
 import ResultsComponent as Results
 import SearchComponent as Search
@@ -524,7 +523,7 @@ renderPage page =
 renderPageHome : Search.State -> Paging.State -> Results.State -> List (Html Msg)
 renderPageHome search paging results =
     [ div []
-        [ h1 []
+        [ h1 [ Typography.headline3 ]
             [ text
                 ("Search"
                     ++ (Results.hasResults results
@@ -534,7 +533,6 @@ renderPageHome search paging results =
                 )
             ]
         ]
-    , br [] []
     , lazy2 Search.view search (Search.config SearchInternalMsg SearchMsg SearchFacet)
     , br [] []
     , lazy2 Results.view results (Results.config ResultsMsg ResultsDetail ResultsUsingMsg)
@@ -547,36 +545,20 @@ renderPageHome search paging results =
 -}
 renderPageSyntax : List (Html msg)
 renderPageSyntax =
-    [ h1 [] [ text "Search syntax" ]
-    , Chips.choiceChipSet [] [ Chips.choiceChip Chips.choiceChipConfig "chip" ]
-    , Select.filledSelect
-        { selectConfig
-            | label = "Fruit"
-            , value = Just ""
-            , onChange = Nothing
-        }
-        [ Select.selectOption
-            { selectOptionConfig | value = "" }
-            [ text "" ]
-        , Select.selectOption
-            { selectOptionConfig | value = "Apple" }
-            [ text "Apple" ]
-        ]
-    ]
+    [ h1 [ Typography.headline3 ] [ text "Search syntax" ] ]
 
 
 {-| Renders the 'imprint' page.
 -}
 renderPageImprint : List (Html msg)
 renderPageImprint =
-    [ h1 [] [ text "Imprint" ]
-    ]
+    [ h1 [ Typography.headline3 ] [ text "Imprint" ] ]
 
 
 {-| Renders the error 404 page.
 -}
 renderPageNotFound : List (Html msg)
 renderPageNotFound =
-    [ h1 [] [ text "Not found" ]
-    , text "404 - Could not find requested page"
+    [ h1 [ Typography.headline1 ] [ text "Not found" ]
+    , div [ Typography.headline2 ] [ text "404 - Could not find requested page" ]
     ]

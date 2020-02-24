@@ -30,17 +30,16 @@ module PagingComponent exposing
 -}
 
 import Array exposing (Array)
-import Bootstrap.Button as Button
-import Bootstrap.ButtonGroup as ButtonGroup exposing (ButtonItem)
-import Bootstrap.Grid as Grid
-import Bootstrap.Spinner as Spinner
 import DataTypes exposing (..)
-import Html exposing (Html, div, text)
+import Html exposing (Html, div, span, text)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import List.Extra
+import Material.IconButton as IconButton exposing (iconButtonConfig)
+import Material.LayoutGrid as Grid
+import Material.Typography as Typography
 import Maybe.Extra
-import Util exposing (ite, toMaybe)
+import Util exposing (toMaybe)
 
 
 
@@ -113,9 +112,9 @@ view (State state) (Config toMsg) =
             []
 
         else
-            [ Grid.row []
-                [ Grid.col []
-                    [ ButtonGroup.buttonGroup []
+            [ Grid.layoutGrid []
+                [ Grid.layoutGridInner []
+                    [ Grid.layoutGridCell [ Grid.alignMiddle, Typography.subtitle2 ]
                         (renderButtons
                             (ceiling (toFloat state.totalResults / pageSize))
                             (Array.length state.previous)
@@ -172,69 +171,47 @@ pageSize =
 
 
 type ButtonState
-    = Disabled
-    | Enabled StateInternal
+    = Enabled StateInternal
     | Waiting
-    | Active
 
 
-renderButton : String -> (State -> msg) -> ButtonState -> ButtonItem msg
-renderButton label conf buttonState =
-    case buttonState of
-        Disabled ->
-            ButtonGroup.button [ Button.disabled True, Button.secondary ] [ text label ]
-
-        Waiting ->
-            ButtonGroup.button
-                [ Button.secondary, Button.disabled True ]
-                [ Spinner.spinner [ Spinner.small ] [], text label ]
-
-        Enabled state ->
-            ButtonGroup.button [ Button.secondary, Button.onClick (conf (State state)) ] [ text label ]
-
-        Active ->
-            ButtonGroup.button [ Button.primary ] [ text label ]
-
-
-renderButtons : Int -> Int -> (State -> msg) -> StateInternal -> List (ButtonItem msg)
+renderButtons : Int -> Int -> (State -> msg) -> StateInternal -> List (Html msg)
 renderButtons numPages numPrevious conf state =
     Maybe.Extra.values
-        [ -- first
-          numPrevious > 0 |> toMaybe (renderButton "1" conf (Enabled { state | previous = Array.empty, next = Array.get 0 state.previous }))
-        , -- ...
-          numPrevious > 2 |> toMaybe (renderButton "..." conf Disabled)
-        , -- previous
-          (numPrevious > 1)
+        [ Just <| Grid.layoutGridCell [] []
+
+        -- previous
+        , (numPrevious > 0)
             |> toMaybe (Array.get (numPrevious - 1) state.previous)
             |> Maybe.Extra.join
             |> Maybe.map
                 (\c ->
-                    renderButton
-                        (ite (numPrevious == 2) "2" "<")
-                        conf
-                        (Enabled { state | previous = Array.slice 0 (numPrevious - 1) state.previous, next = Just c })
+                    IconButton.iconButton
+                        { iconButtonConfig
+                            | onClick =
+                                Just <|
+                                    conf <|
+                                        State
+                                            { state
+                                                | previous = Array.slice 0 (numPrevious - 1) state.previous
+                                                , next = Just c
+                                            }
+                        }
+                        "navigate_before"
                 )
         , -- current
-          Just (renderButton (String.fromInt (numPrevious + 1)) conf Active)
+          Just <| text <| String.fromInt <| numPrevious + 1
         , -- loading/next
           (numPrevious + 1 < numPages)
-            |> toMaybe
-                (let
-                    symbol =
-                        ite (numPrevious + 2 == numPages) (String.fromInt numPages) ">"
-                 in
-                 state.next
-                    |> Maybe.map
-                        (\c ->
-                            renderButton
-                                symbol
-                                conf
-                                (Enabled { state | previous = Array.push c state.previous, next = Nothing })
-                        )
-                    |> Maybe.withDefault (renderButton symbol conf Waiting)
+            |> toMaybe state.next
+            |> Maybe.Extra.join
+            |> Maybe.map
+                (\c ->
+                    IconButton.iconButton
+                        { iconButtonConfig
+                            | onClick =
+                                Just <| conf <| State { state | previous = Array.push c state.previous, next = Nothing }
+                        }
+                        "navigate_next"
                 )
-        , -- ...
-          numPrevious + 3 < numPages |> toMaybe (renderButton "..." conf Disabled)
-        , -- last
-          numPrevious + 2 < numPages |> toMaybe (renderButton (String.fromInt numPages) conf Disabled)
         ]

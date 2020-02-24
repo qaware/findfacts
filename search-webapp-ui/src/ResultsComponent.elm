@@ -23,11 +23,9 @@ module ResultsComponent exposing
 
 -}
 
-import Bootstrap.Badge as Badge
-import Bootstrap.Spinner as Spinner
 import DataTypes exposing (..)
 import Dict exposing (Dict)
-import Html exposing (Html, br, div, pre, text)
+import Html exposing (Html, br, div, pre, span, text)
 import Html.Attributes exposing (style)
 import Html.Lazy exposing (lazy, lazy2)
 import Material.Button exposing (buttonConfig)
@@ -35,6 +33,8 @@ import Material.Card as Card exposing (cardConfig, cardPrimaryActionConfig)
 import Material.DataTable as Table exposing (DataTableRow)
 import Material.Elevation as Elevation
 import Material.LayoutGrid as Grid
+import Material.LinearProgress as Progress
+import Material.Theme as Theme
 import Material.Typography as Typography
 import Util exposing (pairWith, renderHtml)
 
@@ -124,7 +124,7 @@ view state (Config conf) =
                 []
 
             Searching ->
-                [ Spinner.spinner [] [] ]
+                [ Progress.indeterminateLinearProgress Progress.linearProgressConfig ]
 
             Error err ->
                 [ text err ]
@@ -279,4 +279,12 @@ renderEntitySummary ets =
 
 renderBadge : String -> Html msg
 renderBadge label =
-    Badge.pillSecondary [ style "margin-right" "10px", Typography.body2 ] [ text label ]
+    span
+        [ style "margin-right" "8px"
+        , style "padding" "4px 8px"
+        , style "border-radius" "16px"
+        , Theme.secondaryBg
+        , Theme.onSecondary
+        , Typography.caption
+        ]
+        [ text label ]
