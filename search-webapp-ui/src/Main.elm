@@ -13,6 +13,7 @@ import Json.Encode as Encode exposing (Value)
 import List
 import Material.Chips as Chips
 import Material.Drawer as Drawer exposing (modalDrawerConfig)
+import Material.Elevation as Elevation
 import Material.Icon as Icon
 import Material.IconButton as IconButton exposing (iconButtonConfig)
 import Material.LayoutGrid as Grid
@@ -196,8 +197,8 @@ updatePage apiBaseUrl msg page =
         ( DetailsEntityResult result, Details details ) ->
             ( Details <| Details.update (Result.mapError explainHttpError result) details, Cmd.none )
 
-        ( SearchInternalMsg state, Home _ paging results ) ->
-            ( Home state paging results, Cmd.none )
+        ( SearchInternalMsg newSearch, Home _ paging results ) ->
+            ( Home newSearch paging results, Cmd.none )
 
         ( ResultsMsg newResults, Home search paging _ ) ->
             ( Home search paging newResults, Cmd.none )
@@ -416,8 +417,13 @@ explainHttpError error =
 {-| All subscriptions.
 -}
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    case model.state of
+        Site _ (Home search _ _) ->
+            Search.config SearchInternalMsg SearchMsg SearchFacet |> Search.subscriptions search
+
+        _ ->
+            Sub.none
 
 
 
@@ -474,7 +480,7 @@ renderDrawer open =
 -}
 renderTopBar : Html Msg
 renderTopBar =
-    TopAppBar.topAppBar { topAppBarConfig | dense = True }
+    TopAppBar.topAppBar { topAppBarConfig | dense = True, additionalAttributes = [ Elevation.z4 ] }
         [ TopAppBar.row
             [ style "max-width" "1170px", style "margin" "0 auto" ]
             [ TopAppBar.section [ TopAppBar.alignStart ]

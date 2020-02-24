@@ -410,7 +410,7 @@ fieldDecoder =
 
 facetResultDecoder : Decoder FacetResult
 facetResultDecoder =
-    anyDictDecoder fieldDecoder resultFacetDecoder fieldToString
+    anyDictDecoder fieldFromString resultFacetDecoder fieldToString
 
 
 constantEtDecoder : Decoder ConstantEt

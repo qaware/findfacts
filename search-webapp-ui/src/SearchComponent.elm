@@ -1,8 +1,7 @@
 module SearchComponent exposing
     ( Config, State
-    , config, empty, encode, decoder, update, view
+    , config, empty, encode, decoder, update, merge, subscriptions, view
     , sameQuery, buildFacetQuery
-    , merge
     )
 
 {-| This components controls the search form.
@@ -15,7 +14,7 @@ module SearchComponent exposing
 
 # Component
 
-@docs config, empty, encode, decoder, update, updateState, view
+@docs config, empty, encode, decoder, update, merge, subscriptions, view
 
 
 # Helpers
@@ -24,22 +23,28 @@ module SearchComponent exposing
 
 -}
 
+import Browser.Events
 import DataTypes exposing (..)
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, br, div, text)
-import Html.Events as Events
-import Html.Events.Extra as ExtraEvents
+import Html.Attributes exposing (attribute)
+import Html.Events exposing (onClick)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import List.Extra
+import Material.Button as Button exposing (buttonConfig)
 import Material.Chips as Chip exposing (FilterChip, filterChipConfig)
+import Material.Elevation as Elevation
+import Material.Icon exposing (iconConfig)
+import Material.IconButton as IconButton exposing (iconButtonConfig)
 import Material.LayoutGrid as Grid
-import Material.Select as Select exposing (selectConfig, selectOptionConfig)
+import Material.List as MList exposing (listConfig, listItemConfig)
+import Material.Menu as Menu exposing (menuConfig)
 import Material.TextField as TextField exposing (textFieldConfig)
 import MaterialExtra
 import Maybe.Extra
-import Util exposing (anyDictDecoder, consIf, dictDecoder, pairWith, toMaybe)
+import Util exposing (anyDictDecoder, consIf, dictDecoder, pairWith, singletonIf, toMaybe)
 
 
 {-| Opaque config type for the search component.
@@ -72,8 +77,15 @@ type alias StateInternal =
     { filters : List FieldFilter
     , term : String
     , facets : Faceting
+    , addMenuState : MenuState
     , fieldSearchers : Dict Int FieldSearcher
     }
+
+
+type MenuState
+    = Opening
+    | Open
+    | Closed
 
 
 {-| Allows only one facet per field.
@@ -95,7 +107,8 @@ type alias FacetEntry =
 
 
 type alias FieldSearcher =
-    { field : Field
+    { open : Bool
+    , field : Field
     , term : String
     , facet : Maybe Facet
     }
@@ -105,7 +118,44 @@ type alias FieldSearcher =
 -}
 empty : State
 empty =
-    State <| StateInternal [] "" (AnyDict.empty fieldToString) Dict.empty
+    State <| StateInternal [] "" (AnyDict.empty fieldToString) Closed Dict.empty
+
+
+{-| Encodes the search component persistent parts as JSON.
+-}
+encode : State -> Value
+encode (State state) =
+    Encode.object
+        ([]
+            |> consIf (state.facets |> AnyDict.filter (always facetActive) |> AnyDict.isEmpty >> not)
+                ( "facets", encodeFaceting state.facets )
+            |> consIf (state.fieldSearchers |> Dict.isEmpty >> not)
+                ( "fields", Encode.dict String.fromInt encodeFieldSearcher state.fieldSearchers )
+            |> consIf (not (String.isEmpty state.term)) ( "term", Encode.string state.term )
+        )
+
+
+{-| Decodes persistent searcher state (user input!) from json.
+-}
+decoder : Decoder State
+decoder =
+    Decode.map State <|
+        Decode.map3
+            (\term facets fields ->
+                StateInternal (buildFQs <| StateInternal [] term facets Closed fields) term facets Closed fields
+            )
+            (Decode.map (Maybe.withDefault "") <| Decode.maybe <| Decode.field "term" Decode.string)
+            (Decode.map (Maybe.withDefault <| AnyDict.empty fieldToString)
+                (Decode.maybe <| Decode.field "facets" facetingDecoder)
+            )
+            (Decode.map
+                (Maybe.withDefault Dict.empty)
+                (Decode.maybe <|
+                    Decode.field "fields" <|
+                        dictDecoder (Decode.decodeString Decode.int >> Result.mapError Decode.errorToString)
+                            fieldSearcherDecoder
+                )
+            )
 
 
 {-| Updates the search component with a new facet result.
@@ -142,46 +192,68 @@ merge (State oldState) (State newState) =
     ( State { newState | filters = newState.filters, facets = facets, fieldSearchers = fieldSearchers }, outQuery )
 
 
-{-| Builds a facet query with search facet fields from filters.
--}
-buildFacetQuery : List FieldFilter -> FacetQuery
-buildFacetQuery fqs =
-    FacetQuery fqs facetableFields 10
+subscriptions : State -> Config msg -> Sub msg
+subscriptions (State state) (Config conf) =
+    case state.addMenuState of
+        Opening ->
+            Browser.Events.onClick (Decode.succeed <| conf.toInternal <| State { state | addMenuState = Open })
+
+        Open ->
+            Browser.Events.onClick (Decode.succeed <| conf.toInternal <| State { state | addMenuState = Closed })
+
+        _ ->
+            Sub.none
 
 
 {-| Renders the search component
 -}
 view : State -> Config msg -> Html msg
 view (State state) (Config conf) =
+    let
+        faceting =
+            state.facets
+                |> AnyDict.filter (always (Dict.isEmpty >> not))
+                |> AnyDict.map (\field -> renderFieldFacet conf (setFieldFacet state field) field)
+                |> AnyDict.values
+                |> List.intersperse MaterialExtra.divider
+    in
     div [] <|
-        [ TextField.textField
-            { textFieldConfig
-                | placeholder = Just "Fuzzy search term with * wildcards"
-                , fullwidth = True
-                , value = state.term
-                , onInput = Just <| setTerm state >> conf.toInternal
-                , additionalAttributes = changeEvents state conf
-            }
+        [ Grid.layoutGrid [ Elevation.z2 ]
+            [ TextField.textField
+                { textFieldConfig
+                    | placeholder = Just "Fuzzy search term with * wildcards"
+                    , fullwidth = True
+                    , value = state.term
+                    , onInput = Just <| setTerm state >> conf.toInternal
+                    , onChange = Just <| always <| conf.toMsg (State state)
+                }
+            ]
+        , br [] []
+        , Grid.layoutGrid [ Elevation.z2 ]
+            ((state.fieldSearchers
+                |> Dict.map (renderFieldSearcher conf << setFieldSearcher state)
+                |> Dict.values
+                |> List.intersperse MaterialExtra.divider
+             )
+                ++ [ div [ Menu.menuSurfaceAnchor ]
+                        [ Button.textButton
+                            { buttonConfig
+                                | onClick = Just <| conf.toInternal <| State { state | addMenuState = Opening }
+                                , icon = Just "add_circle"
+                            }
+                            "filter"
+                        , Menu.menu { menuConfig | open = state.addMenuState == Open }
+                            [ fieldSelectionList termFilterableFields
+                                (addFieldSearcher state >> conf.toMsg)
+                                fieldFacetDisplay
+                            ]
+                        , br [] []
+                        ]
+                   ]
+            )
         , br [] []
         ]
-            ++ (state.fieldSearchers
-                    |> Dict.map (renderFieldSearcher conf << setFieldSearcher state)
-                    |> Dict.values
-               )
-            ++ [ Select.filledSelect
-                    { selectConfig
-                        | label = "+"
-                        , value = Nothing
-                        , onChange = Just <| addFieldSearcher state >> conf.toMsg
-                    }
-                    (termFilterableFields |> List.map (fieldToString >> selectCfg))
-               ]
-            ++ (state.facets
-                    |> AnyDict.filter (always (Dict.isEmpty >> not))
-                    |> AnyDict.map (\field -> renderFieldFacet conf (setFieldFacet state field) field)
-                    |> AnyDict.values
-                    |> List.intersperse MaterialExtra.divider
-               )
+            ++ singletonIf (not <| List.isEmpty faceting) (Grid.layoutGrid [ Elevation.z2 ] faceting)
 
 
 {-| Checks if two search components yield the same query.
@@ -191,23 +263,16 @@ sameQuery (State state1) (State state2) =
     state1.filters == state2.filters
 
 
+{-| Builds a facet query with search facet fields from filters.
+-}
+buildFacetQuery : List FieldFilter -> FacetQuery
+buildFacetQuery fqs =
+    FacetQuery fqs facetableFields 10
+
+
 
 -- INTERNALS
 -- ENCODING
-
-
-{-| Encodes the search component persistent parts as JSON.
--}
-encode : State -> Value
-encode (State state) =
-    Encode.object
-        ([]
-            |> consIf (state.facets |> AnyDict.filter (always facetActive) |> AnyDict.isEmpty >> not)
-                ( "facets", encodeFaceting state.facets )
-            |> consIf (state.fieldSearchers |> Dict.isEmpty >> not)
-                ( "fields", Encode.dict String.fromInt encodeFieldSearcher state.fieldSearchers )
-            |> consIf (not (String.isEmpty state.term)) ( "term", Encode.string state.term )
-        )
 
 
 {-| Encode term if nonempty and facet if present and active
@@ -243,25 +308,9 @@ encodeFacet facet =
 -- DECODING
 
 
-decoder : Decoder State
-decoder =
-    Decode.map State <|
-        Decode.map3
-            (\term facets fields ->
-                StateInternal (buildFQs <| StateInternal [] term facets fields) term facets fields
-            )
-            (Decode.map (Maybe.withDefault "") <| Decode.maybe <| Decode.field "term" Decode.string)
-            (Decode.map (Maybe.withDefault <| AnyDict.empty fieldToString)
-                (Decode.maybe <| Decode.field "facets" facetingDecoder)
-            )
-            (Decode.map (Maybe.withDefault Dict.empty)
-                (Decode.maybe <| Decode.field "fields" <| dictDecoder Decode.int fieldSearcherDecoder)
-            )
-
-
 facetingDecoder : Decoder Faceting
 facetingDecoder =
-    anyDictDecoder fieldDecoder facetDecoder fieldToString
+    anyDictDecoder fieldFromString facetDecoder fieldToString
 
 
 facetDecoder : Decoder Facet
@@ -272,7 +321,7 @@ facetDecoder =
 
 fieldSearcherDecoder : Decoder FieldSearcher
 fieldSearcherDecoder =
-    Decode.map3 FieldSearcher
+    Decode.map3 (FieldSearcher False)
         (Decode.field "field" fieldDecoder)
         (Decode.map (Maybe.withDefault "") <| Decode.maybe <| Decode.field "term" Decode.string)
         (Decode.maybe <| Decode.field "facet" facetDecoder)
@@ -427,18 +476,6 @@ facetSelectedValues f =
     Dict.filter (always .selected) f |> Dict.keys
 
 
-changeEvents : StateInternal -> ConfigInternal msg -> List (Html.Attribute msg)
-changeEvents state conf =
-    [ Events.onBlur (conf.toMsg <| State <| state)
-    , ExtraEvents.onEnter (conf.toMsg <| State <| state)
-    ]
-
-
-selectCfg : String -> Select.SelectOption msg
-selectCfg option =
-    Select.selectOption { selectOptionConfig | value = option } [ text option ]
-
-
 setFieldFacet : StateInternal -> Field -> Facet -> State
 setFieldFacet state field facet =
     State { state | facets = AnyDict.insert field facet state.facets }
@@ -464,23 +501,13 @@ setFieldSearcher state idx fieldSarcherMaybe =
             State { state | fieldSearchers = Dict.insert idx fieldSearcher state.fieldSearchers }
 
 
-addFieldSearcher : StateInternal -> String -> State
-addFieldSearcher state newField =
+addFieldSearcher : StateInternal -> Field -> State
+addFieldSearcher state field =
     let
         newIdx =
             Dict.keys state.fieldSearchers |> List.Extra.last |> Maybe.map ((+) 1) |> Maybe.withDefault 0
     in
-    State <|
-        case fieldFromString newField of
-            Ok field ->
-                { state | fieldSearchers = Dict.insert newIdx (FieldSearcher field "" Nothing) state.fieldSearchers }
-
-            Err e ->
-                let
-                    _ =
-                        Debug.log ("Invalid field: " ++ newField) e
-                in
-                state
+    State { state | fieldSearchers = Dict.insert newIdx (FieldSearcher False field "" Nothing) state.fieldSearchers }
 
 
 initFacet : ResultFacet -> Facet
@@ -553,7 +580,7 @@ buildFacetFQ facet =
 renderFieldFacet : ConfigInternal msg -> (Facet -> State) -> Field -> Facet -> Html msg
 renderFieldFacet conf updateFn field facet =
     Grid.layoutGridInner []
-        [ Grid.layoutGridCell [ Grid.span2, Grid.alignMiddle ] [ text <| fieldToString field ]
+        [ Grid.layoutGridCell [ Grid.span2, Grid.alignMiddle ] [ text <| fieldFacetDisplay field ]
         , Grid.layoutGridCell [ Grid.span10 ]
             [ facet
                 |> Dict.map (\k -> renderFacetEntry conf (updateFn << setFacetEntry facet k) k)
@@ -561,6 +588,40 @@ renderFieldFacet conf updateFn field facet =
                 |> Chip.filterChipSet []
             ]
         ]
+
+
+fieldFacetDisplay : Field -> String
+fieldFacetDisplay field =
+    case field of
+        Id ->
+            "Id"
+
+        CmdKind ->
+            "Command"
+
+        Src ->
+            "Source Text"
+
+        SrcFile ->
+            "Source Theory"
+
+        Name ->
+            "Entity Name"
+
+        Kind ->
+            "Entity"
+
+        Prop ->
+            "Proposition"
+
+        ConstType ->
+            "Type"
+
+        ConstTypeFacet ->
+            "Type"
+
+        DocKind ->
+            "Documentation"
 
 
 renderFacetEntry : ConfigInternal msg -> (FacetEntry -> State) -> String -> FacetEntry -> FilterChip msg
@@ -573,77 +634,104 @@ renderFacetEntry conf updateFn elem entry =
         (elem ++ (entry.count |> Maybe.map (\c -> " (" ++ String.fromInt c ++ ")") |> Maybe.withDefault ""))
 
 
+fieldSelectionList : List Field -> (Field -> msg) -> (Field -> String) -> Html msg
+fieldSelectionList fields updateFn displayFn =
+    MList.list MList.listConfig
+        (fields
+            |> List.map
+                (\field ->
+                    MList.listItem
+                        { listItemConfig
+                            | onClick = Just <| updateFn field
+                        }
+                        [ text <| displayFn field ]
+                )
+        )
+
+
 renderFieldSearcher : ConfigInternal msg -> (Maybe FieldSearcher -> State) -> FieldSearcher -> Html msg
 renderFieldSearcher conf stateFromElem fieldSearcher =
-    div [] [ text <| "FieldSearcher" ++ fieldSearcher.term ]
-
-
-
-{- }
-   -- TODO
-   Grid.row []
-       [ {- } Grid.col []
-                [ Dropdown.dropdown fieldSearcher.facet
-                    { options = []
-                    , toggleMsg = \toggle -> { fieldSearcher | fieldSelect = toggle } |> stateFromElem |> conf.toInternal
-                    , toggleButton = Dropdown.toggle [ Button.secondary ] [ text (fieldToString fieldSearcher.field) ]
-                    , items =
-                        List.map
-                            (\f ->
-                                Dropdown.buttonItem
-                                    [ { fieldSearcher | field = f, fieldSelect = Dropdown.initialState }
-                                        |> stateFromElem
-                                        |> conf.toMsg
-                                        |> onClick
-                                    ]
-                                    [ text (fieldToString f) ]
-                            )
-                            termFilterableFields
-                    }
+    Grid.layoutGridInner []
+        [ Grid.layoutGridCell [ Grid.span3Phone, Grid.span7Tablet, Grid.span11Desktop ]
+            [ Grid.layoutGridInner []
+                [ Grid.layoutGridCell [ Grid.alignMiddle, Grid.span2 ] [ text <| fieldFacetDisplay fieldSearcher.field ]
+                , Grid.layoutGridCell [ Grid.alignMiddle, Grid.span9 ] [ renderSelectableTextField conf (Just >> stateFromElem) fieldSearcher ]
                 ]
-            ,
-         -}
-         Grid.col []
-           [ InputGroup.config
-               (InputGroup.text
-                   [ Input.placeholder "SearchComponent for"
-                   , Input.onInput (\s -> { fieldSearcher | term = s } |> Just |> stateFromElem |> State |> conf.toInternal)
-                   , Input.attrs (changeEvents (stateFromElem <| Just fieldSearcher) conf)
-                   , Input.value fieldSearcher.term
-                   ]
-               )
-               |> InputGroup.successors
-                   (case fieldSearcher.facet of
-                       _ ->
-                           []
-                    {- Just ( facetDropdownState, facet ) ->
-                       [ InputGroup.dropdown facetDropdownState
-                           { options = []
-                           , toggleMsg =
-                               \toggle ->
-                                   { fieldSearcher | facet = Just ( toggle, facet ) }
-                                       |> stateFromElem
-                                       |> conf.toInternal
-                           , toggleButton =
-                               Dropdown.toggle [ Button.secondary ]
-                                   [ text
-                                       (let
-                                           values =
-                                               facetSelectedValues facet
-                                        in
-                                        if List.length values > 5 then
-                                           "..."
+            ]
+        , Grid.layoutGridCell [ Grid.span1 ] [ IconButton.iconButton { iconButtonConfig | onClick = Just <| conf.toMsg <| stateFromElem Nothing } "clear" ]
+        ]
 
-                                        else
-                                           List.foldl (++) "" values
-                                       )
-                                   ]
-                           , items = []
-                           }
+
+
+{- div []
+   [ Card.card Card.cardConfig
+       { blocks =
+           [ Card.cardBlock <|
+               Grid.layoutGrid [ Grid.alignLeft ]
+                   [ Grid.layoutGridInner
+                       []
+                       [ Grid.layoutGridCell [ Grid.alignMiddle, Grid.span2 ] [ text <| fieldFacetDisplay fieldSearcher.field ]
+                       , Grid.layoutGridCell [] [ renderSelectableTextField conf (Just >> stateFromElem) fieldSearcher ]
                        ]
-                    -}
-                   )
-               |> InputGroup.view
+                   , Grid.layoutGridCell [ Grid.alignMiddle ] [ Chip.inputChipSet [] [ Chip.inputChip Chip.inputChipConfig "..." ] ]
+                   ]
            ]
-       ]
+       , actions =
+           Just <|
+               Card.cardActions
+                   { buttons = []
+                   , icons =
+                       [ Card.cardActionIcon
+                           { iconButtonConfig
+                               | onClick = Just <| conf.toMsg <| stateFromElem Nothing
+                           }
+                           "clear"
+                       ]
+                   }
+       }
+   , br [] []
+   ]
 -}
+
+
+renderSelectableTextField : ConfigInternal msg -> (FieldSearcher -> State) -> FieldSearcher -> Html msg
+renderSelectableTextField conf updateFn fieldSearcher =
+    case fieldSearcher.facet of
+        Nothing ->
+            TextField.textField
+                { textFieldConfig
+                    | value = fieldSearcher.term
+                    , onChange = Just <| \text -> conf.toMsg <| updateFn { fieldSearcher | term = text }
+                    , onInput = Just <| \text -> conf.toInternal <| updateFn { fieldSearcher | term = text }
+                }
+
+        Just facet ->
+            Html.div [ Menu.menuSurfaceAnchor ]
+                [ TextField.textField
+                    { textFieldConfig
+                        | leadingIcon =
+                            TextField.textFieldIcon
+                                { iconConfig
+                                    | additionalAttributes =
+                                        [ attribute "tabindex" "0"
+                                        , attribute "role" "button"
+                                        , onClick <| conf.toInternal <| updateFn { fieldSearcher | open = True }
+                                        ]
+                                }
+                                "arrow_drop_down"
+                        , value = fieldSearcher.term
+                        , onInput = Just <| \text -> conf.toInternal <| updateFn { fieldSearcher | term = text }
+                    }
+                , Menu.menu
+                    { menuConfig
+                        | open = fieldSearcher.open
+                        , onClose = Just <| conf.toInternal <| updateFn { fieldSearcher | open = False }
+                    }
+                    [ MList.list
+                        { listConfig | wrapFocus = True }
+                        (facet
+                            |> (\d -> Dict.keys d ++ [ "a", "b" ])
+                            |> List.map (text >> List.singleton >> MList.listItem MList.listItemConfig)
+                        )
+                    ]
+                ]

@@ -31,8 +31,9 @@ import Html exposing (Html, br, div, pre, text)
 import Html.Attributes exposing (style)
 import Html.Lazy exposing (lazy, lazy2)
 import Material.Button exposing (buttonConfig)
-import Material.Card as Card exposing (cardPrimaryActionConfig)
+import Material.Card as Card exposing (cardConfig, cardPrimaryActionConfig)
 import Material.DataTable as Table exposing (DataTableRow)
+import Material.Elevation as Elevation
 import Material.LayoutGrid as Grid
 import Material.Typography as Typography
 import Util exposing (pairWith, renderHtml)
@@ -117,7 +118,7 @@ init result =
 -}
 view : State -> Config msg -> Html msg
 view state (Config conf) =
-    div [] <|
+    div [ Elevation.z2 ] <|
         case state of
             Empty ->
                 []
@@ -129,9 +130,12 @@ view state (Config conf) =
                 [ text err ]
 
             Values res ->
-                res.blocks
-                    |> List.map (renderCmd conf res)
-                    |> List.intersperse (br [] [])
+                [ Grid.layoutGrid []
+                    (res.blocks
+                        |> List.map (renderCmd conf res)
+                        |> List.intersperse (br [] [])
+                    )
+                ]
 
 
 {-| Checks if the results list is filed with results.
@@ -189,13 +193,13 @@ renderCmd conf state cmd =
 
 renderDocItem : Html msg -> Html msg
 renderDocItem content =
-    Card.card Card.cardConfig
+    Card.card { cardConfig | additionalAttributes = [ Elevation.z1 ] }
         { blocks = [ Card.cardBlock <| Grid.layoutGrid [ Grid.alignLeft ] [ content ] ], actions = Nothing }
 
 
 renderBlockItem : ConfigInternal msg -> StateInternal -> ShortBlock -> Html msg
 renderBlockItem conf state block =
-    Card.card Card.cardConfig
+    Card.card { cardConfig | additionalAttributes = [ Elevation.z1 ] }
         { blocks =
             Card.cardPrimaryAction
                 { cardPrimaryActionConfig | onClick = Just <| conf.toMsg <| toggleBlockOpen block.id state }

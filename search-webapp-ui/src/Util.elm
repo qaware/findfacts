@@ -41,7 +41,6 @@ import Html exposing (Html, div, text)
 import Html.Parser
 import Html.Parser.Util
 import Json.Decode as Decode exposing (Decoder, Error)
-import Json.Encode as Encode
 import Result.Extra
 
 
@@ -123,18 +122,18 @@ pairWith b a =
     Tuple.pair a b
 
 
-listKeyFold : Decoder k -> ( String, v ) -> Result String (List ( k, v )) -> Result String (List ( k, v ))
+listKeyFold : (String -> Result String k) -> ( String, v ) -> Result String (List ( k, v )) -> Result String (List ( k, v ))
 listKeyFold kDecoder ( kStr, v ) lRes =
     Result.andThen
         (\l ->
-            Decode.decodeValue kDecoder (Encode.string kStr)
+            kDecoder kStr
                 |> Result.mapError (always <| "Error decoding key: " ++ kStr)
                 |> Result.map (\k -> ( k, v ) :: l)
         )
         lRes
 
 
-listKeyDecoder : Decoder k -> List ( String, v ) -> Decoder (List ( k, v ))
+listKeyDecoder : (String -> Result String k) -> List ( String, v ) -> Decoder (List ( k, v ))
 listKeyDecoder kDecoder l =
     List.foldl (listKeyFold kDecoder) (Ok []) l
         |> Result.map Decode.succeed
@@ -142,21 +141,21 @@ listKeyDecoder kDecoder l =
         |> Result.Extra.merge
 
 
-{-| Decoder for typed dicts.
+{-| Decoder for typed dicts. Keys in json are always strings, so for keys a string decoding function is needed.
 -}
-dictDecoder : Decoder comparable -> Decoder v -> Decoder (Dict comparable v)
+dictDecoder : (String -> Result String comparable) -> Decoder v -> Decoder (Dict comparable v)
 dictDecoder comparableDecoder vDecoder =
     Decode.keyValuePairs vDecoder
         |> Decode.andThen (listKeyDecoder comparableDecoder)
         |> Decode.map Dict.fromList
 
 
-{-| Decoder for AnyDicts.
+{-| Decoder for AnyDicts. Keys in json are always strings, so for keys a string decoding function is needed.
 
     anyDictDecoder keyDecoder valueDecoder compareFn
 
 -}
-anyDictDecoder : Decoder k -> Decoder v -> (k -> comparable) -> Decoder (AnyDict comparable k v)
+anyDictDecoder : (String -> Result String k) -> Decoder v -> (k -> comparable) -> Decoder (AnyDict comparable k v)
 anyDictDecoder kDecoder vDecoder compare =
     Decode.keyValuePairs vDecoder
         |> Decode.andThen (listKeyDecoder kDecoder)
