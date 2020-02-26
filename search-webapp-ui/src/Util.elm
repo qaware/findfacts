@@ -2,7 +2,7 @@ module Util exposing
     ( ite, toMaybe
     , singletonIf, consIf, appIf
     , pairWith
-    , dictDecoder, anyDictDecoder, resultStringDecoder
+    , anyDictDecoder, resultStringDecoder
     , renderHtml
     )
 
@@ -35,12 +35,12 @@ module Util exposing
 
 -}
 
-import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, div, text)
 import Html.Parser
 import Html.Parser.Util
 import Json.Decode as Decode exposing (Decoder, Error)
+import Json.Decode.Extra as DecodeExtra
 import Result.Extra
 
 
@@ -141,15 +141,6 @@ listKeyDecoder kDecoder l =
         |> Result.Extra.merge
 
 
-{-| Decoder for typed dicts. Keys in json are always strings, so for keys a string decoding function is needed.
--}
-dictDecoder : (String -> Result String comparable) -> Decoder v -> Decoder (Dict comparable v)
-dictDecoder comparableDecoder vDecoder =
-    Decode.keyValuePairs vDecoder
-        |> Decode.andThen (listKeyDecoder comparableDecoder)
-        |> Decode.map Dict.fromList
-
-
 {-| Decoder for AnyDicts. Keys in json are always strings, so for keys a string decoding function is needed.
 
     anyDictDecoder keyDecoder valueDecoder compareFn
@@ -187,14 +178,7 @@ resultStringDecoder : (String -> Result String a) -> Decoder a
 resultStringDecoder fromString =
     Decode.string
         |> Decode.andThen
-            (\str ->
-                case fromString str of
-                    Ok a ->
-                        Decode.succeed a
-
-                    Err e ->
-                        Decode.fail e
-            )
+            (fromString >> DecodeExtra.fromResult)
 
 
 {-| Parses string to HTML and appends to div.
@@ -202,7 +186,7 @@ resultStringDecoder fromString =
     renderHtml "<br>Text with html"
 
 -}
-renderHtml : String -> Html msg
+renderHtml : String -> Html Never
 renderHtml html =
     case Html.Parser.run html of
         Ok nodes ->

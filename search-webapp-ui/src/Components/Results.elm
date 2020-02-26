@@ -1,4 +1,4 @@
-module ResultsComponent exposing
+module Components.Results exposing
     ( Config, State
     , config, empty, searching, init, view
     , hasResults
@@ -25,18 +25,19 @@ module ResultsComponent exposing
 
 import DataTypes exposing (..)
 import Dict exposing (Dict)
-import Html exposing (Html, br, div, pre, span, text)
+import Html exposing (Html, br, div, span, text)
 import Html.Attributes exposing (style)
 import Html.Lazy exposing (lazy, lazy2)
 import Material.Button exposing (buttonConfig)
 import Material.Card as Card exposing (cardConfig, cardPrimaryActionConfig)
 import Material.DataTable as Table exposing (DataTableRow)
 import Material.Elevation as Elevation
+import Material.Extra.Typography as ExtraTypography
 import Material.LayoutGrid as Grid
 import Material.LinearProgress as Progress
 import Material.Theme as Theme
 import Material.Typography as Typography
-import Util exposing (pairWith, renderHtml)
+import Util exposing (pairWith)
 
 
 {-| Opaque config type for the results component.
@@ -48,7 +49,7 @@ type Config msg
 type alias ConfigInternal msg =
     { toMsg : State -> msg
     , toDetailMsg : String -> msg
-    , toUsageMsg : List String -> msg
+    , toUsageMsg : String -> List String -> msg
     }
 
 
@@ -75,7 +76,7 @@ type alias EntityState =
 
 {-| Creates a config for a results component.
 -}
-config : (State -> msg) -> (String -> msg) -> (List String -> msg) -> Config msg
+config : (State -> msg) -> (String -> msg) -> (String -> List String -> msg) -> Config msg
 config toMsg toDetailMsg toUsageMsg =
     Config (ConfigInternal toMsg toDetailMsg toUsageMsg)
 
@@ -210,27 +211,23 @@ renderBlockItem conf state block =
             Just <|
                 Card.cardActions
                     { buttons =
-                        [ renderDetailsButton conf block.id
-                        , block.entities |> List.map .id |> renderFindUsageButton conf
+                        [ Card.cardActionButton { buttonConfig | onClick = Just <| conf.toDetailMsg block.id } "details"
+                        , block.entities |> List.map .id |> renderFindUsageButton conf block.src
                         ]
                     , icons = []
                     }
         }
 
 
-renderDetailsButton conf id =
-    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toDetailMsg id } "details"
-
-
-renderFindUsageButton conf ids =
-    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsageMsg ids } "find usage"
+renderFindUsageButton conf block ids =
+    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsageMsg block ids } "find usage"
 
 
 renderDocContent : Documentation -> Html msg
 renderDocContent doc =
     div []
         [ div [ Typography.caption, style "margin-bottom" "10pt" ] [ text doc.file ]
-        , pre [ Typography.body1 ] [ renderHtml doc.src ]
+        , ExtraTypography.code [] doc.src
         ]
 
 
@@ -238,7 +235,7 @@ renderBlockContent : Bool -> ShortBlock -> Html msg
 renderBlockContent open block =
     Grid.layoutGrid [ Grid.alignLeft ]
         [ div [ Typography.caption, style "margin-bottom" "10pt" ] [ text block.file ]
-        , pre [ Typography.body1 ] [ renderHtml block.src ]
+        , ExtraTypography.code [] block.src
         , if open then
             Table.dataTable Table.dataTableConfig
                 { thead =

@@ -2,8 +2,11 @@ module Main exposing (..)
 
 import Browser
 import Browser.Navigation as Navigation
+import Components.Details as Details
+import Components.Paging as Paging
+import Components.Results as Results
+import Components.Search as Search
 import DataTypes exposing (..)
-import DetailsComponent as Details
 import Html exposing (Html, br, div, h1, span, text)
 import Html.Attributes exposing (attribute, href, style)
 import Html.Lazy exposing (lazy, lazy2)
@@ -19,9 +22,6 @@ import Material.LayoutGrid as Grid
 import Material.List as MList exposing (listItemConfig)
 import Material.TopAppBar as TopAppBar exposing (topAppBarConfig)
 import Material.Typography as Typography
-import PagingComponent as Paging
-import ResultsComponent as Results
-import SearchComponent as Search
 import Url exposing (Url)
 import Url.Builder as UrlBuilder
 import Url.Parser as UrlParser exposing ((</>), (<?>))
@@ -109,14 +109,13 @@ type Msg
       -- Search component
     | SearchInternalMsg Search.State
     | SearchMsg Search.State
-    | SearchFacet FacetQuery Int
-    | SearchFacetResult Int (Result Http.Error FacetResult)
+    | SearchFacetResult Search.ResultFor (Result Http.Error ResultFaceting)
       -- Paging component
     | PagingMsg Paging.State
       -- Results component
     | ResultsMsg Results.State
     | ResultsDetail String
-    | ResultsUsingMsg (List String)
+    | ResultsUsingMsg String (List String)
     | FilterResult (Result Http.Error (ResultList ShortCmd))
       -- Details component
     | DetailsResult (Result Http.Error ShortBlock)
@@ -157,6 +156,11 @@ update msg model =
 
                 ( ResultsDetail id, _ ) ->
                     ( { model | state = Locked False page }, Navigation.pushUrl model.navKey <| urlEncodeDetail id )
+
+                ( ResultsUsingMsg block ids, Home search paging _ ) ->
+                    ( { model | state = Locked False page }
+                    , Navigation.pushUrl model.navKey <| urlEncodeHome (Search.addUsing block ids search) paging
+                    )
 
                 ( SearchMsg newSearch, Home oldSearch paging _ ) ->
                     let
@@ -201,9 +205,6 @@ updatePage apiBaseUrl msg page =
 
         ( ResultsMsg newResults, Home search paging _ ) ->
             ( Home search paging newResults, Cmd.none )
-
-        ( SearchFacet facetQuery id, _ ) ->
-            ( page, executeFacetQuery apiBaseUrl facetQuery id )
 
         ( FilterResult result, Home search paging _ ) ->
             case result of
@@ -294,20 +295,23 @@ parseHome model maybeSearch maybePaging =
                                 _ ->
                                     ( Search.empty, Paging.empty, Results.empty )
 
-                        ( newSearch, maybeQuery ) =
+                        ( newSearch, maybeQuery, maybeFacet ) =
                             Search.merge oldSearch parsedSearch
-
-                        cmd =
-                            maybeQuery
-                                |> Maybe.map (executeQueries model.apiBaseUrl newPaging)
-                                |> Maybe.withDefault Cmd.none
                     in
                     if Search.sameQuery oldSearch newSearch && Paging.samePage oldPaging newPaging then
                         -- Page was loaded before, so re-use results if filter and page didn't change
-                        ( Home newSearch oldPaging oldResults, Cmd.none )
+                        ( Home newSearch oldPaging oldResults
+                        , maybeFacet
+                            |> Maybe.map (executeFacetQuery model.apiBaseUrl Search.NewFieldSearcher)
+                            |> Maybe.withDefault Cmd.none
+                        )
 
                     else
-                        ( Home newSearch newPaging Results.searching, cmd )
+                        ( Home newSearch newPaging Results.searching
+                        , maybeQuery
+                            |> Maybe.map (executeQueries model.apiBaseUrl newSearch newPaging)
+                            |> Maybe.withDefault Cmd.none
+                        )
 
                 _ ->
                     ( NotFound, Cmd.none )
@@ -338,22 +342,25 @@ urlEncodeDetail id =
     UrlBuilder.absolute [ "#details", id ] []
 
 
-executeQueries : String -> Paging.State -> List FieldFilter -> Cmd Msg
-executeQueries apiBaseUrl paging fq =
+executeQueries : String -> Search.State -> Paging.State -> List FieldFilter -> Cmd Msg
+executeQueries apiBaseUrl search paging fq =
     Cmd.batch
-        [ executeFilterQuery apiBaseUrl <| Paging.buildFilterQuery fq paging
-        , executeFacetQuery apiBaseUrl (Search.buildFacetQuery fq) -1
-        ]
+        ((executeFilterQuery apiBaseUrl <| Paging.buildFilterQuery fq paging)
+            :: (Search.buildFacetQueries
+                    search
+                    |> List.map (\( query, target ) -> executeFacetQuery apiBaseUrl target query)
+               )
+        )
 
 
 {-| Builds the command to execute a facet query.
 -}
-executeFacetQuery : String -> FacetQuery -> Int -> Cmd Msg
-executeFacetQuery apiBaseUrl query id =
+executeFacetQuery : String -> Search.ResultFor -> FacetQuery -> Cmd Msg
+executeFacetQuery apiBaseUrl resultFor query =
     Http.post
         { url = apiBaseUrl ++ "/v1/facet"
         , body = Http.jsonBody (encodeFacetQuery query)
-        , expect = Http.expectJson (SearchFacetResult id) facetResultDecoder
+        , expect = Http.expectJson (SearchFacetResult resultFor) resultFacetingDecoder
         }
 
 
@@ -419,7 +426,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.state of
         Site _ (Home search _ _) ->
-            Search.config SearchInternalMsg SearchMsg SearchFacet |> Search.subscriptions search
+            Search.config SearchInternalMsg SearchMsg |> Search.subscriptions search
 
         _ ->
             Sub.none
@@ -533,7 +540,7 @@ renderPageHome search paging results =
                 )
             ]
         ]
-    , lazy2 Search.view search (Search.config SearchInternalMsg SearchMsg SearchFacet)
+    , lazy2 Search.view search (Search.config SearchInternalMsg SearchMsg)
     , br [] []
     , lazy2 Results.view results (Results.config ResultsMsg ResultsDetail ResultsUsingMsg)
     , br [] []

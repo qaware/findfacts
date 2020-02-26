@@ -47,6 +47,9 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     if (facetQuery.maxFacets < 0) {
       return Failure(new IllegalArgumentException("Maximum number of facets cannot be negative"))
     }
+    if (facetQuery.fields.isEmpty) {
+      return Success(Map())
+    }
     // Faceting on ID field does not make any sense,
     // and won't work properly because it's a field of both parent and children
     if (facetQuery.fields.contains(EtField.Id)) {

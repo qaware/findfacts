@@ -98,11 +98,13 @@ type Field
     | Src
     | SrcFile
     | Name
+    | NameFacet
     | Kind
     | Prop
     | ConstType
     | ConstTypeFacet
     | DocKind
+    | Uses
 
 
 type Filter
@@ -139,7 +141,7 @@ type alias ResultFacet =
     Dict String Int
 
 
-type alias FacetResult =
+type alias ResultFaceting =
     AnyDict String Field ResultFacet
 
 
@@ -194,6 +196,9 @@ fieldToString field =
         Name ->
             "Name"
 
+        NameFacet ->
+            "NameFacet"
+
         Prop ->
             "Proposition"
 
@@ -205,6 +210,9 @@ fieldToString field =
 
         DocKind ->
             "DocumentationKind"
+
+        Uses ->
+            "PropositionUses"
 
 
 
@@ -232,6 +240,9 @@ fieldFromString str =
         "Name" ->
             Ok Name
 
+        "NameFacet" ->
+            Ok NameFacet
+
         "Proposition" ->
             Ok Prop
 
@@ -243,6 +254,9 @@ fieldFromString str =
 
         "DocumentationKind" ->
             Ok DocKind
+
+        "PropositionUses" ->
+            Ok Uses
 
         _ ->
             Err ("No such field: " ++ str)
@@ -408,8 +422,8 @@ fieldDecoder =
     resultStringDecoder fieldFromString
 
 
-facetResultDecoder : Decoder FacetResult
-facetResultDecoder =
+resultFacetingDecoder : Decoder ResultFaceting
+resultFacetingDecoder =
     anyDictDecoder fieldFromString resultFacetDecoder fieldToString
 
 

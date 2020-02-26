@@ -1,4 +1,4 @@
-module DetailsComponent exposing
+module Components.Details exposing
     ( Config, State
     , config, empty, init, update, view
     )
@@ -23,11 +23,12 @@ import Html exposing (Html, br, div, pre, text)
 import Html.Lazy exposing (lazy)
 import Material.Card as Card exposing (cardPrimaryActionConfig)
 import Material.DataTable as Table
+import Material.Extra.Typography as ExtraTypography
 import Material.LayoutGrid as Grid
 import Material.LinearProgress as Progress
 import Material.Typography as Typography
 import Maybe.Extra
-import Util exposing (ite, pairWith, renderHtml)
+import Util exposing (ite, pairWith)
 
 
 {-| Opaque config type for detail result component.
@@ -141,7 +142,7 @@ view state (Config conf) =
                             [ Grid.alignLeft ]
                             ([ div [ Typography.overline ] [ text stateInternal.block.file ]
                              , br [] []
-                             , pre [ Typography.headline6 ] [ renderHtml stateInternal.block.src ]
+                             , ExtraTypography.code [] stateInternal.block.src
                              , br [] []
                              ]
                                 ++ (stateInternal.block.entities

@@ -1,4 +1,4 @@
-module PagingComponent exposing
+module Components.Paging exposing
     ( Config, State
     , config, empty, encode, decoder, update, view
     , buildFilterQuery
