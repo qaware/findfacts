@@ -36,8 +36,9 @@ import Json.Decode.Extra as DecodeExtra
 import Json.Encode as Encode exposing (Value)
 import List.Extra
 import Material.Button as Button exposing (buttonConfig)
-import Material.Chips as Chip exposing (FilterChip, filterChipConfig, inputChipConfig)
+import Material.Chips as Chip exposing (FilterChip, filterChipConfig)
 import Material.Elevation as Elevation
+import Material.Extra.Chips as Chips
 import Material.Extra.Divider as Divider
 import Material.Extra.Menu as Menu
 import Material.Extra.Typography as ExtraTypography
@@ -151,8 +152,7 @@ type alias FieldSearcher =
     { selectState : Menu.State
     , field : FilterField
     , text : String
-    , terms : Dict String Bool
-    , facetTerms : Dict String Bool
+    , terms : List String
     }
 
 
@@ -259,19 +259,7 @@ merge (State oldState) (State newState) =
             mergeFaceting oldState.facets newState.facets
 
         fieldSearchers =
-            if Array.length oldState.fieldSearchers == Array.length newState.fieldSearchers then
-                Array.Extra.map2
-                    (\fs1 fs2 ->
-                        { fs2
-                            | terms = Dict.union fs2.terms (fs1.terms |> Dict.filter (always <| not >> identity))
-                            , facetTerms = Dict.union fs2.facetTerms (fs1.facetTerms |> Dict.filter (always <| not >> identity))
-                        }
-                    )
-                    oldState.fieldSearchers
-                    newState.fieldSearchers
-
-            else
-                newState.fieldSearchers
+            newState.fieldSearchers
 
         fsAdditionalFacetFields =
             Set.diff
@@ -420,10 +408,8 @@ encodeFieldSearcher fieldSearcher =
         Maybe.Extra.values <|
             [ Just ( "field", Encode.string (fieldToString fieldSearcher.field.field) )
             , toMaybe ( "text", Encode.string fieldSearcher.text ) (not <| String.isEmpty fieldSearcher.text)
-            , toMaybe ( "terms", Encode.list Encode.string (fieldSearcher.terms |> active) )
-                (not <| List.isEmpty <| active fieldSearcher.terms)
-            , toMaybe ( "facetTerms", Encode.list Encode.string (active fieldSearcher.facetTerms) )
-                (not <| List.isEmpty <| active fieldSearcher.facetTerms)
+            , toMaybe ( "terms", Encode.list Encode.string fieldSearcher.terms )
+                (not <| List.isEmpty fieldSearcher.terms)
             ]
 
 
@@ -458,7 +444,7 @@ encodeFacet facet =
 
 fieldSearcherDecoder : Decoder FieldSearcher
 fieldSearcherDecoder =
-    Decode.map4 (FieldSearcher Menu.closed)
+    Decode.map3 (FieldSearcher Menu.closed)
         (Decode.field "field" fieldDecoder
             |> Decode.andThen
                 (\f ->
@@ -468,16 +454,7 @@ fieldSearcherDecoder =
                 )
         )
         (DecodeExtra.optionalField "text" Decode.string |> Decode.map (Maybe.withDefault ""))
-        (Decode.list Decode.string
-            |> Decode.map (List.map (pairWith True) >> Dict.fromList)
-            |> DecodeExtra.optionalField "terms"
-            |> Decode.map (Maybe.withDefault Dict.empty)
-        )
-        (Decode.list Decode.string
-            |> Decode.map (List.map (pairWith True) >> Dict.fromList)
-            |> DecodeExtra.optionalField "facetTerms"
-            |> Decode.map (Maybe.withDefault Dict.empty)
-        )
+        (Decode.list Decode.string |> DecodeExtra.optionalField "terms" |> Decode.map (Maybe.withDefault []))
 
 
 usageBlockDecoder : Decoder UsageBlock
@@ -628,7 +605,7 @@ addFieldSearcher state field =
     State
         { state
             | fieldSearchers =
-                Array.push (FieldSearcher Menu.closed field "" Dict.empty Dict.empty) state.fieldSearchers
+                Array.push (FieldSearcher Menu.closed field "" []) state.fieldSearchers
         }
 
 
@@ -640,11 +617,6 @@ initFacet queryFacet =
 fsFacetFields : Array FieldSearcher -> List Field
 fsFacetFields fieldSearchers =
     Array.toList fieldSearchers |> List.filterMap (.field >> .facetField) |> List.Extra.uniqueBy fieldToString
-
-
-active : Dict comparable Bool -> List comparable
-active dict =
-    dict |> Dict.filter (always identity) |> Dict.keys
 
 
 
@@ -680,8 +652,7 @@ getFilter str =
 buildFieldSearcherFQ : FieldSearcher -> Maybe FieldFilter
 buildFieldSearcherFQ fieldSearcher =
     ite (String.isEmpty fieldSearcher.text) [] [ Term fieldSearcher.text ]
-        ++ (fieldSearcher.terms |> active |> List.map Term)
-        ++ (fieldSearcher.facetTerms |> active |> List.map Exact)
+        ++ (fieldSearcher.terms |> List.map Term)
         |> unionFilters
         |> Maybe.map (FieldFilter fieldSearcher.field.field)
 
@@ -775,7 +746,7 @@ renderSelectableTextField conf updateFn maybeFacet fieldSearcher =
         Just facet ->
             let
                 remainingValues =
-                    facet |> Dict.filter (\term -> always <| List.Extra.notMember term <| active fieldSearcher.facetTerms)
+                    facet |> Dict.filter (\term -> always <| List.Extra.notMember term fieldSearcher.terms)
             in
             if Dict.isEmpty remainingValues then
                 TextField.textField textFieldConf
@@ -805,10 +776,7 @@ renderSelectableTextField conf updateFn maybeFacet fieldSearcher =
                                     | onClick =
                                         Just <|
                                             toMsg <|
-                                                updateFn
-                                                    { fieldSearcher
-                                                        | facetTerms = Dict.insert term True fieldSearcher.facetTerms
-                                                    }
+                                                updateFn { fieldSearcher | terms = term :: fieldSearcher.terms }
                                 }
                                 [ text <| term ++ " (" ++ String.fromInt count ++ ")" ]
                         )
@@ -833,13 +801,21 @@ fsTextFieldConfig conf updateFn fieldSearcher =
                          else
                             { fieldSearcher
                                 | text = ""
-                                , terms = Dict.insert (String.trim fieldSearcher.text) True fieldSearcher.terms
+                                , terms = String.trim fieldSearcher.text :: fieldSearcher.terms
                             }
                         )
                 )
                 "add"
         , onInput = Just <| \text -> conf.toInternal <| updateFn { fieldSearcher | text = text }
-        , onChange = Just <| always <| conf.toMsg <| updateFn fieldSearcher
+        , onChange =
+            Just <|
+                always <|
+                    conf.toMsg <|
+                        updateFn
+                            { fieldSearcher
+                                | text = ""
+                                , terms = String.trim fieldSearcher.text :: fieldSearcher.terms
+                            }
         , placeholder = Just "Exact search term"
     }
 
@@ -855,30 +831,9 @@ textFieldIcon onClick icon =
 
 renderFSValues : ConfigInternal msg -> (FieldSearcher -> State) -> FieldSearcher -> Html msg
 renderFSValues conf updateFn fieldSearcher =
-    List.map
-        (\term ->
-            renderFSValue
-                conf
-                (\_ -> updateFn { fieldSearcher | terms = Dict.insert term False fieldSearcher.terms })
-                term
-        )
-        (Dict.keys fieldSearcher.terms)
-        ++ List.map
-            (\term ->
-                renderFSValue
-                    conf
-                    (\_ -> updateFn { fieldSearcher | facetTerms = Dict.insert term False fieldSearcher.facetTerms })
-                    term
-            )
-            (Dict.keys fieldSearcher.facetTerms)
-        |> Chip.inputChipSet []
-
-
-renderFSValue : ConfigInternal msg -> (() -> State) -> String -> Chip.InputChip msg
-renderFSValue conf updateFn term =
-    Chip.inputChip
-        { inputChipConfig | onTrailingIconClick = Just <| conf.toMsg <| updateFn () }
-        term
+    Chips.view
+        (Chips.config (\terms -> conf.toMsg <| updateFn { fieldSearcher | terms = terms }))
+        (Chips.inputSet (fieldSearcher.terms |> List.map Chips.input))
 
 
 renderAddSearcherButton : ConfigInternal msg -> StateInternal -> Html msg

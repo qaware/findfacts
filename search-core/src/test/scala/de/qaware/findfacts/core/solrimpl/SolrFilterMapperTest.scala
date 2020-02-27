@@ -17,7 +17,7 @@ class SolrFilterMapperTest extends FunSuite with Matchers with MockFactory {
   val sut = new SolrFilterMapper()
 
   test("Test filter mappings for terminal filters") {
-    sut.mapFilter(Term("*gauss jordan*")).get should equal("(*gauss jordan*)")
+    sut.mapFilter(Term("*gauss jordan*")).get should equal("(*gauss\\ jordan*)")
     sut.mapFilter(Term("")).get should equal("\"\"")
     sut.mapFilter(Exact("Stuff*")).get should equal("\"Stuff\\*\"")
     sut.mapFilter(InRange(10, 42)).get should equal("[10 TO 42]")
@@ -45,8 +45,8 @@ class SolrFilterMapperTest extends FunSuite with Matchers with MockFactory {
       " !\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~&&||"
 
     sut.escape(allAscii, exact = true) should equal(
-      "\" \\!\\\"#$%&\\\\'\\(\\)\\*\\+,\\-.\\/0123456789\\:;<=>\\?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\]\\^_`abcdefghijklmnopqrstuvwxyz\\{|\\}\\~\\&&\\||\"")
+      "\"\\ \\!\\\"#$%&\\\\'\\(\\)\\*\\+,\\-.\\/0123456789\\:;<=>\\?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\]\\^_`abcdefghijklmnopqrstuvwxyz\\{|\\}\\~\\&&\\||\"")
     sut.escape(allAscii, exact = false) should equal(
-      "( \\!\\\"#$%&\\\\'\\(\\)*\\+,\\-.\\/0123456789\\:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\]\\^_`abcdefghijklmnopqrstuvwxyz\\{|\\}\\~\\&&\\||)")
+      "(\\ \\!\\\"#$%&\\\\'\\(\\)*\\+,\\-.\\/0123456789\\:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\]\\^_`abcdefghijklmnopqrstuvwxyz\\{|\\}\\~\\&&\\||)")
   }
 }
