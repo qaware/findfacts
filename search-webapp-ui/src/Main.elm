@@ -157,9 +157,9 @@ update msg model =
                 ( ResultsDetail id, _ ) ->
                     ( { model | state = Locked False page }, Navigation.pushUrl model.navKey <| urlEncodeDetail id )
 
-                ( ResultsUsingMsg block ids, Home search paging _ ) ->
+                ( ResultsUsingMsg block ids, Home _ _ _ ) ->
                     ( { model | state = Locked False page }
-                    , Navigation.pushUrl model.navKey <| urlEncodeHome (Search.addUsing block ids search) paging
+                    , Navigation.pushUrl model.navKey <| urlEncodeHome (Search.initUsing block ids) Paging.empty
                     )
 
                 ( SearchMsg newSearch, Home oldSearch paging _ ) ->
@@ -295,23 +295,33 @@ parseHome model maybeSearch maybePaging =
                                 _ ->
                                     ( Search.empty, Paging.empty, Results.empty )
 
-                        ( newSearch, maybeQuery, maybeFacet ) =
+                        ( newSearch, mergeResult ) =
                             Search.merge oldSearch parsedSearch
                     in
-                    if Search.sameQuery oldSearch newSearch && Paging.samePage oldPaging newPaging then
-                        -- Page was loaded before, so re-use results if filter and page didn't change
-                        ( Home newSearch oldPaging oldResults
-                        , maybeFacet
-                            |> Maybe.map (executeFacetQuery model.apiBaseUrl Search.NewFieldSearcher)
-                            |> Maybe.withDefault Cmd.none
-                        )
+                    case mergeResult of
+                        Search.Outdated fqs ->
+                            ( Home newSearch Paging.empty Results.searching
+                            , Cmd.batch
+                                ((executeFilterQuery model.apiBaseUrl <| Paging.buildFilterQuery fqs newPaging)
+                                    :: (Search.buildFacetQueries newSearch
+                                            |> List.map (\( q, for ) -> executeFacetQuery model.apiBaseUrl for q)
+                                       )
+                                )
+                            )
 
-                    else
-                        ( Home newSearch newPaging Results.searching
-                        , maybeQuery
-                            |> Maybe.map (executeQueries model.apiBaseUrl newSearch newPaging)
-                            |> Maybe.withDefault Cmd.none
-                        )
+                        Search.NewFacet q ->
+                            ( Home newSearch oldPaging oldResults
+                            , executeFacetQuery model.apiBaseUrl Search.NewFieldSearcher q
+                            )
+
+                        Search.UpToDate fqs ->
+                            if Paging.samePage oldPaging newPaging then
+                                ( Home newSearch oldPaging oldResults, Cmd.none )
+
+                            else
+                                ( Home newSearch newPaging Results.searching
+                                , executeFilterQuery model.apiBaseUrl <| Paging.buildFilterQuery fqs newPaging
+                                )
 
                 _ ->
                     ( NotFound, Cmd.none )

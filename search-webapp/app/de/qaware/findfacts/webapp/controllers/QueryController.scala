@@ -97,7 +97,10 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
     responseContainer = "List",
     httpMethod = "POST"
   )
-  @ApiResponses(Array(new ApiResponse(code = 400, message = "Invalid Query")))
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 400, message = "Invalid Query"),
+      new ApiResponse(code = 422, message = "Invalid Query Parameter")))
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(
@@ -109,9 +112,14 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
         examples = new Example(value = Array(new ExampleProperty(mediaType = "default", value = ExampleFilterQuery)))
       )))
   def search: Action[FilterQuery] = Action(circe.json[FilterQuery]) { implicit request: Request[FilterQuery] =>
-    val search = queryService.getResultShortlist(request.body)
-    //
-    logQueryErr(request.body.toString, search, (list: ResultList[ShortCmd]) => Ok(list.asJson))
+    if (request.body.pageSize < 0) {
+      UnprocessableEntity("Page size must not be negative")
+    } else if (request.body.cursor.exists(_.isBlank)) {
+      UnprocessableEntity("Cursor must not be blank")
+    } else {
+      val search = queryService.getResultShortlist(request.body)
+      logQueryErr(request.body.toString, search, (list: ResultList[ShortCmd]) => Ok(list.asJson))
+    }
   }
 
   @ApiOperation(
@@ -119,17 +127,22 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
     notes = "Retrieves information about a single entity",
     response = classOf[Option[BaseEt]],
     httpMethod = "GET")
-  @ApiResponses(Array(new ApiResponse(code = 400, message = NotFoundMsg)))
+  @ApiResponses(
+    Array(new ApiResponse(code = 400, message = NotFoundMsg), new ApiResponse(code = 422, message = "Not an id")))
   def entity(@ApiParam(value = "ID of result entity to fetch", required = true) id: String): Action[AnyContent] =
     Action { implicit request: Request[AnyContent] =>
-      val entity = queryService.getResult(id)
-      // Handle possible result values
-      logQueryErr[Option[BaseEt]](s"id:$id", entity, {
-        case Some(value) => Ok(value.asJson)
-        case None =>
-          logger.info(s"Elem not found for id: $id")
-          BadRequest(NotFoundMsg)
-      })
+      if (id.isBlank) {
+        UnprocessableEntity("Id must not be blank")
+      } else {
+        val entity = queryService.getResult(id)
+        // Handle possible result values
+        logQueryErr[Option[BaseEt]](s"id:$id", entity, {
+          case Some(value) => Ok(value.asJson)
+          case None =>
+            logger.info(s"Elem not found for id: $id")
+            BadRequest(NotFoundMsg)
+        })
+      }
     }
 
   @ApiOperation(
@@ -137,17 +150,22 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
     notes = "Fetches values for relations of a theory entity",
     response = classOf[Option[ResolvedThyEt]],
     httpMethod = "GET")
-  @ApiResponses(Array(new ApiResponse(code = 400, message = NotFoundMsg)))
+  @ApiResponses(
+    Array(new ApiResponse(code = 400, message = NotFoundMsg), new ApiResponse(code = 422, message = "Not an id")))
   def resolved(@ApiParam(value = "ID of theory entity to fetch", required = true) id: String): Action[AnyContent] =
     Action { implicit request: Request[AnyContent] =>
-      val resolved = queryService.getResultResolved(id)
-      // Handle possible result values
-      logQueryErr[Option[ResolvedThyEt]](s"id:$id", resolved, {
-        case Some(value) => Ok(value.asJson)
-        case None =>
-          logger.info(s"Found no thy et for id: $id")
-          BadRequest(NotFoundMsg)
-      })
+      if (id.isBlank) {
+        UnprocessableEntity("Id must not be blank")
+      } else {
+        val resolved = queryService.getResultResolved(id)
+        // Handle possible result values
+        logQueryErr[Option[ResolvedThyEt]](s"id:$id", resolved, {
+          case Some(value) => Ok(value.asJson)
+          case None =>
+            logger.info(s"Found no thy et for id: $id")
+            BadRequest(NotFoundMsg)
+        })
+      }
     }
 
   @ApiOperation(
@@ -156,17 +174,22 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
     response = classOf[Option[ShortCmd]],
     httpMethod = "GET"
   )
-  @ApiResponses(Array(new ApiResponse(code = 400, message = NotFoundMsg)))
+  @ApiResponses(
+    Array(new ApiResponse(code = 400, message = NotFoundMsg), new ApiResponse(code = 422, message = "Not an id")))
   def shortCmd(@ApiParam(value = "ID of cmd to fetch", required = true) id: String): Action[AnyContent] =
     Action { implicit request: Request[AnyContent] =>
-      val entity = queryService.getShortResult(id)
+      if (id.isBlank) {
+        UnprocessableEntity("Id must not be blank")
+      } else {
+        val entity = queryService.getShortResult(id)
 
-      logQueryErr[Option[ShortCmd]](s"id:$id", entity, {
-        case Some(value) => Ok(value.asJson)
-        case None =>
-          logger.info(s"Elem not found for id: $id")
-          BadRequest(NotFoundMsg)
-      })
+        logQueryErr[Option[ShortCmd]](s"id:$id", entity, {
+          case Some(value) => Ok(value.asJson)
+          case None =>
+            logger.info(s"Elem not found for id: $id")
+            BadRequest(NotFoundMsg)
+        })
+      }
     }
 
   @ApiOperation(
@@ -176,7 +199,10 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
     responseContainer = "Map",
     httpMethod = "POST"
   )
-  @ApiResponses(Array(new ApiResponse(code = 400, message = "Invalid Query")))
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 400, message = "Invalid Query"),
+      new ApiResponse(code = 422, message = "Invalid Query Parameters")))
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(
@@ -190,7 +216,11 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
     )
   )
   def facet: Action[FacetQuery] = Action(circe.json[FacetQuery]) { implicit request: Request[FacetQuery] =>
-    val facet = queryService.getResultFacet(request.body)
-    logQueryErr(request.body.toString, facet, (res: FacetResult) => Ok(res.asJson))
+    if (request.body.maxFacets < 1) {
+      UnprocessableEntity("Maximum number of facets must be greater than zero")
+    } else {
+      val facet = queryService.getResultFacet(request.body)
+      logQueryErr(request.body.toString, facet, (res: FacetResult) => Ok(res.asJson))
+    }
   }
 }

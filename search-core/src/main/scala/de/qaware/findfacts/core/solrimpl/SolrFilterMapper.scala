@@ -24,7 +24,7 @@ class SolrFilterMapper {
 
   /** Characters that need to be escaped. Special characters that may be used: * ? */
   private final val SpecialChars =
-    Set("\\+", "-", "&&", "\\|\\|", "!", "\\(", "\\)", "\\{", "\\}", "\\[", "\\]", "\\^", "\"", "~", ":", "\\\\", "\\/")
+    Set("\\+", "-", "&&", "\\|\\|", "!", "\\(", "\\)", "\\{", "\\}", "\\[", "\\]", "\\^", "\"", "~", ":", "\\\\", "\\/", "\\s+")
 
   /** Characters that need to be escaped in exact (quoted) queries. */
   private final val ExactSpecialChars = Set("\\*", "\\?")

@@ -1,7 +1,7 @@
 module Components.Search exposing
-    ( Config, State, ResultFor(..)
+    ( Config, State, ResultFor(..), MergeResult(..)
     , config, empty, encode, decoder, update, merge, subscriptions, view
-    , sameQuery, buildFacetQueries, addUsing
+    , sameQuery, buildFacetQueries, initUsing
     )
 
 {-| This components controls the search form.
@@ -9,7 +9,7 @@ module Components.Search exposing
 
 # Types
 
-@docs Config, State, ResultFor
+@docs Config, State, ResultFor, MergeResult
 
 
 # Component
@@ -19,7 +19,7 @@ module Components.Search exposing
 
 # Helpers
 
-@docs sameQuery, buildFacetQueries, addUsing
+@docs sameQuery, buildFacetQueries, addUsing, initUsing
 
 -}
 
@@ -30,7 +30,7 @@ import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, br, div, text)
 import Html.Attributes exposing (attribute, style)
-import Html.Events exposing (onClick)
+import Html.Events as Events
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Extra as DecodeExtra
 import Json.Encode as Encode exposing (Value)
@@ -49,7 +49,7 @@ import Material.TextField as TextField exposing (textFieldConfig)
 import Material.Typography as Typography
 import Maybe.Extra
 import Set exposing (Set)
-import Util exposing (anyDictDecoder, consIf, ite, pairWith, singletonIf, toMaybe)
+import Util exposing (anyDictDecoder, ite, pairWith, singletonIf, toMaybe)
 
 
 
@@ -124,7 +124,7 @@ type alias StateInternal =
     , term : String
     , fieldSearchers : Array FieldSearcher
     , fieldSearcherFacets : ResultFaceting
-    , usedIn : Array UsageBlock
+    , usedIn : Maybe UsageBlock
     , facets : Faceting
     }
 
@@ -151,8 +151,8 @@ type alias FieldSearcher =
     { selectState : Menu.State
     , field : FilterField
     , text : String
-    , terms : List String
-    , facetTerms : List String
+    , terms : Dict String Bool
+    , facetTerms : Dict String Bool
     }
 
 
@@ -172,7 +172,7 @@ empty =
             ""
             Array.empty
             (AnyDict.empty fieldToString)
-            Array.empty
+            Nothing
             (AnyDict.empty <| .field >> fieldToString)
 
 
@@ -180,15 +180,15 @@ empty =
 -}
 encode : State -> Value
 encode (State state) =
-    Encode.object
-        ([]
-            |> consIf (not (String.isEmpty state.term)) ( "term", Encode.string state.term )
-            |> consIf (state.fieldSearchers |> Array.isEmpty >> not)
-                ( "fields", Encode.array encodeFieldSearcher state.fieldSearchers )
-            |> consIf (state.usedIn |> Array.isEmpty >> not) ( "usedIn", Encode.array encodeUsageBlock state.usedIn )
-            |> consIf (state.facets |> AnyDict.filter (always facetActive) |> AnyDict.isEmpty >> not)
-                ( "facets", encodeFaceting state.facets )
-        )
+    Encode.object <|
+        Maybe.Extra.values
+            [ not (String.isEmpty state.term) |> toMaybe ( "term", Encode.string state.term )
+            , (state.fieldSearchers |> Array.isEmpty >> not)
+                |> toMaybe ( "fields", Encode.array encodeFieldSearcher state.fieldSearchers )
+            , state.usedIn |> Maybe.map (\s -> ( "usedIn", encodeUsageBlock s ))
+            , (state.facets |> AnyDict.filter (always facetActive) |> AnyDict.isEmpty >> not)
+                |> toMaybe ( "facets", encodeFaceting state.facets )
+            ]
 
 
 {-| Decodes persistent searcher state (user input!) from json.
@@ -210,9 +210,7 @@ decoder =
             (Decode.map (Maybe.withDefault Array.empty)
                 (DecodeExtra.optionalField "fields" <| Decode.array fieldSearcherDecoder)
             )
-            (Decode.map (Maybe.withDefault Array.empty)
-                (DecodeExtra.optionalField "usedIn" <| Decode.array usageBlockDecoder)
-            )
+            (DecodeExtra.optionalField "usedIn" usageBlockDecoder)
             (Decode.map (Maybe.withDefault <| AnyDict.empty <| .field >> fieldToString)
                 (DecodeExtra.optionalField "facets" facetingDecoder)
             )
@@ -242,9 +240,18 @@ update result assignment (State state) =
             State { state | fieldSearcherFacets = AnyDict.union state.fieldSearcherFacets result }
 
 
+{-| Different outcomes of a merge.
+-}
+type MergeResult
+    = -- Return field-filters in case page changed
+      UpToDate (List FieldFilter)
+    | NewFacet FacetQuery
+    | Outdated (List FieldFilter)
+
+
 {-| Adds information from previous state that was not encoded in url.
 -}
-merge : State -> State -> ( State, Maybe (List FieldFilter), Maybe FacetQuery )
+merge : State -> State -> ( State, MergeResult )
 merge (State oldState) (State newState) =
     let
         facets =
@@ -252,14 +259,19 @@ merge (State oldState) (State newState) =
             mergeFaceting oldState.facets newState.facets
 
         fieldSearchers =
-            newState.fieldSearchers
-
-        outQuery =
-            if oldState.filters == newState.filters then
-                Nothing
+            if Array.length oldState.fieldSearchers == Array.length newState.fieldSearchers then
+                Array.Extra.map2
+                    (\fs1 fs2 ->
+                        { fs2
+                            | terms = Dict.union fs2.terms (fs1.terms |> Dict.filter (always <| not >> identity))
+                            , facetTerms = Dict.union fs2.facetTerms (fs1.facetTerms |> Dict.filter (always <| not >> identity))
+                        }
+                    )
+                    oldState.fieldSearchers
+                    newState.fieldSearchers
 
             else
-                Just newState.filters
+                newState.fieldSearchers
 
         fsAdditionalFacetFields =
             Set.diff
@@ -277,10 +289,16 @@ merge (State oldState) (State newState) =
                 |> List.map (fieldFromString >> Result.toMaybe)
                 |> Maybe.Extra.values
 
-        facetQuery =
-            List.isEmpty fsAdditionalFacetFields
-                |> not
-                |> toMaybe (FacetQuery newState.filters fsAdditionalFacetFields 100)
+        result =
+            if oldState.filters == newState.filters then
+                if List.isEmpty fsAdditionalFacetFields then
+                    UpToDate newState.filters
+
+                else
+                    NewFacet <| FacetQuery newState.filters fsAdditionalFacetFields 100
+
+            else
+                Outdated newState.filters
     in
     ( State
         { newState
@@ -289,8 +307,7 @@ merge (State oldState) (State newState) =
             , fieldSearchers = fieldSearchers
             , fieldSearcherFacets = oldState.fieldSearcherFacets
         }
-    , outQuery
-    , facetQuery
+    , result
     )
 
 
@@ -349,9 +366,10 @@ view (State state) (Config conf) =
         , Grid.layoutGrid [ Elevation.z2 ]
             (renderFieldSearchers conf (setFieldSearcher state) state.fieldSearcherFacets state.fieldSearchers
                 ++ [ renderAddSearcherButton conf state, br [] [] ]
-                ++ renderUsedIns conf
-                    (\idx -> State { state | usedIn = Array.Extra.removeAt idx state.usedIn })
-                    state.usedIn
+                ++ (state.usedIn
+                        |> Maybe.map (renderUsedIn conf (\_ -> State { state | usedIn = Nothing }) >> List.singleton)
+                        |> Maybe.withDefault []
+                   )
             )
         , br [] []
         ]
@@ -377,9 +395,16 @@ buildFacetQueries (State state) =
         :: ite (List.isEmpty fsFields) [] [ ( FacetQuery state.filters fsFields 100, FieldSearchers ) ]
 
 
-addUsing : String -> List String -> State -> State
-addUsing block ids (State state) =
-    State { state | usedIn = Array.push (UsageBlock block ids) state.usedIn }
+initUsing : String -> List String -> State
+initUsing block ids =
+    State <|
+        StateInternal []
+            Menu.closed
+            ""
+            Array.empty
+            (AnyDict.empty fieldToString)
+            (Just <| UsageBlock block ids)
+            (AnyDict.empty (.field >> fieldToString))
 
 
 
@@ -395,10 +420,10 @@ encodeFieldSearcher fieldSearcher =
         Maybe.Extra.values <|
             [ Just ( "field", Encode.string (fieldToString fieldSearcher.field.field) )
             , toMaybe ( "text", Encode.string fieldSearcher.text ) (not <| String.isEmpty fieldSearcher.text)
-            , toMaybe ( "terms", Encode.list Encode.string fieldSearcher.terms )
-                (not <| List.isEmpty fieldSearcher.terms)
-            , toMaybe ( "facetTerms", Encode.list Encode.string fieldSearcher.facetTerms )
-                (not <| List.isEmpty fieldSearcher.facetTerms)
+            , toMaybe ( "terms", Encode.list Encode.string (fieldSearcher.terms |> active) )
+                (not <| List.isEmpty <| active fieldSearcher.terms)
+            , toMaybe ( "facetTerms", Encode.list Encode.string (active fieldSearcher.facetTerms) )
+                (not <| List.isEmpty <| active fieldSearcher.facetTerms)
             ]
 
 
@@ -434,23 +459,32 @@ encodeFacet facet =
 fieldSearcherDecoder : Decoder FieldSearcher
 fieldSearcherDecoder =
     Decode.map4 (FieldSearcher Menu.closed)
-        (Decode.andThen
-            (\f ->
-                AnyDict.get f termFilterableFields
-                    |> Maybe.map Decode.succeed
-                    |> Maybe.withDefault (Decode.fail "Not a filterable field")
-            )
-         <|
-            Decode.field "field" fieldDecoder
+        (Decode.field "field" fieldDecoder
+            |> Decode.andThen
+                (\f ->
+                    AnyDict.get f termFilterableFields
+                        |> Maybe.map Decode.succeed
+                        |> Maybe.withDefault (Decode.fail "Not a filterable field")
+                )
         )
-        (Decode.map (Maybe.withDefault "") <| DecodeExtra.optionalField "text" Decode.string)
-        (Decode.map (Maybe.withDefault []) <| DecodeExtra.optionalField "terms" <| Decode.list Decode.string)
-        (Decode.map (Maybe.withDefault []) <| DecodeExtra.optionalField "facetTerms" <| Decode.list Decode.string)
+        (DecodeExtra.optionalField "text" Decode.string |> Decode.map (Maybe.withDefault ""))
+        (Decode.list Decode.string
+            |> Decode.map (List.map (pairWith True) >> Dict.fromList)
+            |> DecodeExtra.optionalField "terms"
+            |> Decode.map (Maybe.withDefault Dict.empty)
+        )
+        (Decode.list Decode.string
+            |> Decode.map (List.map (pairWith True) >> Dict.fromList)
+            |> DecodeExtra.optionalField "facetTerms"
+            |> Decode.map (Maybe.withDefault Dict.empty)
+        )
 
 
 usageBlockDecoder : Decoder UsageBlock
 usageBlockDecoder =
-    Decode.map2 UsageBlock (Decode.field "block" Decode.string) (Decode.field "ids" <| Decode.list Decode.string)
+    Decode.map2 UsageBlock
+        (Decode.field "block" Decode.string)
+        (Decode.field "ids" <| Decode.list Decode.string)
 
 
 facetingDecoder : Decoder Faceting
@@ -591,7 +625,11 @@ setFieldSearcher state idx fieldSarcherMaybe =
 
 addFieldSearcher : StateInternal -> FilterField -> State
 addFieldSearcher state field =
-    State { state | fieldSearchers = Array.push (FieldSearcher Menu.closed field "" [] []) state.fieldSearchers }
+    State
+        { state
+            | fieldSearchers =
+                Array.push (FieldSearcher Menu.closed field "" Dict.empty Dict.empty) state.fieldSearchers
+        }
 
 
 initFacet : ResultFacet -> Facet
@@ -604,11 +642,16 @@ fsFacetFields fieldSearchers =
     Array.toList fieldSearchers |> List.filterMap (.field >> .facetField) |> List.Extra.uniqueBy fieldToString
 
 
+active : Dict comparable Bool -> List comparable
+active dict =
+    dict |> Dict.filter (always identity) |> Dict.keys
+
+
 
 -- QUERYING
 
 
-buildFQs : String -> Array FieldSearcher -> Faceting -> Array UsageBlock -> List FieldFilter
+buildFQs : String -> Array FieldSearcher -> Faceting -> Maybe UsageBlock -> List FieldFilter
 buildFQs term fieldSearchers facets usedIn =
     Maybe.Extra.values <|
         [ getFilter term |> Maybe.map (FieldFilter Src) ]
@@ -617,7 +660,7 @@ buildFQs term fieldSearchers facets usedIn =
                     |> AnyDict.toList
                     |> List.map (\( field, facet ) -> buildFacetFQ facet |> Maybe.map (FieldFilter field.field))
                )
-            ++ (usedIn |> Array.map buildUsageFQ |> Array.toList)
+            ++ (usedIn |> Maybe.map (buildUsageFQ >> List.singleton) |> Maybe.withDefault [])
 
 
 getFilter : String -> Maybe Filter
@@ -636,8 +679,9 @@ getFilter str =
 
 buildFieldSearcherFQ : FieldSearcher -> Maybe FieldFilter
 buildFieldSearcherFQ fieldSearcher =
-    ((ite (String.isEmpty fieldSearcher.text) [] [ fieldSearcher.text ] ++ fieldSearcher.terms) |> List.map Term)
-        ++ (fieldSearcher.facetTerms |> List.map Exact)
+    ite (String.isEmpty fieldSearcher.text) [] [ Term fieldSearcher.text ]
+        ++ (fieldSearcher.terms |> active |> List.map Term)
+        ++ (fieldSearcher.facetTerms |> active |> List.map Exact)
         |> unionFilters
         |> Maybe.map (FieldFilter fieldSearcher.field.field)
 
@@ -685,7 +729,7 @@ renderFieldSearchers conf updateFn faceting fieldSearchers =
                     fs
             )
         |> Array.toList
-        |> List.intersperse (Divider.dividerWith [ style "margin-bottom" "8px" ])
+        |> List.intersperse (Divider.dividerWith [ style "margin-bottom" "8px", style "margin-top" "8px" ])
 
 
 renderFieldSearcher :
@@ -696,10 +740,8 @@ renderFieldSearcher conf updateFn maybeFacet fieldSearcher =
         (\() -> updateFn Nothing)
         fieldSearcher.field.name
         (Grid.layoutGridInner []
-            [ Grid.layoutGridCell []
-                [ renderSelectableTextField conf (Just >> updateFn) maybeFacet fieldSearcher
-                , renderFSValues conf (Just >> updateFn) fieldSearcher
-                ]
+            [ Grid.layoutGridCell [ Grid.alignMiddle, Grid.span4Phone, Grid.span8Tablet, Grid.span4Desktop ] [ renderSelectableTextField conf (Just >> updateFn) maybeFacet fieldSearcher ]
+            , Grid.layoutGridCell [ Grid.alignMiddle, Grid.span8 ] [ renderFSValues conf (Just >> updateFn) fieldSearcher ]
             ]
         )
 
@@ -709,11 +751,11 @@ renderCloseableEntry conf onClose name content =
     Grid.layoutGridInner []
         [ Grid.layoutGridCell [ Grid.span3Phone, Grid.span7Tablet, Grid.span11Desktop ]
             [ Grid.layoutGridInner [ Typography.body1 ]
-                [ Grid.layoutGridCell [ Grid.alignMiddle, Grid.span2 ] [ text <| name ]
-                , Grid.layoutGridCell [ Grid.alignMiddle, Grid.span9 ] [ content ]
+                [ Grid.layoutGridCell [ Grid.alignTop, Grid.span4Phone, Grid.span3Tablet, Grid.span2Desktop ] [ div [ style "padding-top" "16px" ] [ text name ] ]
+                , Grid.layoutGridCell [ Grid.alignMiddle, Grid.span5Tablet, Grid.span10Desktop ] [ content ]
                 ]
             ]
-        , Grid.layoutGridCell [ Grid.span1 ]
+        , Grid.layoutGridCell [ Grid.span1, Grid.alignTop ]
             [ IconButton.iconButton { iconButtonConfig | onClick = Just <| conf.toMsg <| onClose () } "close" ]
         ]
 
@@ -724,7 +766,7 @@ renderSelectableTextField :
 renderSelectableTextField conf updateFn maybeFacet fieldSearcher =
     let
         textFieldConf =
-            renderTextField conf updateFn fieldSearcher
+            fsTextFieldConfig conf updateFn fieldSearcher
     in
     case maybeFacet of
         Nothing ->
@@ -733,7 +775,7 @@ renderSelectableTextField conf updateFn maybeFacet fieldSearcher =
         Just facet ->
             let
                 remainingValues =
-                    facet |> Dict.filter (\term -> always <| List.Extra.notMember term fieldSearcher.facetTerms)
+                    facet |> Dict.filter (\term -> always <| List.Extra.notMember term <| active fieldSearcher.facetTerms)
             in
             if Dict.isEmpty remainingValues then
                 TextField.textField textFieldConf
@@ -751,16 +793,8 @@ renderSelectableTextField conf updateFn maybeFacet fieldSearcher =
                     (TextField.textField
                         { textFieldConf
                             | leadingIcon =
-                                TextField.textFieldIcon
-                                    { iconConfig
-                                        | additionalAttributes =
-                                            [ attribute "tabindex" "0"
-                                            , attribute "role" "button"
-                                            , onClick <|
-                                                conf.toInternal <|
-                                                    updateFn { fieldSearcher | selectState = Menu.open }
-                                            ]
-                                    }
+                                textFieldIcon
+                                    (conf.toInternal <| updateFn { fieldSearcher | selectState = Menu.open })
                                     "arrow_drop_down"
                         }
                     )
@@ -772,7 +806,9 @@ renderSelectableTextField conf updateFn maybeFacet fieldSearcher =
                                         Just <|
                                             toMsg <|
                                                 updateFn
-                                                    { fieldSearcher | facetTerms = term :: fieldSearcher.facetTerms }
+                                                    { fieldSearcher
+                                                        | facetTerms = Dict.insert term True fieldSearcher.facetTerms
+                                                    }
                                 }
                                 [ text <| term ++ " (" ++ String.fromInt count ++ ")" ]
                         )
@@ -781,47 +817,68 @@ renderSelectableTextField conf updateFn maybeFacet fieldSearcher =
                     )
 
 
-renderTextField : ConfigInternal msg -> (FieldSearcher -> State) -> FieldSearcher -> TextField.TextFieldConfig msg
-renderTextField conf updateFn fieldSearcher =
+fsTextFieldConfig : ConfigInternal msg -> (FieldSearcher -> State) -> FieldSearcher -> TextField.TextFieldConfig msg
+fsTextFieldConfig conf updateFn fieldSearcher =
     { textFieldConfig
         | value = fieldSearcher.text
-        , fullwidth = True
-        , onInput =
-            Just <|
-                \text ->
-                    conf.toInternal <|
-                        updateFn <|
-                            if String.endsWith " " text then
-                                { fieldSearcher | text = "", terms = String.dropRight 1 text :: fieldSearcher.terms }
+        , fullwidth = False
+        , outlined = False
+        , trailingIcon =
+            textFieldIcon
+                (conf.toMsg <|
+                    updateFn
+                        (if String.isEmpty <| String.trim fieldSearcher.text then
+                            fieldSearcher
 
-                            else
-                                { fieldSearcher | text = text }
+                         else
+                            { fieldSearcher
+                                | text = ""
+                                , terms = Dict.insert (String.trim fieldSearcher.text) True fieldSearcher.terms
+                            }
+                        )
+                )
+                "add"
+        , onInput = Just <| \text -> conf.toInternal <| updateFn { fieldSearcher | text = text }
         , onChange = Just <| always <| conf.toMsg <| updateFn fieldSearcher
+        , placeholder = Just "Exact search term"
     }
+
+
+textFieldIcon onClick icon =
+    TextField.textFieldIcon
+        { iconConfig
+            | additionalAttributes =
+                [ attribute "tabindex" "0", attribute "role" "button", Events.onClick onClick ]
+        }
+        icon
 
 
 renderFSValues : ConfigInternal msg -> (FieldSearcher -> State) -> FieldSearcher -> Html msg
 renderFSValues conf updateFn fieldSearcher =
-    List.indexedMap
-        (\idx ->
+    List.map
+        (\term ->
             renderFSValue
                 conf
-                (\_ -> updateFn { fieldSearcher | terms = List.Extra.removeAt idx fieldSearcher.terms })
+                (\_ -> updateFn { fieldSearcher | terms = Dict.insert term False fieldSearcher.terms })
+                term
         )
-        fieldSearcher.terms
-        ++ List.indexedMap
-            (\idx ->
+        (Dict.keys fieldSearcher.terms)
+        ++ List.map
+            (\term ->
                 renderFSValue
                     conf
-                    (\_ -> updateFn { fieldSearcher | facetTerms = List.Extra.removeAt idx fieldSearcher.facetTerms })
+                    (\_ -> updateFn { fieldSearcher | facetTerms = Dict.insert term False fieldSearcher.facetTerms })
+                    term
             )
-            fieldSearcher.facetTerms
+            (Dict.keys fieldSearcher.facetTerms)
         |> Chip.inputChipSet []
 
 
 renderFSValue : ConfigInternal msg -> (() -> State) -> String -> Chip.InputChip msg
 renderFSValue conf updateFn term =
-    Chip.inputChip { inputChipConfig | onTrailingIconClick = Just <| conf.toMsg <| updateFn () } term
+    Chip.inputChip
+        { inputChipConfig | onTrailingIconClick = Just <| conf.toMsg <| updateFn () }
+        term
 
 
 renderAddSearcherButton : ConfigInternal msg -> StateInternal -> Html msg
@@ -843,15 +900,6 @@ renderAddSearcherButton conf state =
                         [ text <| filterField.name ]
                 )
         )
-
-
-renderUsedIns : ConfigInternal msg -> (Int -> State) -> Array UsageBlock -> List (Html msg)
-renderUsedIns conf removeFn usedIns =
-    usedIns
-        |> Array.indexedMap (\idx -> renderUsedIn conf (\() -> removeFn idx))
-        |> Array.toList
-        |> List.map (List.singleton >> Grid.layoutGridCell [])
-        |> List.intersperse (Divider.dividerWith [ style "margin-top" "8px", style "margin-bottom" "8px" ])
 
 
 renderUsedIn : ConfigInternal msg -> (() -> State) -> UsageBlock -> Html msg
