@@ -32,6 +32,7 @@ module Components.Paging exposing
 import Array exposing (Array)
 import DataTypes exposing (..)
 import Html exposing (Html, div, span, text)
+import Html.Attributes exposing (style)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import List.Extra
@@ -112,16 +113,14 @@ view (State state) (Config toMsg) =
             []
 
         else
-            [ Grid.layoutGrid []
-                [ Grid.layoutGridInner []
-                    [ Grid.layoutGridCell [ Grid.alignMiddle, Typography.subtitle2 ]
-                        (renderButtons
-                            (ceiling (toFloat state.totalResults / pageSize))
-                            (Array.length state.previous)
-                            toMsg
-                            state
-                        )
-                    ]
+            [ Grid.layoutGridInner []
+                [ Grid.layoutGridCell [ Grid.alignRight, Grid.span4Phone, Grid.span8Tablet, Grid.span12Desktop ]
+                    (renderButtons
+                        (ceiling (toFloat state.totalResults / pageSize))
+                        (Array.length state.previous)
+                        toMsg
+                        state
+                    )
                 ]
             ]
 
@@ -170,18 +169,11 @@ pageSize =
     10
 
 
-type ButtonState
-    = Enabled StateInternal
-    | Waiting
-
-
 renderButtons : Int -> Int -> (State -> msg) -> StateInternal -> List (Html msg)
 renderButtons numPages numPrevious conf state =
     Maybe.Extra.values
-        [ Just <| Grid.layoutGridCell [] []
-
-        -- previous
-        , (numPrevious > 0)
+        [ -- previous
+          (numPrevious > 0)
             |> toMaybe (Array.get (numPrevious - 1) state.previous)
             |> Maybe.Extra.join
             |> Maybe.map
@@ -200,7 +192,9 @@ renderButtons numPages numPrevious conf state =
                         "navigate_before"
                 )
         , -- current
-          Just <| text <| String.fromInt <| numPrevious + 1
+          Just <|
+            span [ Typography.headline6, style "position" "relative", style "bottom" "4px" ]
+                [ text <| (String.fromInt <| numPrevious + 1) ++ "/" ++ String.fromInt numPages ]
         , -- loading/next
           (numPrevious + 1 < numPages)
             |> toMaybe state.next
