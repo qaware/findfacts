@@ -19,5 +19,5 @@ trait SolrQueryModule extends QueryModule {
   private lazy val solrQueryMapper: SolrQueryMapper = wire[SolrQueryMapper]
 
   /** Finally provide the service */
-  override lazy val service: SolrQueryService = wire[SolrQueryService]
+  override lazy val service: SolrQueryService = new SolrQueryService(solrClient, solrQueryMapper)
 }

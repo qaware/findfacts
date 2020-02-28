@@ -140,7 +140,12 @@ lazy val `search-webapp` = project
     javaOptions in Runtime += "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
     libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
       playGuice, playCirce, playSwagger, swaggerUi, playTestPlus % "test"
-    ))
+    )),
+    packageName in Docker := "findfacts",
+    dockerBaseImage := "openjdk:11-jre-slim",
+    dockerExposedPorts := Seq(9000),
+    dockerRepository := Some("findfacts"),
+    dockerUsername := Some("qafabianhuch")
   )
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLogback)

@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  db:
+    image: solr:8.2.0
+    container_name: prod_solr
+    restart: always
+    ports:
+    - 8983:8983
+    networks:
+      - internal
+
+networks:
+  internal:
