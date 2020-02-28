@@ -29,7 +29,7 @@ import DataTypes exposing (..)
 import Dict exposing (Dict)
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, br, div, text)
-import Html.Attributes exposing (attribute, style)
+import Html.Attributes exposing (attribute, class, style)
 import Html.Events as Events
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Extra as DecodeExtra
@@ -47,6 +47,7 @@ import Material.IconButton as IconButton exposing (iconButtonConfig)
 import Material.LayoutGrid as Grid
 import Material.List as MList exposing (listItemConfig)
 import Material.TextField as TextField exposing (textFieldConfig)
+import Material.Theme as Theme
 import Material.Typography as Typography
 import Maybe.Extra
 import Set exposing (Set)
@@ -261,6 +262,13 @@ merge (State oldState) (State newState) =
         fieldSearchers =
             newState.fieldSearchers
 
+        fieldSearcherFacets =
+            if oldState.filters == newState.filters then
+                oldState.fieldSearcherFacets
+
+            else
+                AnyDict.empty fieldToString
+
         fsAdditionalFacetFields =
             Set.diff
                 (newState.fieldSearchers
@@ -293,7 +301,7 @@ merge (State oldState) (State newState) =
             | filters = newState.filters
             , facets = facets
             , fieldSearchers = fieldSearchers
-            , fieldSearcherFacets = oldState.fieldSearcherFacets
+            , fieldSearcherFacets = fieldSearcherFacets
         }
     , result
     )
@@ -352,12 +360,24 @@ view (State state) (Config conf) =
             ]
         , br [] []
         , Grid.layoutGrid [ Elevation.z2 ]
-            (renderFieldSearchers conf (setFieldSearcher state) state.fieldSearcherFacets state.fieldSearchers
+            (List.intersperse (Divider.dividerWith [ style "margin-bottom" "8px", style "margin-top" "8px" ])
+                ((state.fieldSearchers
+                    |> Array.indexedMap
+                        (\idx fs ->
+                            renderFieldSearcher
+                                conf
+                                (setFieldSearcher state idx)
+                                (fs.field.facetField |> Maybe.andThen (\k -> AnyDict.get k state.fieldSearcherFacets))
+                                fs
+                        )
+                    |> Array.toList
+                 )
+                    ++ (state.usedIn
+                            |> Maybe.map (renderUsedIn conf (\_ -> State { state | usedIn = Nothing }) >> List.singleton)
+                            |> Maybe.withDefault []
+                       )
+                )
                 ++ [ renderAddSearcherButton conf state, br [] [] ]
-                ++ (state.usedIn
-                        |> Maybe.map (renderUsedIn conf (\_ -> State { state | usedIn = Nothing }) >> List.singleton)
-                        |> Maybe.withDefault []
-                   )
             )
         , br [] []
         ]
@@ -651,8 +671,8 @@ getFilter str =
 
 buildFieldSearcherFQ : FieldSearcher -> Maybe FieldFilter
 buildFieldSearcherFQ fieldSearcher =
-    ite (String.isEmpty fieldSearcher.text) [] [ Term fieldSearcher.text ]
-        ++ (fieldSearcher.terms |> List.map Term)
+    ite (String.isEmpty fieldSearcher.text) [] [ Exact fieldSearcher.text ]
+        ++ (fieldSearcher.terms |> List.map Exact)
         |> unionFilters
         |> Maybe.map (FieldFilter fieldSearcher.field.field)
 
@@ -684,23 +704,6 @@ buildFacetFQ facet =
 
 
 -- VIEW
-
-
-renderFieldSearchers :
-    ConfigInternal msg
-    -> ((Int -> Maybe FieldSearcher -> State) -> ResultFaceting -> Array FieldSearcher -> List (Html msg))
-renderFieldSearchers conf updateFn faceting fieldSearchers =
-    fieldSearchers
-        |> Array.indexedMap
-            (\idx fs ->
-                renderFieldSearcher
-                    conf
-                    (updateFn idx)
-                    (fs.field.facetField |> Maybe.andThen (\k -> AnyDict.get k faceting))
-                    fs
-            )
-        |> Array.toList
-        |> List.intersperse (Divider.dividerWith [ style "margin-bottom" "8px", style "margin-top" "8px" ])
 
 
 renderFieldSearcher :
@@ -873,7 +876,7 @@ renderFieldFacet conf updateFn field facet =
             [ facet
                 |> Dict.map (\k -> renderFacetEntry conf (updateFn << setFacetEntry facet k) k)
                 |> Dict.values
-                |> Chip.filterChipSet []
+                |> Chip.filterChipSet [ class "mdc-chip-set--choice" ]
             ]
         ]
 
@@ -884,5 +887,6 @@ renderFacetEntry conf updateFn elem entry =
         { filterChipConfig
             | selected = entry.selected
             , onClick = Just <| conf.toMsg <| updateFn { entry | selected = not entry.selected }
+            , additionalAttributes = ite entry.selected [] []
         }
         (elem ++ (entry.count |> Maybe.map (\c -> " (" ++ String.fromInt c ++ ")") |> Maybe.withDefault ""))

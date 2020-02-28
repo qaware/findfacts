@@ -1,14 +1,17 @@
 module Main exposing (..)
 
+import Base64.Decode as Base64Decode
 import Browser
 import Browser.Navigation as Navigation
 import Components.Details as Details
+import Components.Obfuscated as Obfuscated
 import Components.Paging as Paging
 import Components.Results as Results
 import Components.Search as Search
 import DataTypes exposing (..)
-import Html exposing (Html, br, div, h1, span, text)
+import Html exposing (Html, a, b, br, div, h1, h2, h3, p, span, text)
 import Html.Attributes exposing (attribute, href, style)
+import Html.Events exposing (onMouseEnter)
 import Html.Lazy exposing (lazy, lazy2)
 import Http
 import Json.Decode as Decode
@@ -90,8 +93,9 @@ type State
 type Page
     = Home Search.State Paging.State Results.State
     | Details Details.State
-    | Syntax
-    | Imprint
+    | Help
+    | Feedback Obfuscated.State
+    | About
     | NotFound
 
 
@@ -121,6 +125,7 @@ type Msg
     | DetailsResult (Result Http.Error ShortBlock)
     | DetailsMsg (Maybe String) Details.State
     | DetailsEntityResult (Result Http.Error ThyEt)
+    | EmailMsg Obfuscated.State
 
 
 {-| Main update loop.
@@ -221,12 +226,11 @@ updatePage apiBaseUrl msg page =
                     ( Home (Search.update res id search) paging results, Cmd.none )
 
                 Err e ->
-                    let
-                        _ =
-                            Debug.log "Error in facet: " e
-                    in
                     -- TODO display error in searcher
                     ( page, Cmd.none )
+
+        ( EmailMsg state, Feedback _ ) ->
+            ( Feedback state, Cmd.none )
 
         ( _, _ ) ->
             ( page, Cmd.none )
@@ -267,9 +271,15 @@ routeParser model =
                     (UrlQueryParser.string "q")
                     (UrlQueryParser.string "page")
         , UrlParser.map (parseDetails model) (UrlParser.s "details" </> UrlParser.string)
-        , UrlParser.map ( Syntax, Cmd.none ) (UrlParser.s "syntax")
-        , UrlParser.map ( Imprint, Cmd.none ) (UrlParser.s "imprint")
+        , UrlParser.map ( Feedback <| Obfuscated.init email, Cmd.none ) (UrlParser.s "feedback")
+        , UrlParser.map ( Help, Cmd.none ) (UrlParser.s "help")
+        , UrlParser.map ( About, Cmd.none ) (UrlParser.s "about")
         ]
+
+
+email : String
+email =
+    Base64Decode.decode Base64Decode.string "aHVjaEBpbi50dW0uZGU" |> Result.withDefault ""
 
 
 {-| Parses the 'home' page, and executes queries if necessary.
@@ -483,10 +493,12 @@ renderDrawer open =
         [ Drawer.drawerContent []
             [ MList.list MList.listConfig
                 [ MList.listItem { listItemConfig | href = Just "#" } [ text "Home" ]
-                , MList.listItem { listItemConfig | href = Just "#syntax" }
-                    [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "help" ], text "Syntax" ]
+                , MList.listItem { listItemConfig | href = Just "#help" }
+                    [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "help" ], text "Help" ]
                 , MList.listItem { listItemConfig | href = Just "#feedback" }
                     [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "question_answer" ], text "Feedback" ]
+                , MList.listItem { listItemConfig | href = Just "#about" }
+                    [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "info" ], text "About" ]
                 ]
             ]
         ]
@@ -525,11 +537,14 @@ renderPage page =
             Details details ->
                 Details.config DetailsMsg |> Details.view details
 
-            Syntax ->
-                renderPageSyntax
+            Help ->
+                renderPageHelp
 
-            Imprint ->
-                renderPageImprint
+            Feedback emailState ->
+                renderPageFeedback emailState
+
+            About ->
+                renderPageAbout
 
             NotFound ->
                 renderPageNotFound
@@ -560,16 +575,109 @@ renderPageHome search paging results =
 
 {-| Renders the 'syntax' page.
 -}
-renderPageSyntax : List (Html msg)
-renderPageSyntax =
-    [ h1 [ Typography.headline3 ] [ text "Search syntax" ] ]
+renderPageHelp : List (Html msg)
+renderPageHelp =
+    [ h1 [ Typography.headline3 ] [ text "Help" ]
+    , p [ Typography.body1 ]
+        [ text "Generally, "
+        , b [] [ text "Inputs" ]
+        , text " are split into "
+        , b [] [ text "terms" ]
+        , text " by special characters, such as whitespace, '.', '_', or '-'."
+        ]
+    , h2 [ Typography.headline4 ] [ text "Main Search Bar" ]
+    , p [ Typography.body1 ]
+        [ text "The main search bar will match for any of your search terms - listings results first where multiple terms match."
+        , br [] []
+        , text "'*' Wildcards are allowed so you don't need to be too specific."
+        ]
+    , h3 [ Typography.headline6 ] [ text "Example" ]
+    , a [ Typography.typography, href "#search?page=[]&q={\"term\"%3A\"inv*\"}" ]
+        [ text "Searching for inverse, which might be abbreviated by 'inv'" ]
+    , h2 [ Typography.headline4 ] [ text "Filters" ]
+    , p [ Typography.body1 ]
+        [ text "You can add filters that restrict your results further."
+        , br [] []
+        , text "Filters always target a specific field, and they will restrict results to match either of your inputs. However, for an input to match, all its terms must match."
+        ]
+    , h3 [ Typography.headline6 ] [ text "Example" ]
+    , a [ Typography.typography, href "#search?page=[]&q={\"fields\"%3A[{\"field\"%3A\"Name\"%2C\"terms\"%3A[\"equal nat\"%2C\"equal integer\"]}]}" ]
+        [ text "Filtering for semantic entities with that are (from their name) about equality in integers or nats." ]
+    , h2 [ Typography.headline4 ] [ text "Facets" ]
+    , p [ Typography.body1 ]
+        [ text "If you have restricted your search enough so there are only a handful of alternatives for a property, you can choose between the remaining options."
+        , br [] []
+        , text "Selecting multiple values will give you results that match either."
+        ]
+    , h3 [ Typography.headline6 ] [ text "Example" ]
+    , a [ Typography.typography, href "#search?page=[]&q={\"term\"%3A\"*\"%2C\"facets\"%3A{\"Kind\"%3A[\"Constant\"]}}" ]
+        [ text "Restricting search to constants" ]
+    ]
 
 
-{-| Renders the 'imprint' page.
+{-| Renders the 'feedback' page
 -}
-renderPageImprint : List (Html msg)
-renderPageImprint =
-    [ h1 [ Typography.headline3 ] [ text "Imprint" ] ]
+renderPageFeedback : Obfuscated.State -> List (Html Msg)
+renderPageFeedback obfuscated =
+    [ h1 [ Typography.headline3 ] [ text "Feedback" ]
+    , p [ Typography.body1 ]
+        [ text "All feedback is greatly appreciated! Also feel free to ask any questions." ]
+    , p [ Typography.body1 ]
+        [ text "Simply write a message to "
+        , Obfuscated.config EmailMsg
+            |> Obfuscated.withDisplay
+                (\s ->
+                    a [ href <| "mailto:" ++ s ++ "?subject=[FindFacts] Feedback..." ]
+                        [ text s ]
+                )
+            |> Obfuscated.withObfuscate (\e -> a [ href "" ] [ e ])
+            |> Obfuscated.view obfuscated
+        , text ". If you have a specific question, please include the URL!"
+        ]
+    ]
+
+
+{-| Renders the 'about' page.
+-}
+renderPageAbout : List (Html msg)
+renderPageAbout =
+    [ h1 [ Typography.headline3 ] [ text "About" ]
+    , p [ Typography.body1 ]
+        [ text "This is a search application to find formal theory content of "
+        , a [ href "https://isabelle.in.tum.de/" ] [ text "Isabelle" ]
+        , text " and the "
+        , a [ href "https://www.isa-afp.org/" ] [ text "AFP" ]
+        , text "."
+        ]
+    , p [ Typography.body1 ]
+        [ text "The development is part of my master thesis at the "
+        , a [ href "http://www21.in.tum.de/index" ] [ text "Chair for Logic and Verification" ]
+        , text " at TUM, in cooperation with "
+        , a [ href "https://www.qaware.de/" ] [ text "QAware Software Engineering" ]
+        , text "."
+        ]
+    , p [ Typography.body1 ]
+        [ text "Source code can be found in the "
+        , a [ href "https://github.com/qaware/isabelle-afp-search" ] [ text "github repository" ]
+        , text "."
+        ]
+    , h2 [ Typography.headline5 ] [ text "Status" ]
+    , p [ Typography.body1 ] [ text "The application is still ", b [] [ text "work in progress" ], text "." ]
+    , p [ Typography.body1 ]
+        [ text "If you encounter any bugs, unexpected behaviour, unclear UI, or have any suggestions, please leave some "
+        , a [ href "#feedback" ] [ text "feedback" ]
+        , text "."
+        ]
+    , h2 [ Typography.headline5 ] [ text "Versions" ]
+    , p [ Typography.body1 ]
+        [ text "Currently indexed: Isabelle/"
+        , a [ href "https://isabelle.in.tum.de/repos/isabelle/rev/3548d54ce3ee" ] [ text "3548d54ce3ee" ]
+        , text " and AFP/"
+        , a [ href "https://bitbucket.org/isa-afp/afp-devel/src/5c040dde3c398a84fc0b1a5184dada5d2a137ab3/" ]
+            [ text "5c040dde3c39" ]
+        , text "."
+        ]
+    ]
 
 
 {-| Renders the error 404 page.
