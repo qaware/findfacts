@@ -2,7 +2,7 @@ version: '3'
 
 services:
   app:
-    image: findfacts:0.1.0
+    image: findfacts:0.1.0-SNAPSHOT
     container_name: prod_app
     restart: always
     env_file:
@@ -10,6 +10,7 @@ services:
       - server.env
     environment:
       - VIRTUAL_PORT=9000
+      - SOLR_HOST=solr
     ports:
     - 9000:9000
     links:

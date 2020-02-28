@@ -1,8 +1,12 @@
 package de.qaware.findfacts.webapp
 
+import java.io.File
+
 import _root_.controllers.{ApiHelpController, AssetsComponents}
 import com.softwaremill.macwire.wire
-import de.qaware.findfacts.common.solr.RemoteSolr
+import com.typesafe.config.Config
+import de.qaware.findfacts.common.solr
+import de.qaware.findfacts.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
 import de.qaware.findfacts.webapp.utils.JsonMappings
@@ -10,11 +14,13 @@ import org.apache.solr.client.solrj.SolrClient
 import play.api.ApplicationLoader.Context
 import play.api.mvc.EssentialFilter
 import play.api.routing.Router
-import play.api.{Application, ApplicationLoader, BuiltInComponentsFromContext}
+import play.api.{Application, ApplicationLoader, BuiltInComponentsFromContext, ConfigLoader}
 import play.filters.HttpFiltersComponents
 import play.filters.csrf.CSRFFilter
 import play.modules.swagger.{SwaggerPlugin, SwaggerPluginImpl}
 import router.Routes
+
+import scala.collection.JavaConverters._
 
 /** Loader that can dynamically load wired up application. */
 class WebappLoader extends ApplicationLoader {
@@ -38,7 +44,7 @@ class WebappModule(context: Context)
 
   // Connect to remote solr.
   override lazy val solrClient: SolrClient =
-    RemoteSolr(WebappModule.SolrHost, WebappModule.SolrPort, WebappModule.SolrCore).solrConnection()
+    configuration.get[SolrRepository]("solr")(WebappModule.repositoryLoader).solrConnection()
 
   private val jsonMappings: JsonMappings = wire[JsonMappings]
 
@@ -58,12 +64,30 @@ class WebappModule(context: Context)
 /** Companion object. */
 object WebappModule {
 
-  /** Solr instance host. */
-  final val SolrHost = "localhost"
-
-  /** Solr instance port. */
-  final val SolrPort = 8983
+  final val SolrHome = "solrhome"
+  final val Host = "host"
+  final val Port = "port"
+  final val ZKHost = "zkhost"
+  final val ZKHosts = "zkhosts"
 
   /** Solr instance core. */
-  final val SolrCore = "theorydata"
+  final val SolrCore = "theorydata2"
+
+  /** Configuration loader for zk hosts. */
+  implicit val zkHostLoader: ConfigLoader[ZKHost] = (rootConfig: Config, path: String) => {
+    val config = rootConfig.getConfig(path)
+    solr.ZKHost(config.getString(Host), config.getInt(Port))
+  }
+
+  /** Configuration loader for all solr repositories. */
+  implicit val repositoryLoader: ConfigLoader[SolrRepository] = (rootConfig: Config, path: String) => {
+    val config = rootConfig.getConfig(path)
+    if (config.hasPath(SolrHome)) {
+      LocalSolr(new File(config.getString(SolrHome)), SolrCore)
+    } else if (config.hasPath(Host) && config.hasPath(Host)) {
+      RemoteSolr(config.getString(Host), config.getInt(Port), SolrCore)
+    } else {
+      CloudSolr(config.getObjectList(ZKHosts).asScala.map(c => zkHostLoader.load(c.toConfig, ZKHost)))
+    }
+  }
 }

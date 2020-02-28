@@ -14,10 +14,10 @@ services:
       - 80:80
       - 443:443
     networks:
-      - app_0.1.0
+      - app
 
   nginx-proxy-letsencrypt:
-    image: jrcs/letsencrypt-nginx-proxy-companion:0
+    image: jrcs/letsencrypt-nginx-proxy-companion:v1.12
     container_name: prod_nginx_letsencrypt
     restart: always
     volumes:
@@ -34,5 +34,5 @@ volumes:
   nginx_html:
 
 networks:
-  findfacts0.1.0_internal:
+  findfacts_internal:
     external: true

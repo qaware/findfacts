@@ -56,12 +56,10 @@ final class LocalSolr private (solrHome: File, core: String) extends SolrReposit
   require(solrHome.isWriteable, s"No write access to solr home directory $solrHome")
 
   override def solrConnection(): SolrClient = {
-    val id = UUID.randomUUID().toString
-
-    logger.info(s"Starting up embedded solr server $id...")
+    logger.info(s"Starting up embedded solr server...")
     // Unpack solr resources
-    val srcDestToCopy = (s"$SolrResourceDir/$SolrConfFile" -> solrHome.canonicalFile / id / SolrConfFile) +:
-      SolrCoreFiles.map(res => s"$SolrResourceDir/$core/$res" -> solrHome.canonicalFile / id / core / res)
+    val srcDestToCopy = (s"$SolrResourceDir/$SolrConfFile" -> solrHome.canonicalFile / SolrConfFile) +:
+      SolrCoreFiles.map(res => s"$SolrResourceDir/$core/$res" -> solrHome.canonicalFile / core / res)
 
     srcDestToCopy foreach {
       case (src, dest) =>
@@ -76,7 +74,7 @@ final class LocalSolr private (solrHome: File, core: String) extends SolrReposit
         }
     }
 
-    val solrServer = new EmbeddedSolrServer((solrHome / id).path, core)
+    val solrServer = new EmbeddedSolrServer(solrHome.path, core)
     // Workaround for https://issues.apache.org/jira/browse/SOLR-12858
     new SolrClient {
       override def request(request: SolrRequest[_ <: SolrResponse], collection: String): NamedList[AnyRef] = {

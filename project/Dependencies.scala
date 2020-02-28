@@ -57,7 +57,7 @@ object Dependencies {
   val fastParse = "com.lihaoyi" %% "fastparse" % fastparseVersion
   val solr = ("org.apache.solr" % "solr-core" % solrVersion
     excludeAll ("org.slf4j" %% "slf4j-api")
-    excludeAll ("org.apache.logging.log4j"))
+    excludeAll "org.apache.logging.log4j")
   val playGuice = ("com.typesafe.play" %% "play-guice" % playVersion
     excludeAll ("org.slf4j" %% "slf4j-api"))
   val playCirce = "com.dripower" %% "play-circe" % playCirceVersion
