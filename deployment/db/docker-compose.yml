@@ -1,14 +1,18 @@
 version: '3'
 
 services:
-  db:
-    build: .
+  solr:
     container_name: prod_solr
+    build: .
     restart: always
     environment:
       - SOLR_HEAP=2g
     volumes:
       - data:/var/solr
+    command:
+      - solr-precreate theorydata
+    expose:
+      - 8983
     ports:
       - 8983:8983
     networks:

@@ -10,7 +10,7 @@ services:
       - server.env
     environment:
       - VIRTUAL_PORT=9000
-      - SOLR_HOST=solr820_db
+      - SOLR_HOST=solr
     ports:
     - 9000:9000
     networks:
