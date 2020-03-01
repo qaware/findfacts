@@ -69,9 +69,7 @@ object WebappModule {
   final val Port = "port"
   final val ZKHost = "zkhost"
   final val ZKHosts = "zkhosts"
-
-  /** Solr instance core. */
-  final val SolrCore = "theorydata2"
+  final val Core = "core"
 
   /** Configuration loader for zk hosts. */
   implicit val zkHostLoader: ConfigLoader[ZKHost] = (rootConfig: Config, path: String) => {
@@ -83,11 +81,13 @@ object WebappModule {
   implicit val repositoryLoader: ConfigLoader[SolrRepository] = (rootConfig: Config, path: String) => {
     val config = rootConfig.getConfig(path)
     if (config.hasPath(SolrHome)) {
-      LocalSolr(new File(config.getString(SolrHome)), SolrCore)
+      LocalSolr(new File(config.getString(SolrHome)), config.getString(Core))
     } else if (config.hasPath(Host) && config.hasPath(Host)) {
-      RemoteSolr(config.getString(Host), config.getInt(Port), SolrCore)
+      RemoteSolr(config.getString(Host), config.getInt(Port), config.getString(Core))
     } else {
-      CloudSolr(config.getObjectList(ZKHosts).asScala.map(c => zkHostLoader.load(c.toConfig, ZKHost)))
+      CloudSolr(
+        config.getObjectList(ZKHosts).asScala.map(c => zkHostLoader.load(c.toConfig, ZKHost)),
+        config.getString(Core))
     }
   }
 }

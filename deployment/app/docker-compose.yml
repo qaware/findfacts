@@ -2,7 +2,7 @@ version: '3'
 
 services:
   app:
-    image: findfacts:0.1.0-SNAPSHOT
+    image: qafabianhuch/findfacts:0.1.0-SNAPSHOT
     container_name: prod_app
     restart: always
     env_file:
@@ -10,20 +10,16 @@ services:
       - server.env
     environment:
       - VIRTUAL_PORT=9000
-      - SOLR_HOST=solr
+      - SOLR_HOST=solr820_db
     ports:
     - 9000:9000
-    links:
-      - solr8.2.0_db:solr
-    depends_on:
-      - solr
     networks:
       - internal
-      - solr8.2.0_internal
+      - solr820_internal
 
 
 
 networks:
   internal:
-  solr8.2.0_internal:
+  solr820_internal:
     external: true

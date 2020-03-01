@@ -144,7 +144,6 @@ lazy val `search-webapp` = project
     packageName in Docker := "findfacts",
     dockerBaseImage := "openjdk:11-jre-slim",
     dockerExposedPorts := Seq(9000),
-    dockerRepository := Some("findfacts"),
     dockerUsername := Some("qafabianhuch")
   )
   .enablePlugins(PlayScala)

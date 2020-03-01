@@ -3,18 +3,17 @@ package de.qaware.findfacts.common.solr
 import java.io.{File => JFile}
 import java.net.URL
 import java.nio.file.{Files, StandardCopyOption}
-import java.util.UUID
-
-import scala.collection.JavaConverters._
 
 import better.files.{File, Resource}
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.scala.Using
 import org.apache.solr.client.solrj.SolrRequest.METHOD
-import org.apache.solr.client.solrj.{SolrClient, SolrRequest, SolrResponse}
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
 import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}
+import org.apache.solr.client.solrj.{SolrClient, SolrRequest, SolrResponse}
 import org.apache.solr.common.util.NamedList
+
+import scala.collection.JavaConverters._
 
 /** Repository to provide connections to different types of solr instances. */
 sealed trait SolrRepository {
@@ -132,12 +131,14 @@ object RemoteSolr {
   *
   * @param zkhosts list of zookeeper hosts
   */
-final case class CloudSolr(zkhosts: Seq[ZKHost]) extends SolrRepository {
+final case class CloudSolr(zkhosts: Seq[ZKHost], collection: String) extends SolrRepository {
   require(zkhosts.nonEmpty, "must have at least one zookeeper")
 
   override def solrConnection: SolrClient = {
     val hosts: java.util.List[String] = zkhosts.map(zkhost => zkhost.host + zkhost.port.toString).toBuffer.asJava
-    new CloudSolrClient.Builder(hosts).build
+    val client = new CloudSolrClient.Builder(hosts).build
+    client.setDefaultCollection(collection)
+    client
   }
 }
 

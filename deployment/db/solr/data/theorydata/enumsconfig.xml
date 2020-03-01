@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<enumsConfig>
+    <enum name="TheoryKind">
+        <value>Type</value>
+        <value>Constant</value>
+        <value>Fact</value>
+    </enum>
+    <enum name="CommandKind">
+        <value>Codeblock</value>
+        <value>Documentation</value>
+    </enum>
+    <enum name="DocumentationKind">
+        <value>Meta</value>
+        <value>Inline</value>
+        <value>Latex</value>
+    </enum>
+</enumsConfig>

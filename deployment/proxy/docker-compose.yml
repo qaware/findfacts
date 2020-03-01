@@ -14,7 +14,7 @@ services:
       - 80:80
       - 443:443
     networks:
-      - app
+      - findfacts_internal
 
   nginx-proxy-letsencrypt:
     image: jrcs/letsencrypt-nginx-proxy-companion:v1.12
