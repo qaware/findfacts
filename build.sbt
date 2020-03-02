@@ -1,5 +1,5 @@
-import Profiles._
 import Dependencies._
+import Profiles._
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
@@ -8,6 +8,8 @@ ThisBuild / organization := "de.qaware.findfacts"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.10"
 ThisBuild / resolvers ++= Resolvers.all
+// Use java 11
+ThisBuild / javacOptions ++= Seq("-source", "11", "-target", "11")
 // Parallel execution causes logging issues
 ThisBuild / Test / parallelExecution := false
 // Enable deprecation warnings
@@ -144,7 +146,7 @@ lazy val `search-webapp` = project
     packageName in Docker := "findfacts",
     dockerBaseImage := "openjdk:11-jre-slim",
     dockerExposedPorts := Seq(9000),
-    dockerUsername := Some("qafabianhuch")
+    dockerRepository := Some("findfacts")
   )
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLogback)

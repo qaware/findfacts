@@ -1,0 +1,2 @@
+0 1 * * * find /var/log/syslog-daemon/ -name "*.log" -daystart -mtime +14 -type f -exec rm {} \;
+# Delete logs older than 2 weeks every day at 1 am

@@ -28,8 +28,8 @@
         <meta name="msapplication-TileColor" content="#ffffff">
         <meta name="theme-color" content="#ffffff">
 
-        @* Use compiled elm script. *@
-        <script src="@routes.Assets.versioned("lib/search-webapp-ui/elmMain.js")" type="text/javascript"></script>
+        @* Use compiled elm script. Auto-detection of minified script does not work for some reason. *@
+        <script src="@routes.Assets.versioned("lib/search-webapp-ui/elmMain.min.js")" type="text/javascript"></script>
     </head>
     <body>
         @* Run the application. *@

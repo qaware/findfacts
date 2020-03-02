@@ -5,7 +5,7 @@ object Dependencies {
   private val scalaVersion = s"$scalaMajor.10"
 
   val solrVersion = "8.2.0"
-  val playVersion = "2.7.3"
+  val playVersion = "2.8.1"
 
   val circeVersion = "0.12.0"
   val playCirceVersion = "2712.0"

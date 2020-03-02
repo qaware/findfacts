@@ -21,7 +21,6 @@
             <tokenizer class="solr.StandardTokenizerFactory"/>
         </analyzer>
     </fieldType>
-    <fieldType name="thy_kind" class="solr.EnumFieldType" enumsConfig="enumsconfig.xml" docValues="true" enumName="TheoryKind"/>
     <fieldType name="type_syntax" class="solr.TextField">
         <analyzer>
             <tokenizer class="solr.PatternTokenizerFactory" pattern="[\(\)\{\},]|::|->|([^\(\)\{\},\s:-]|:[^\(\)\{\},\s:]|-[^\(\)\{\},\s>])+" group="0"/>

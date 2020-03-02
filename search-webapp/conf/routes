@@ -1,5 +1,5 @@
-### Application
-# Delivers app
+### Site
+# Site index
 GET     /                                   de.qaware.findfacts.webapp.controllers.HomeController.index
 
 ### Swagger-ui
