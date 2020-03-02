@@ -44,8 +44,11 @@
     -->
   <dataDir>${solr.data.dir:}</dataDir>
 
-  <!-- use fix schema.xml -->
-  <schemaFactory class="ClassicIndexSchemaFactory"/>
+  <!-- use fix schema -->
+  <schemaFactory class="ManagedIndexSchemaFactory">
+    <bool name="mutable">false</bool>
+    <str name="managedSchemaResourceName">managed-schema</str>
+  </schemaFactory>
 
     <!-- The DirectoryFactory to use for indexes.
 

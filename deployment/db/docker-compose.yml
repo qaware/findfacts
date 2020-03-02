@@ -8,9 +8,12 @@ services:
     environment:
       - SOLR_HEAP=2g
     volumes:
+      - ./theorydata:/opt/solr/server/solr/configsets/theorydata:ro
       - data:/var/solr
     command:
-      - solr-precreate theorydata
+      - solr-precreate
+      - theorydata
+      - /opt/solr/server/solr/configsets/theorydata
     expose:
       - 8983
     ports:
