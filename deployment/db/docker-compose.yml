@@ -3,7 +3,7 @@ version: '3'
 services:
   solr:
     container_name: prod_solr
-    build: .
+    image: solr:8.2.0
     restart: always
     environment:
       - SOLR_HEAP=2g

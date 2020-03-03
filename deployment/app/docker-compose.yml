@@ -21,10 +21,11 @@ services:
     ports:
       - 9000:9000
     networks:
-      - internal
+      - infrastructure_proxy
       - solr820_internal
 
 networks:
-  internal:
+  infrastructure_proxy:
+    external: true
   solr820_internal:
     external: true

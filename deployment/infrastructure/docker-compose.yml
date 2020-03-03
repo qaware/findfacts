@@ -14,7 +14,7 @@ services:
       - 80:80
       - 443:443
     networks:
-      - findfacts_internal
+      - proxy
     logging:
       driver: none
     labels:
@@ -51,7 +51,7 @@ services:
     volumes:
       - ./syslog-rotate:/syslog-rotate:ro
       - ./syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
-      - syslog_data:/var/log/syslog-daemon
+      - logs:/var/log/syslog-daemon
     ports:
       - 514:514
       - 601:601
@@ -62,8 +62,7 @@ volumes:
   nginx_certs:
   nginx_vhost:
   nginx_html:
-  syslog_data:
+  logs:
 
 networks:
-  findfacts_internal:
-    external: true
+  proxy:
