@@ -1,5 +1,7 @@
 package de.qaware.findfacts.core.dt
 
+import de.qaware.findfacts.common.dt.ThyEtKind
+
 /** Theory entity types with resolved relations. */
 sealed trait ResolvedThyEt
 
@@ -10,7 +12,12 @@ sealed trait ResolvedThyEt
   * @param typUses referenced types
   * @param propUses referenced consts
   */
-case class ResolvedConstant(id: String, typ: String, typUses: List[ShortThyEt], propUses: List[ShortThyEt])
+case class ResolvedConstant(
+    id: String,
+    typ: String,
+    typUses: List[ShortThyEt],
+    propUses: List[ShortThyEt],
+    kind: ThyEtKind = ThyEtKind.Constant)
     extends ResolvedThyEt
 
 /** Resolved information for facts.
@@ -19,11 +26,16 @@ case class ResolvedConstant(id: String, typ: String, typUses: List[ShortThyEt], 
   * @param propUses referenced consts
   * @param proofUses referenced facts
   */
-case class ResolvedFact(id: String, propUses: List[ShortThyEt], proofUses: List[ShortThyEt]) extends ResolvedThyEt
+case class ResolvedFact(
+    id: String,
+    propUses: List[ShortThyEt],
+    proofUses: List[ShortThyEt],
+    kind: ThyEtKind = ThyEtKind.Fact)
+    extends ResolvedThyEt
 
 /** Resolved information for types.
   *
   * @param id unique identifier
   * @param uses referenced types
   */
-case class ResolvedType(id: String, uses: List[ShortThyEt]) extends ResolvedThyEt
+case class ResolvedType(id: String, uses: List[ShortThyEt], kind: ThyEtKind = ThyEtKind.Type) extends ResolvedThyEt

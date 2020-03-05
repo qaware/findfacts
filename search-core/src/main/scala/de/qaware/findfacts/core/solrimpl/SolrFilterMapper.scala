@@ -46,7 +46,7 @@ class SolrFilterMapper {
   /** Escapes a value string.
     *
     * @param value to escape
-    * @param exact whether the value is used for exact mathing
+    * @param exact whether the value is used for exact matching
     * @return escaped string, to be used in solr query
     */
   def escape(value: String, exact: Boolean): String = {

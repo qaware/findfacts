@@ -134,17 +134,17 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
         res match {
           case ConstantEt(id, _, _, propositionUses, typeUses, constantType) =>
             for {
-              propUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(propositionUses.mkString(" ")))
-              typeUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(typeUses.mkString(" ")))
+              propUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(propositionUses: _*))
+              typeUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(typeUses: _*))
             } yield ResolvedConstant(id, constantType, typeUsesRes.toList, propUsesRes.toList)
           case FactEt(id, _, _, propositionUses, proofUses) =>
             for {
-              propUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(propositionUses.mkString(" ")))
-              proofUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(proofUses.mkString(" ")))
+              propUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(propositionUses: _*))
+              proofUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(proofUses: _*))
             } yield ResolvedFact(id, propUsesRes.toList, proofUsesRes.toList)
           case TypeEt(id, _, _, propositionUses) =>
             for {
-              propUsesRes <- getResult[ShortThyEt](mapper.buildSingleQuery(propositionUses.mkString(" ")))
+              propUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(propositionUses: _*))
             } yield ResolvedType(id, propUsesRes.toList)
           case _ => return Success(None)
         }
@@ -152,13 +152,13 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
   }
 
   override def getResult(id: EtField.Id.T): Try[Option[BaseEt]] =
-    getResult[BaseEt](mapper.buildSingleQuery(id)) map {
+    getResult[BaseEt](mapper.buildQueryById(id)) map {
       case Vector(elem) => Some(elem)
       case _ => None
     }
 
   override def getShortResult(id: EtField.Id.T): Try[Option[ShortCmd]] = {
-    getResult[ShortCmd](mapper.buildSingleQuery(id)) map {
+    getResult[ShortCmd](mapper.buildQueryById(id)) map {
       case Vector(elem) => Some(elem)
       case _ => None
     }

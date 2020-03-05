@@ -133,12 +133,13 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
 
   /** Builds a solr query to retrieve a single document by id.
     *
-    * @param id to search for
+    * @param ids to search for
     * @return built solr query
     */
-  def buildSingleQuery(id: EtField.Id.T): solrj.SolrQuery = {
+  def buildQueryById(ids: String*): solrj.SolrQuery = {
+    val idQuery = ids.map(filterMapper.escape(_, exact = false)).mkString(" ")
     new solrj.SolrQuery()
-      .setQuery(s"${EtField.Id.name}:${filterMapper.escape(id, exact = false)}")
+      .setQuery(s"${EtField.Id.name}:($idQuery)")
       .setFields(All, ChildField)
   }
 }

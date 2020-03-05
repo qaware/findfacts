@@ -12,24 +12,24 @@ Steps to run:
 1. Check out and `cd` into repo
 2. Check out and initialize **isabelle** submodule (or have a local isabelle installation)
 
-   ```console
+   ```shell
    git submodule init
    git submodule update
    ```
    
 3. Register `importer-isabelle` external component (for local installation, use your own `settings` file)
 
-   ```console
+   ```shell
    echo 'init_component "path/to/isabelle-afp-search/importer-isabelle/target/scala-2.12"' >> isabelle/etc/settings
    ```
    
 4. Run using sbt
 
-    ```console
+    ```shell
     ./sbt "project importer-isabelle" "run <OPTIONS>"
    ```
     Use `-?` to get information about the tool usage. Example invocation:
-    ```console
+    ```shell
    ./sbt "project importer-isabelle" "run ../dump localhost 8983" 
    ``` 
 
@@ -40,14 +40,14 @@ Steps to deploy:
 1. Check out and `cd` into repo
 2. Create and set application secret:
 
-   ```console
+   ```shell
    head -c 32 /dev/urandom | base64
    ```
    Set result as value in `deployment/app/app.env` for `APPLICATION_SECRET` key
 3. Set hostname in `deployment/app/server.env`
 4. Start infrastructure, then repeat with app and db:
 
-   ```console
+   ```shell
    cd deployment/infrastructure
    docker-compose up -d
    ```
