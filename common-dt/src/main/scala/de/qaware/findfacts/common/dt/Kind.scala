@@ -4,10 +4,10 @@ import de.qaware.findfacts.common.utils.DefaultEnum
 import enumeratum.EnumEntry
 
 /** Union type for theory entity kinds. */
-sealed trait ThyEtKind extends EnumEntry
+sealed trait Kind extends EnumEntry
 
 /** Kinds of theory entities. */
-object ThyEtKind extends DefaultEnum[ThyEtKind] {
+object Kind extends DefaultEnum[Kind] {
   override final val values = findValues
 
   /** Type definitions. */

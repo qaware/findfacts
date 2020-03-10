@@ -239,9 +239,10 @@ object Theory
 
   implicit class Block_wrapper(val inner: Markup_Blocks.Block) extends AnyVal with TheoryView.Block
   {
+    override def startPos: Int = inner.range.start
+    override def endPos: Int = inner.range.stop
+    override def startLine: Int = inner.start_line
     override def text: String = inner.body
-    override def start: Int = inner.range.start
-    override def stop: Int = inner.range.stop
     override def contains(entity: TheoryView.Entity): Boolean =
       inner.range.contains(Text.Range(entity.pos.offset, entity.pos.endOffset))
   }

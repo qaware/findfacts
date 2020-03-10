@@ -1,4 +1,4 @@
-package de.qaware.findfacts.theoryimporter.pure
+package de.qaware.findfacts.theoryimporter.steps.impl.pure
 
 import enumeratum.{Enum, EnumEntry}
 
@@ -10,6 +10,7 @@ sealed abstract class SyntaxElement(val name: String) extends EnumEntry
 
 /** Elements of the isabelle pure language  */
 case object PureSyntax extends Enum[SyntaxElement] {
+
   /** Set of all values. */
   final val values = findValues
 
@@ -29,4 +30,11 @@ case object PureSyntax extends Enum[SyntaxElement] {
   case object Term extends SyntaxElement("Pure.term")
   case object Type extends SyntaxElement("Pure.type")
   // scalastyle:on scaladoc
+
+  /** Filter to check if name is part of the pure syntax.
+    *
+    * @param name to check
+    * @return true if it is element of the pure syntax
+    */
+  def isPure(name: String): Boolean = values.exists(_.name == name)
 }

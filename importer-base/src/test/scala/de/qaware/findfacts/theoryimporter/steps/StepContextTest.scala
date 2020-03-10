@@ -55,7 +55,7 @@ class StepContextTest extends org.scalatest.FunSuite with Matchers with BeforeAn
 
   test("Test update") {
     val ctx = context
-    val newTyp = typ.copy(propositionUses = List("something"))
+    val newTyp = typ.copy(uses = List("something"))
 
     ctx.updateEntity(typ, newTyp)
     ctx.types should contain theSameElementsAs List(newTyp)

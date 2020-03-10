@@ -4,10 +4,11 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.BaseEt
+import de.qaware.findfacts.common.dt.CodeblockEt
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
+import de.qaware.findfacts.theoryimporter.ImportError
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
-import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
+import de.qaware.findfacts.theoryimporter.steps.{ImportStep, StepContext}
 import org.apache.solr.client.solrj.{SolrClient, SolrServerException}
 
 /** Step to write entities to solr.
@@ -21,18 +22,19 @@ class WriteSolrStep(solrClient: SolrClient) extends ImportStep {
 
   private val logger = Logger[WriteSolrStep]
 
-  override def apply(theories: Seq[Theory])(implicit ctx: StepContext): List[ImportError] = {
-    val entities = ctx.blocks ++ ctx.docs
+  override def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
+    val entities = ctx.blocks
 
     if (entities.isEmpty) {
+      logger.debug(s"Nothing to import")
       return List.empty
     }
 
-    logger.info(s"Writing ${entities.size} entities to solr...")
+    logger.debug(s"Importing ${entities.size} entities to solr...")
 
     // Add all entities
     Try {
-      val mapper = ToSolrDoc[BaseEt]
+      val mapper = ToSolrDoc[CodeblockEt]
 
       solrClient.add(entities.map(mapper.toSolrDoc).asJava)
 
@@ -43,10 +45,10 @@ class WriteSolrStep(solrClient: SolrClient) extends ImportStep {
       }
     } match {
       case Failure(ex) =>
-        logger.error("Exception occurred while writing to solr: ", ex)
+        logger.debug("Exception occurred while writing to solr: ", ex)
         List(ImportError(this, "*", ex.getMessage, ex.getStackTrace.mkString("\n")))
-      case Success(res) =>
-        logger.info("Finished writing to solr")
+      case Success(_) =>
+        logger.debug("Finished importing to solr")
         List.empty
     }
   }

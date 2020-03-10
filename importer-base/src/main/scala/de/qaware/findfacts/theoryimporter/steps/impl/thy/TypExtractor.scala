@@ -1,7 +1,7 @@
 package de.qaware.findfacts.theoryimporter.steps.impl.thy
 
 import de.qaware.findfacts.theoryimporter.TheoryView.{TFree, TVar, Typ, TypeTyp}
-import de.qaware.findfacts.theoryimporter.pure.PureSyntax
+import de.qaware.findfacts.theoryimporter.steps.impl.pure.PureSyntax
 
 /** Extracts and pretty-print types.
   *

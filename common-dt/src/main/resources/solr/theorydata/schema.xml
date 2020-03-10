@@ -6,8 +6,6 @@
         <field name="cmd_kind" type="string" docValues="true" multiValued="false"/>
         <field name="thy_kind" type="string" docValues="true" multiValued="false"/>
         <field name="theory" type="string" docValues="true" multiValued="false" omitNorms="true"/>
-        <field name="start_pos" type="pint" uninvertible="false" multiValued="false"/>
-        <field name="end_pos" type="pint" uninvertible="false" multiValued="false"/>
         <field name="start_line" type="pint" multiValued="false"/>
         <field name="name" type="full_text" multiValued="false" omitNorms="true"/>
         <field name="name_facet" type="string" multiValued="false" omitNorms="true"/>
@@ -15,7 +13,9 @@
         <field name="type_facet" type="string" multiValued="false"/>
         <field name="doc_kind" type="string" docValues="true" multiValued="false"/>
         <field name="prop" type="term_syntax" uninvertible="false" multiValued="false"/>
-        <field name="src" type="full_text" uninvertible="false" multiValued="false"/>
+        <field name="src_before" type="source_text" uninvertible="false" multiValued="false"/>
+        <field name="src" type="source_text" uninvertible="false" multiValued="false"/>
+        <field name="src_after" type="source_text" uninvertible="false" multiValued="false"/>
         <field name="uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
         <field name="type_uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
         <field name="proof_uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
@@ -46,16 +46,37 @@
                 </tokenizer>
             </analyzer>
         </fieldType>
-        <fieldType name="full_text" class="solr.TextField">
+        <fieldType name="source_text" class="solr.TextField">
             <analyzer type="index">
+                <charFilter class="solr.HTMLStripCharFilterFactory"/>
                 <filter class="solr.PatternReplaceCharFilterFactory" pattern="_" replacement=" _ "/>
                 <tokenizer class="solr.StandardTokenizerFactory"/>
-                <filter class="solr.WordDelimiterFilterFactory"
+                <filter class="solr.WordDelimiterGraphFilterFactory"
                         generateWordParts="1" catenateWords="1"
                         generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
                         catenateAll="0" splitOnCaseChange="1"
                         stemEnglishPossessive="1" preserveOriginal="1"/>
                 <filter class="solr.LowerCaseFilterFactory"/>
+                <filter class="solr.FlattenGraphFilterFactory"/>
+            </analyzer>
+            <analyzer type="query">
+                <charFilter class="solr.HTMLStripCharFilterFactory"/>
+                <tokenizer class="solr.StandardTokenizerFactory"/>
+                <filter class="solr.LowerCaseFilterFactory"/>
+                <filter class="solr.SynonymGraphFilterFactory" synonyms="isabellesynonyms.txt"/>
+            </analyzer>
+        </fieldType>
+        <fieldType name="full_text" class="solr.TextField">
+            <analyzer type="index">
+                <filter class="solr.PatternReplaceCharFilterFactory" pattern="_" replacement=" _ "/>
+                <tokenizer class="solr.StandardTokenizerFactory"/>
+                <filter class="solr.WordDelimiterGraphFilterFactory"
+                        generateWordParts="1" catenateWords="1"
+                        generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
+                        catenateAll="0" splitOnCaseChange="1"
+                        stemEnglishPossessive="1" preserveOriginal="1"/>
+                <filter class="solr.LowerCaseFilterFactory"/>
+                <filter class="solr.FlattenGraphFilterFactory"/>
             </analyzer>
             <analyzer type="query">
                 <tokenizer class="solr.StandardTokenizerFactory"/>

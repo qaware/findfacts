@@ -15,5 +15,5 @@ trait SolrImporterModule extends ImporterModule {
     */
   def solrClient: SolrClient
 
-  override val indexWriterStep: ImportStep = wire[WriteSolrStep]
+  override lazy val indexWriterStep: ImportStep = wire[WriteSolrStep]
 }

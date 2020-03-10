@@ -1,7 +1,7 @@
 package de.qaware.findfacts.core
 
 import de.qaware.findfacts.common.dt.EtField.{Kind, Name, PropositionUses, StartPosition}
-import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, ITSolr, ThyEtKind}
+import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, ITSolr, Kind}
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
 import de.qaware.findfacts.core.dt.ShortBlock
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
@@ -48,7 +48,7 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
   }
 
   test("Filter query shortlist") {
-    val query = FilterQuery(List(FieldFilter(Kind, Exact(ThyEtKind.Constant.entryName))))
+    val query = FilterQuery(List(FieldFilter(Kind, Exact(Kind.Constant.entryName))))
     val result = queryModule.service.getResultShortlist(query)
 
     val resList = result.get
@@ -56,11 +56,11 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
 
     val thyRes = resList.values.head.entities
     thyRes should have size 1
-    thyRes.head.kind should equal(ThyEtKind.Constant)
+    thyRes.head.kind should equal(Kind.Constant)
   }
 
   test("Recursive query") {
-    val innerQuery = List(FieldFilter(Kind, Exact(ThyEtKind.Constant.toString)))
+    val innerQuery = List(FieldFilter(Kind, Exact(Kind.Constant.toString)))
     val query = FilterQuery(List(FieldFilter(PropositionUses, InResult(innerQuery))))
     val result = queryModule.service.getResultShortlist(query)
 

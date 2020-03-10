@@ -1,39 +1,25 @@
 package de.qaware.findfacts.theoryimporter.steps.impl
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.utils.LoggingUtils.doDebug
+import de.qaware.findfacts.theoryimporter.ImportError
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
-import de.qaware.findfacts.theoryimporter.steps.{ImportError, ImportStep, StepContext}
+import de.qaware.findfacts.theoryimporter.steps.{ImportStep, StepContext}
 
 /** Performs some basic sanity checks on final data. */
 class SanityCheckStep extends ImportStep {
   private val logger = Logger[SanityCheckStep]
 
-  override def apply(theories: Seq[Theory])(implicit ctx: StepContext): List[ImportError] = {
+  override def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
+    logger.debug(s"Checking sanity for ${ctx.allEts.size} entities")
     // Check unique IDs
-    val duplicateIDs = ctx.allEntities.groupBy(_.id).filter(_._2.size > 1)
-    logger.whenDebugEnabled {
-      if (duplicateIDs.nonEmpty) {
-        logger.debug(s"Duplicate ids: \n\t${duplicateIDs.mkString("\n\t")}")
-      }
-    }
+    val duplicateIDs = ctx.allEts.groupBy(_.id).filter(_._2.size > 1)
 
     // Check that names of each kind are unique
-    val duplicateNames = ctx.theoryEntities.groupBy(e => (e.name, e.getClass)).filter(_._2.size > 1)
-    logger.whenDebugEnabled {
-      if (duplicateNames.nonEmpty) {
-        logger.debug(s"Duplicate names: \n\t${duplicateNames.mkString("\n\t")}")
-      }
-    }
+    val duplicateNames = ctx.theoryEts.groupBy(e => (e.name, e.getClass)).filter(_._2.size > 1)
 
-    if (duplicateIDs.isEmpty && duplicateNames.isEmpty) {
-      logger.info("Sanity checks passed")
-    } else {
-      logger.warn("Sanity checks failed")
-    }
+    logger.debug(s"Finished checking sanity, found ${duplicateIDs.size + duplicateNames.size} potential issues")
 
-    duplicateIDs.map(e => doDebug(ImportError(this, e._1, "Dumplicate id", e._2.mkString(",")))).toList ++
-      duplicateNames.map(e =>
-        doDebug(ImportError(this, s"${e._1._1}:${e._1._2}", "Duplicate name", e._2.mkString(","))))
+    duplicateIDs.map(e => ImportError(this, e._1, "Dumplicate id", e._2.mkString(","))).toList ++
+      duplicateNames.map(e => ImportError(this, s"${e._1._1}:${e._1._2}", "Duplicate name", e._2.mkString(",")))
   }
 }

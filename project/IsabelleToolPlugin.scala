@@ -1,10 +1,9 @@
 import scala.sys.process._
 
-import sbt.Keys.{crossTarget, mainClass, run}
+import sbt.Keys._
+import sbt._
 import sbt.complete.DefaultParsers._
 import sbt.io.IO
-import sbt.io.syntax._
-import sbt.{AutoPlugin, Compile, Def, Plugins, SettingKey, TaskKey}
 import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport.assembly
 
@@ -12,9 +11,9 @@ object IsabelleToolPlugin extends AutoPlugin {
   override def requires: Plugins = AssemblyPlugin
 
   object autoImport {
-    lazy val isabelleExecutable: SettingKey[File] = SettingKey[File]("isabelle executable")
-    lazy val isabelleTool: SettingKey[String] = SettingKey[String]("isabelle tool defined by project")
-    lazy val isabelleComponentAssembly: TaskKey[File] = TaskKey[File]("isabelle component assembly task")
+    lazy val isabelleExecutable = settingKey[File]("Compile isabelle jars")
+    lazy val isabelleTool = settingKey[String]("isabelle tool defined by project")
+    lazy val isabelleComponentAssembly = taskKey[File]("isabelle component assembly task")
   }
 
   import autoImport._

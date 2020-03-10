@@ -5,15 +5,17 @@ package de.qaware.findfacts.theoryimporter
 object TheoryView {
 
   trait Block extends Any {
-    def start: Int
-    def stop: Int
+    def startPos: Int
+    def endPos: Int
+    def startLine: Int
     def text: String
 
     def contains(entity: Entity): Boolean
-    override def toString: String = s"[$start..$stop]:$text"
+    override def toString: String =
+      (text.linesWithSeparators.zipWithIndex map { case (s, l) => s"${startLine + s}: $l"}).mkString
   }
   object Block {
-    def unapply(arg: Block): Option[(Int, Int, String)] = Some(arg.start, arg.stop, arg.text)
+    def unapply(arg: Block): Option[(Int, Int, Int, String)] = Some(arg.startPos, arg.endPos, arg.startLine, arg.text)
   }
 
   trait Source extends Any {

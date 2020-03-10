@@ -2,7 +2,7 @@ package de.qaware.findfacts.theoryimporter.steps.impl.thy
 
 import de.qaware.findfacts.theoryimporter.TheoryView
 import de.qaware.findfacts.theoryimporter.TheoryView.{TFree, TypeTyp}
-import de.qaware.findfacts.theoryimporter.pure.PureSyntax
+import de.qaware.findfacts.theoryimporter.steps.impl.pure.PureSyntax
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FunSuite, Matchers}
 

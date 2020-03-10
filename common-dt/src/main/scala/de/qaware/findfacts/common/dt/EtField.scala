@@ -32,14 +32,26 @@ object EtField extends DefaultEnum[EtField] {
   }
 
   /** Kind of command span. */
-  case object CommandKind extends SingleValuedField[CmdKind] with ParentField {
+  case object CommandKind extends SingleValuedField[String] with ParentField {
     override final val name = SolrSchema.CommandKind
+    override val implicits = FieldImplicits()
+  }
+
+  /** Source text in theory before this code block. */
+  case object SourceTextBefore extends SingleValuedField[String] with ParentField {
+    override val name: String = SolrSchema.SourceTextBefore
     override val implicits = FieldImplicits()
   }
 
   /** Source text in isabelle thy. */
   case object SourceText extends SingleValuedField[String] with ParentField {
     override final val name = SolrSchema.SourceText
+    override val implicits = FieldImplicits()
+  }
+
+  /** Sourc text in theory after this code block. */
+  case object SourceTextAfter extends SingleValuedField[String] with ParentField {
+    override val name: String = SolrSchema.SourceTextAfter
     override val implicits = FieldImplicits()
   }
 
@@ -50,14 +62,8 @@ object EtField extends DefaultEnum[EtField] {
   }
 
   /** Start position of entity definition, in absolute isabelle characters. */
-  case object StartPosition extends SingleValuedField[Int] with ParentField {
-    override final val name = SolrSchema.StartPosition
-    override val implicits = FieldImplicits()
-  }
-
-  /** End position of entity definition, in absolute isabelle characters. */
-  case object EndPosition extends SingleValuedField[Int] with ParentField {
-    override final val name = SolrSchema.EndPosition
+  case object StartLine extends SingleValuedField[Int] with ParentField {
+    override final val name = SolrSchema.StartLine
     override val implicits = FieldImplicits()
   }
 
@@ -70,7 +76,7 @@ object EtField extends DefaultEnum[EtField] {
   }
 
   /** Kind of theory entity. Possible values in [[Kind]]. */
-  case object Kind extends SingleValuedField[ThyEtKind] with ChildField {
+  case object Kind extends SingleValuedField[Kind] with ChildField {
     override final val name = SolrSchema.TheoryKind
     override val implicits = FieldImplicits()
   }
@@ -86,12 +92,6 @@ object EtField extends DefaultEnum[EtField] {
     override val implicits = FieldImplicits()
   }
 
-  /** Proposition, of a constants, fact, or type entity. */
-  case object Proposition extends SingleValuedField[String] with ChildField {
-    override final val name = SolrSchema.Proposition
-    override val implicits = FieldImplicits()
-  }
-
   /** Type of a constant entity. */
   case object ConstantType extends SingleValuedField[String] with ChildField {
     override final val name = SolrSchema.ConstantType
@@ -104,27 +104,9 @@ object EtField extends DefaultEnum[EtField] {
     override val implicits = FieldImplicits()
   }
 
-  /** Kind of a documentation entity. Possible values in [[DocumentationKind]]. */
-  case object DocumentationKind extends SingleValuedField[DocKind] with ParentField {
-    override final val name = SolrSchema.DocumentationKind
-    override val implicits = FieldImplicits()
-  }
-
-  /** Other entities that this entity uses in its propositions. */
-  case object PropositionUses extends MultiValuedField[String] with ChildField {
-    override final val name = SolrSchema.PropositionUses
-    override val implicits = FieldImplicits()
-  }
-
-  /** Other entities that this entity uses in its types. */
-  case object TypeUses extends MultiValuedField[String] with ChildField {
-    override final val name = SolrSchema.TypeUses
-    override val implicits = FieldImplicits()
-  }
-
-  /** Other entities that this entity uses in its proofs. */
-  case object ProofUses extends MultiValuedField[String] with ChildField {
-    override final val name = SolrSchema.ProofUses
+  /** Other entities that this entity uses. */
+  case object Uses extends MultiValuedField[String] with ChildField {
+    override final val name = SolrSchema.Uses
     override val implicits = FieldImplicits()
   }
 }
