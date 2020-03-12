@@ -19,15 +19,17 @@ module Components.Details exposing
 
 import DataTypes exposing (..)
 import Dict exposing (Dict)
-import Html exposing (Html, br, div, h4, text)
+import Html exposing (Html, div, h4, span, text)
 import Html.Attributes exposing (style)
-import Html.Lazy exposing (lazy)
+import Html.Events exposing (onClick)
+import Html.Lazy exposing (lazy, lazy2)
 import Material.Button exposing (buttonConfig)
 import Material.Card as Card exposing (cardPrimaryActionConfig)
-import Material.DataTable as Table exposing (dataTableHeaderCellConfig)
+import Material.DataTable as Table exposing (dataTableCellConfig, dataTableConfig, dataTableHeaderCellConfig, dataTableRowConfig)
 import Material.Elevation as Elevation
 import Material.Extra.Code as Code
 import Material.Extra.Divider as Divider
+import Material.Extra.Typography as ExtraTypeography
 import Material.LayoutGrid as Grid
 import Material.LinearProgress as Progress
 import Material.Theme as Theme
@@ -44,7 +46,9 @@ type Config msg
 
 type alias ConfigInternal msg =
     { toMsg : Maybe String -> State -> msg
+    , toDetailMsg : String -> msg
     , toUsedByMsg : String -> List String -> msg
+    , toUsesMsg : String -> List String -> msg
     }
 
 
@@ -76,9 +80,14 @@ type ResultState
 
 {-| Creates a config for a detail result component.
 -}
-config : (Maybe String -> State -> msg) -> (String -> List String -> msg) -> Config msg
-config toMsg toUsedByMsg =
-    Config (ConfigInternal toMsg toUsedByMsg)
+config :
+    (Maybe String -> State -> msg)
+    -> (String -> msg)
+    -> (String -> List String -> msg)
+    -> (String -> List String -> msg)
+    -> Config msg
+config toMsg toDetailMsg toUsedByMsg toUsesMsg =
+    Config (ConfigInternal toMsg toDetailMsg toUsedByMsg toUsesMsg)
 
 
 {-| Create an initially empty state.
@@ -152,12 +161,17 @@ view state (Config conf) =
                         |> Code.withAdditionalAttrs [ style "display" "inline-block", style "min-width" "100%" ]
                         |> lazy Code.view
                     ]
-                 , Html.h2 [ Typography.headline4 ] [ text "Entities" ]
                  ]
-                    ++ (stateInternal.block.entities
-                            |> List.map (renderEntity stateInternal conf)
-                            |> List.intersperse (br [] [])
-                       )
+                    ++ ite (List.isEmpty stateInternal.block.entities)
+                        []
+                        [ Html.h2 [ Typography.headline4 ] [ text "Entities" ] ]
+                    ++ [ Grid.layoutGridInner []
+                            (stateInternal.block.entities
+                                |> List.sortBy (.kind >> kindCompare)
+                                |> List.map (renderEntityCard stateInternal conf >> List.singleton)
+                                |> List.map (Grid.layoutGridCell [ Grid.span4Phone, Grid.span8Tablet, Grid.span6Desktop ])
+                            )
+                       ]
                 )
 
 
@@ -214,23 +228,21 @@ getDetailQuery id states =
 -- RENDERING
 
 
-renderEntity : StateInternal -> ConfigInternal msg -> ShortEt -> Html msg
-renderEntity state conf et =
+renderEntityCard : StateInternal -> ConfigInternal msg -> ShortEt -> Html msg
+renderEntityCard state conf et =
     let
         head =
             Card.cardBlock <|
-                Grid.layoutGrid [ Grid.alignLeft ]
-                    [ Grid.layoutGridInner []
-                        [ Grid.layoutGridCell [ Grid.span1, Typography.body2 ] [ text <| kindToString et.kind ]
-                        , Grid.layoutGridCell [ Typography.body1 ] [ text et.name ]
-                        ]
+                Grid.layoutGrid [ Grid.alignLeft, style "width" "100%" ]
+                    [ div [ Typography.caption, style "margin-bottom" "8pt" ] [ text <| kindToString et.kind ]
+                    , div [ Typography.body1, style "overflow-wrap" "break-word" ] [ text et.name ]
                     ]
 
         body =
             Card.cardBlock <|
                 div [] <|
                     (Dict.get et.id state.entityDetails
-                        |> Maybe.map (lazy renderEntityDetails >> List.singleton)
+                        |> Maybe.map (lazy2 renderEntityCardInner conf >> List.singleton)
                         |> Maybe.withDefault []
                     )
     in
@@ -245,17 +257,16 @@ renderEntity state conf et =
                 }
                 [ head ]
                 ++ [ body ]
-        , actions =
-            Just <| Card.cardFullBleedActions <| renderFindUsedByButton conf state.block.src [ et.id ]
+        , actions = Just <| Card.cardFullBleedActions <| renderFindUsedByButton conf et.name et.id
         }
 
 
-renderFindUsedByButton conf block ids =
-    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsedByMsg block ids } "used by"
+renderFindUsedByButton conf name id =
+    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsedByMsg name [ id ] } "used by"
 
 
-renderEntityDetails : EntityState -> Html msg
-renderEntityDetails entityState =
+renderEntityCardInner : ConfigInternal msg -> EntityState -> Html msg
+renderEntityCardInner conf entityState =
     if entityState.open then
         case entityState.resultState of
             Fetching ->
@@ -263,23 +274,22 @@ renderEntityDetails entityState =
 
             Result res ->
                 div []
-                    (Divider.divider
-                        :: (case res of
-                                ThyConstant const ->
-                                    [ h4 [ Typography.headline6 ] [ text "Type" ]
-                                    , Code.block const.typ
-                                        |> Code.withAdditionalAttrs [ style "overflow-x" "auto" ]
-                                        |> lazy Code.view
-                                    ]
-                                        ++ renderUses const.uses
+                    [ Divider.divider
+                    , Grid.layoutGrid [ Grid.alignLeft ]
+                        (case res of
+                            ThyConstant const ->
+                                [ h4 [ Typography.headline6 ] [ text "Type" ]
+                                , span [ ExtraTypeography.code1, style "overflow-wrap" "break-word" ] [ text const.typ ]
+                                ]
+                                    ++ renderUses conf const.uses
 
-                                ThyFact fact ->
-                                    renderUses fact.uses
+                            ThyFact fact ->
+                                renderUses conf fact.uses
 
-                                ThyType typ ->
-                                    renderUses typ.uses
-                           )
-                    )
+                            ThyType typ ->
+                                renderUses conf typ.uses
+                        )
+                    ]
 
             None ->
                 div [] []
@@ -288,17 +298,34 @@ renderEntityDetails entityState =
         div [] []
 
 
-renderUses : List ShortEt -> List (Html msg)
-renderUses entities =
+renderUses : ConfigInternal msg -> List ShortEt -> List (Html msg)
+renderUses conf entities =
     h4 [ Typography.headline6 ] [ text "Uses" ]
         :: ite (List.isEmpty entities)
             []
-            [ Table.dataTable Table.dataTableConfig
-                { thead = [ Table.dataTableHeaderRow [] [ Table.dataTableHeaderCell dataTableHeaderCellConfig [ text "Kind" ], Table.dataTableHeaderCell dataTableHeaderCellConfig [ text "Name" ] ] ]
+            [ Table.dataTable { dataTableConfig | additionalAttributes = [ style "display" "block" ] }
+                { thead =
+                    [ Table.dataTableHeaderRow []
+                        [ Table.dataTableHeaderCell dataTableHeaderCellConfig [ text "Kind" ]
+                        , Table.dataTableHeaderCell dataTableHeaderCellConfig [ text "Name" ]
+                        ]
+                    ]
                 , tbody =
                     entities
                         |> List.map
-                            (\et -> [ Table.dataTableCell Table.dataTableCellConfig [ text <| kindToString et.kind ], Table.dataTableCell Table.dataTableCellConfig [ text et.name ] ])
-                        |> List.map (Table.dataTableRow Table.dataTableRowConfig)
+                            (\et ->
+                                Table.dataTableRow
+                                    { dataTableRowConfig
+                                        | additionalAttributes =
+                                            [ onClick <| conf.toDetailMsg et.id
+                                            , style "cursor" "pointer"
+                                            ]
+                                    }
+                                    [ Table.dataTableCell
+                                        dataTableCellConfig
+                                        [ text <| kindToString et.kind ]
+                                    , Table.dataTableCell dataTableCellConfig [ text et.name ]
+                                    ]
+                            )
                 }
             ]

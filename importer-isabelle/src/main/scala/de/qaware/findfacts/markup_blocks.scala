@@ -23,6 +23,7 @@ object Markup_Blocks
     val CLOSE = Value("}")
     val CONSIDER = Value("consider")
     val DEFER = Value("defer")
+    val DEFINE = Value("define")
     val DONE = Value("done")
     val DOT = Value(".")
     val DOTDOT = Value("..")

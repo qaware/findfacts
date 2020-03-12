@@ -1,0 +1,17 @@
+body {
+    height: 100%
+}
+
+.mdc-typography-extra--code1 {
+    font-family: Roboto Mono, monospace;
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+}
+
+.mdc-typography-extra--code2 {
+    font-family: Roboto Mono, monospace;
+    font-size: 16px;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+}

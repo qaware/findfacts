@@ -1,7 +1,7 @@
 module Components.Search exposing
     ( Config, State, ResultFor(..), MergeResult(..)
     , config, empty, encode, decoder, update, merge, subscriptions, view
-    , sameQuery, buildFacetQueries, initUsing
+    , sameQuery, buildFacetQueries, initUsedBy, initUses
     )
 
 {-| This components controls the search form.
@@ -19,7 +19,7 @@ module Components.Search exposing
 
 # Helpers
 
-@docs sameQuery, buildFacetQueries, addUsing, initUsing
+@docs sameQuery, buildFacetQueries, addUsing, initUsedBy, initUses
 
 -}
 
@@ -125,6 +125,7 @@ type alias StateInternal =
     , fieldSearchers : Array FieldSearcher
     , fieldSearcherFacets : ResultFaceting
     , usedIn : Maybe UsageBlock
+    , uses : Maybe UsageBlock
     , facets : Faceting
     }
 
@@ -172,6 +173,7 @@ empty =
             Array.empty
             (AnyDict.empty fieldToString)
             Nothing
+            Nothing
             (AnyDict.empty <| .field >> fieldToString)
 
 
@@ -185,6 +187,7 @@ encode (State state) =
             , (state.fieldSearchers |> Array.isEmpty >> not)
                 |> toMaybe ( "fields", Encode.array encodeFieldSearcher state.fieldSearchers )
             , state.usedIn |> Maybe.map (\s -> ( "usedIn", encodeUsageBlock s ))
+            , state.uses |> Maybe.map (\s -> ( "uses", encodeUsageBlock s ))
             , (state.facets |> AnyDict.filter (always facetActive) |> AnyDict.isEmpty >> not)
                 |> toMaybe ( "facets", encodeFaceting state.facets )
             ]
@@ -195,14 +198,15 @@ encode (State state) =
 decoder : Decoder State
 decoder =
     Decode.map State <|
-        Decode.map4
-            (\term fields usedIn facets ->
-                StateInternal (buildFQs term fields facets usedIn)
+        Decode.map5
+            (\term fields usedIn uses facets ->
+                StateInternal (buildFQs term fields facets usedIn uses)
                     Menu.closed
                     term
                     fields
                     (AnyDict.empty fieldToString)
                     usedIn
+                    uses
                     facets
             )
             (Decode.map (Maybe.withDefault "") <| DecodeExtra.optionalField "term" Decode.string)
@@ -210,6 +214,7 @@ decoder =
                 (DecodeExtra.optionalField "fields" <| Decode.array fieldSearcherDecoder)
             )
             (DecodeExtra.optionalField "usedIn" usageBlockDecoder)
+            (DecodeExtra.optionalField "uses" usageBlockDecoder)
             (Decode.map (Maybe.withDefault <| AnyDict.empty <| .field >> fieldToString)
                 (DecodeExtra.optionalField "facets" facetingDecoder)
             )
@@ -401,14 +406,28 @@ buildFacetQueries (State state) =
         :: ite (List.isEmpty fsFields) [] [ ( FacetQuery state.filters fsFields 100, FieldSearchers ) ]
 
 
-initUsing : String -> List String -> State
-initUsing block ids =
+initUsedBy : String -> List String -> State
+initUsedBy block ids =
     State <|
         StateInternal []
             Menu.closed
             ""
             Array.empty
             (AnyDict.empty fieldToString)
+            (Just <| UsageBlock block ids)
+            Nothing
+            (AnyDict.empty (.field >> fieldToString))
+
+
+initUses : String -> List String -> State
+initUses block ids =
+    State <|
+        StateInternal []
+            Menu.closed
+            ""
+            Array.empty
+            (AnyDict.empty fieldToString)
+            Nothing
             (Just <| UsageBlock block ids)
             (AnyDict.empty (.field >> fieldToString))
 
@@ -641,8 +660,8 @@ fsFacetFields fieldSearchers =
 -- QUERYING
 
 
-buildFQs : String -> Array FieldSearcher -> Faceting -> Maybe UsageBlock -> List FieldFilter
-buildFQs term fieldSearchers facets usedIn =
+buildFQs : String -> Array FieldSearcher -> Faceting -> Maybe UsageBlock -> Maybe UsageBlock -> List FieldFilter
+buildFQs term fieldSearchers facets usedIn uses =
     Maybe.Extra.values <|
         [ getFilter term |> Maybe.map (FieldFilter Src) ]
             ++ (fieldSearchers |> Array.toList |> List.map buildFieldSearcherFQ)
@@ -650,7 +669,8 @@ buildFQs term fieldSearchers facets usedIn =
                     |> AnyDict.toList
                     |> List.map (\( field, facet ) -> buildFacetFQ facet |> Maybe.map (FieldFilter field.field))
                )
-            ++ (usedIn |> Maybe.map (buildUsageFQ >> List.singleton) |> Maybe.withDefault [])
+            ++ (usedIn |> Maybe.map (buildUsedInFQ >> List.singleton) |> Maybe.withDefault [])
+            ++ (uses |> Maybe.map (buildUsesFQ >> List.singleton) |> Maybe.withDefault [])
 
 
 getFilter : String -> Maybe Filter
@@ -675,9 +695,17 @@ buildFieldSearcherFQ fieldSearcher =
         |> Maybe.map (FieldFilter fieldSearcher.field.field)
 
 
-buildUsageFQ : UsageBlock -> Maybe FieldFilter
-buildUsageFQ usedIn =
+buildUsedInFQ : UsageBlock -> Maybe FieldFilter
+buildUsedInFQ usedIn =
     usedIn.ids |> List.map Term |> unionFilters |> Maybe.map (FieldFilter Uses)
+
+
+buildUsesFQ : UsageBlock -> Maybe FieldFilter
+buildUsesFQ uses =
+    uses.ids
+        |> List.map Term
+        |> unionFilters
+        |> Maybe.map (FieldFilter Id >> List.singleton >> InResult Uses >> FieldFilter Id)
 
 
 unionFilters : List Filter -> Maybe Filter

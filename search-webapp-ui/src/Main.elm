@@ -117,14 +117,16 @@ type Msg
     | PagingMsg Paging.State
       -- Results component
     | ResultsMsg Results.State
-    | ResultsDetail String
-    | FindUsedByMsg String (List String)
     | FilterResult (Result Http.Error (ResultList ShortBlock))
       -- Details component
     | DetailsResult (Result Http.Error ShortBlock)
     | DetailsMsg (Maybe String) Details.State
     | DetailsEntityResult (Result Http.Error ThyEt)
     | EmailMsg Obfuscated.State
+      --
+    | ToDetail String
+    | FindUsedByMsg String (List String)
+    | FindUsesMsg String (List String)
 
 
 {-| Main update loop.
@@ -158,12 +160,17 @@ update msg model =
                         Browser.External href ->
                             ( model, Navigation.load href )
 
-                ( ResultsDetail id, _ ) ->
+                ( ToDetail id, _ ) ->
                     ( { model | state = Locked False page }, Navigation.pushUrl model.navKey <| urlEncodeDetail id )
 
                 ( FindUsedByMsg block ids, _ ) ->
                     ( { model | state = Locked False page }
-                    , Navigation.pushUrl model.navKey <| urlEncodeHome (Search.initUsing block ids) Paging.empty
+                    , Navigation.pushUrl model.navKey <| urlEncodeHome (Search.initUsedBy block ids) Paging.empty
+                    )
+
+                ( FindUsesMsg block ids, _ ) ->
+                    ( { model | state = Locked False page }
+                    , Navigation.pushUrl model.navKey <| urlEncodeHome (Search.initUses block ids) Paging.empty
                     )
 
                 ( SearchMsg newSearch, Home oldSearch paging _ ) ->
@@ -529,7 +536,7 @@ renderPage page =
             renderPageHome search paging results |> renderInPage [ style "min-width" "360px" ]
 
         Details details ->
-            [ Details.view details (Details.config DetailsMsg FindUsedByMsg) ] |> renderInPage []
+            [ Details.view details (Details.config DetailsMsg ToDetail FindUsedByMsg FindUsesMsg) ] |> renderInPage []
 
         Help ->
             renderPageHelp |> renderInPage []
@@ -577,7 +584,7 @@ renderPageHome search paging results =
         ]
     , lazy2 Search.view search (Search.config SearchInternalMsg SearchMsg)
     , br [] []
-    , lazy2 Results.view results (Results.config ResultsMsg ResultsDetail FindUsedByMsg)
+    , lazy2 Results.view results (Results.config ResultsMsg ToDetail FindUsedByMsg FindUsesMsg)
     , br [] []
     , lazy2 Paging.view paging (Paging.config PagingMsg)
     ]

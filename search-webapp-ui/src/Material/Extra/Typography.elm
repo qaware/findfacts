@@ -1,42 +1,24 @@
-module Material.Extra.Typography exposing (code, codeLight)
+module Material.Extra.Typography exposing (code1, code2)
 
 {-| This module defines additional fonts to use with material design.
 
-@docs code, codeLight
+@docs code1, code2
 
 -}
 
 import Html exposing (Attribute, Html)
-import Html.Attributes exposing (style)
-import Util
+import Html.Attributes exposing (class)
 
 
 {-| Code font.
 -}
-code : List (Html.Attribute msg) -> String -> Html msg
-code additionalAttrs src =
-    codeInternal additionalAttrs
-        [ style "font-family" "Roboto Mono, monospace"
-        , style "font-size" "16px"
-        , style "font-weight" "400"
-        , style "letter-spacing" "0.5px"
-        ]
-        src
+code1 : Html.Attribute msg
+code1 =
+    class "mdc-typography-extra--code1"
 
 
 {-| Light code font.
 -}
-codeLight : List (Html.Attribute msg) -> String -> Html msg
-codeLight additionalAttrs src =
-    codeInternal additionalAttrs
-        [ style "font-family" "Roboto Mono, monospace"
-        , style "font-size" "16px"
-        , style "font-weight" "300"
-        , style "letter-spacing" "0.5px"
-        ]
-        src
-
-
-codeInternal : List (Html.Attribute msg) -> List (Html.Attribute msg) -> String -> Html msg
-codeInternal codAttrs preAttrs src =
-    Html.code codAttrs [ Html.pre preAttrs [ Html.map never <| Util.renderHtml src ] ]
+code2 : Html.Attribute msg
+code2 =
+    class "mdc-typography-extra--code2"

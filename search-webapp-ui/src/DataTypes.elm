@@ -95,7 +95,7 @@ type Filter
     = Term String
     | Exact String
     | InRange Int Int
-    | InResult (List FieldFilter)
+    | InResult Field (List FieldFilter)
     | Not Filter
     | And Filter Filter (List Filter)
     | Or Filter Filter (List Filter)
@@ -283,8 +283,15 @@ encodeFilter filter =
                   )
                 ]
 
-        InResult fs ->
-            object [ ( "InResult", Encode.list encodeFieldFilter fs ) ]
+        InResult field fs ->
+            object
+                [ ( "InResult"
+                  , object
+                        [ ( "ofField", encodeField field )
+                        , ( "query", Encode.list encodeFieldFilter fs )
+                        ]
+                  )
+                ]
 
         Not f ->
             object [ ( "Not", encodeFilter f ) ]
@@ -410,8 +417,21 @@ thyEtDecoderFromKind kind =
 
 thyEtDecoder : Decoder ThyEt
 thyEtDecoder =
-    Decode.oneOf
-        [ Decode.map ThyConstant constantEtDecoder
-        , Decode.map ThyFact factEtDecoder
-        , Decode.map ThyType typeEtDecoder
-        ]
+    Decode.field "kind" kindDecoder |> Decode.andThen thyEtDecoderFromKind
+
+
+
+-- OTHER
+
+
+kindCompare : Kind -> Int
+kindCompare kind =
+    case kind of
+        Constant ->
+            0
+
+        Type ->
+            1
+
+        Fact ->
+            2

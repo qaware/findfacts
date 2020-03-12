@@ -24,20 +24,17 @@ module Components.Results exposing
 -}
 
 import DataTypes exposing (..)
-import Dict exposing (Dict)
 import Html exposing (Html, br, div, span, text)
 import Html.Attributes exposing (style)
 import Html.Lazy exposing (lazy, lazy2)
 import Material.Button exposing (buttonConfig)
 import Material.Card as Card exposing (cardConfig, cardPrimaryActionConfig)
-import Material.DataTable as Table exposing (DataTableRow)
 import Material.Elevation as Elevation
 import Material.Extra.Code as Code
 import Material.LayoutGrid as Grid
 import Material.LinearProgress as Progress
 import Material.Theme as Theme
 import Material.Typography as Typography
-import Util exposing (pairWith)
 
 
 {-| Opaque config type for the results component.
@@ -49,7 +46,8 @@ type Config msg
 type alias ConfigInternal msg =
     { toMsg : State -> msg
     , toDetailMsg : String -> msg
-    , toUsageMsg : String -> List String -> msg
+    , toUsedByMsg : String -> List String -> msg
+    , toUsesMsg : String -> List String -> msg
     }
 
 
@@ -63,22 +61,14 @@ type State
 
 
 type alias StateInternal =
-    { blocks : List ShortBlock
-    , blockState : Dict String Bool
-    }
-
-
-type alias EntityState =
-    { open : Bool
-    , detail : Maybe ThyEt
-    }
+    { blocks : List ShortBlock }
 
 
 {-| Creates a config for a results component.
 -}
-config : (State -> msg) -> (String -> msg) -> (String -> List String -> msg) -> Config msg
-config toMsg toDetailMsg toUsageMsg =
-    Config (ConfigInternal toMsg toDetailMsg toUsageMsg)
+config : (State -> msg) -> (String -> msg) -> (String -> List String -> msg) -> (String -> List String -> msg) -> Config msg
+config toMsg toDetailMsg toUsedByMsg toUsesMsg =
+    Config (ConfigInternal toMsg toDetailMsg toUsedByMsg toUsesMsg)
 
 
 {-| Creates an initial empty state for the results component.
@@ -102,13 +92,7 @@ init result =
     case result of
         Ok resultList ->
             Values
-                { blocks = resultList.values
-                , blockState =
-                    resultList.values
-                        |> List.map .id
-                        |> List.map (pairWith False)
-                        |> Dict.fromList
-                }
+                { blocks = resultList.values }
 
         Err cause ->
             Error cause
@@ -132,7 +116,7 @@ view state (Config conf) =
             Values res ->
                 [ Grid.layoutGrid []
                     (res.blocks
-                        |> List.map (renderBlock conf res)
+                        |> List.map (lazy2 renderBlock conf)
                         |> List.intersperse (br [] [])
                     )
                 ]
@@ -152,24 +136,17 @@ hasResults state =
 
 
 -- INTERNALS
--- UPDATE
-
-
-toggleBlockOpen : String -> StateInternal -> State
-toggleBlockOpen id state =
-    Values { state | blockState = Dict.update id (Maybe.map not) state.blockState }
-
-
-
--- HELPERS
 -- RENDERING
 
 
-renderBlock : ConfigInternal msg -> StateInternal -> ShortBlock -> Html msg
-renderBlock conf state block =
+renderBlock : ConfigInternal msg -> ShortBlock -> Html msg
+renderBlock conf block =
     let
         content =
-            lazy2 renderBlockContent (state.blockState |> Dict.get block.id |> Maybe.withDefault False) block
+            lazy renderBlockContent block
+
+        ids =
+            block.entities |> List.map .id
     in
     Card.card { cardConfig | additionalAttributes = [ Elevation.z1 ] }
         { blocks =
@@ -184,48 +161,28 @@ renderBlock conf state block =
                 Just <|
                     Card.cardActions
                         { buttons =
-                            [ block.entities |> List.map .id |> renderFindUsedByButton conf block.src ]
+                            [ renderFindUsedByButton conf block.src ids, renderFindUsesButton conf block.src ids ]
                         , icons = []
                         }
         }
 
 
 renderFindUsedByButton conf block ids =
-    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsageMsg block ids } "used by"
+    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsedByMsg block ids } "used by"
 
 
-renderBlockContent : Bool -> ShortBlock -> Html msg
-renderBlockContent open block =
+renderFindUsesButton conf block ids =
+    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsesMsg block ids } "uses"
+
+
+renderBlockContent : ShortBlock -> Html msg
+renderBlockContent block =
     Grid.layoutGrid [ Grid.alignLeft, style "width" "100%" ]
         [ div [ Typography.caption, style "margin-bottom" "10pt" ] [ text block.file ]
         , Code.block block.src
             |> Code.withLineNumbersFrom block.startLine
-            |> Code.view
-        , if open then
-            Table.dataTable Table.dataTableConfig
-                { thead =
-                    [ Table.dataTableHeaderRow
-                        [ Typography.subtitle2 ]
-                        [ Table.dataTableHeaderCell Table.dataTableHeaderCellConfig [ text "Kind" ]
-                        , Table.dataTableHeaderCell Table.dataTableHeaderCellConfig [ text "Name" ]
-                        ]
-                    ]
-                , tbody =
-                    block.entities
-                        |> List.sortBy (.kind >> kindToString)
-                        |> List.map renderEntity
-                }
-
-          else
-            lazy renderEntitySummary block.entities
-        ]
-
-
-renderEntity : ShortEt -> Table.DataTableRow msg
-renderEntity et =
-    Table.dataTableRow (Table.DataTableRowConfig False [ Typography.body2 ])
-        [ Table.dataTableCell Table.dataTableCellConfig [ text <| kindToString et.kind ]
-        , Table.dataTableCell Table.dataTableCellConfig [ text et.name ]
+            |> lazy Code.view
+        , lazy renderEntitySummary block.entities
         ]
 
 

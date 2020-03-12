@@ -17,12 +17,13 @@ module Material.Extra.Code exposing
 
 -}
 
-import Html exposing (Html, div)
+import Html exposing (Html, code, div, pre)
 import Html.Attributes exposing (style)
 import Html.Lazy exposing (lazy3)
 import Material.Extra.Divider as Divider
 import Material.Extra.Typography as ExtraTypography
 import Material.Theme as Typography
+import Util exposing (renderHtml)
 
 
 {-| Opaque config type.
@@ -81,7 +82,7 @@ view : Config msg -> Html msg
 view (Config conf) =
     let
         innerBlock =
-            lazy3 renderBlock conf.src styleCode conf.startLine
+            lazy3 renderBlock conf.src [ ExtraTypography.code1 ] conf.startLine
 
         htmlBlocks =
             case conf.context of
@@ -93,7 +94,7 @@ view (Config conf) =
                           else
                             [ lazy3 renderBlock
                                 before
-                                styleCodeContext
+                                [ ExtraTypography.code2 ]
                                 (conf.startLine |> Maybe.map (\l -> l - (List.length <| String.lines before)))
                             , Divider.divider
                             ]
@@ -105,7 +106,7 @@ view (Config conf) =
                             [ Divider.divider
                             , lazy3 renderBlock
                                 after
-                                styleCodeContext
+                                [ ExtraTypography.code2 ]
                                 (conf.startLine |> Maybe.map (\l -> l + (List.length <| String.lines conf.src)))
                             ]
                         ]
@@ -120,23 +121,13 @@ view (Config conf) =
 -- RENDERING
 
 
-styleCode : String -> Html msg
-styleCode src =
-    ExtraTypography.code [ style "float" "left" ] src
+renderBlock : String -> List (Html.Attribute msg) -> Maybe Int -> Html msg
+renderBlock src extraAttrs startLine =
+    startLine |> Maybe.map (renderLineNumbers src extraAttrs) |> Maybe.withDefault (renderCode src extraAttrs)
 
 
-styleCodeContext : String -> Html msg
-styleCodeContext src =
-    ExtraTypography.codeLight [ style "float" "left" ] src
-
-
-renderBlock : String -> (String -> Html msg) -> Maybe Int -> Html msg
-renderBlock src renderFn startLine =
-    startLine |> Maybe.map (renderLineNumbers src renderFn) |> Maybe.withDefault (renderFn src)
-
-
-renderLineNumbers : String -> (String -> Html msg) -> Int -> Html msg
-renderLineNumbers src renderFn start =
+renderLineNumbers : String -> List (Html.Attribute msg) -> Int -> Html msg
+renderLineNumbers src extraAttrs start =
     let
         numLines =
             List.length <| String.lines src
@@ -154,10 +145,12 @@ renderLineNumbers src renderFn start =
                     , style "margin-right" "16px"
                     ]
     in
-    div [ style "display" "inline-flex" ]
-        [ linesBlock
-        , renderFn src
-        ]
+    div [ style "display" "inline-flex" ] [ linesBlock, renderCode src extraAttrs ]
+
+
+renderCode : String -> List (Html.Attribute msg) -> Html msg
+renderCode src extraAttrs =
+    code ([ style "float" "left" ] ++ extraAttrs) [ pre [] [ Html.map never <| renderHtml src ] ]
 
 
 maxDiv : Int -> List (Html.Attribute msg)
