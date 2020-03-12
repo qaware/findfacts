@@ -32,8 +32,8 @@ object EtField extends DefaultEnum[EtField] {
   }
 
   /** Kind of command span. */
-  case object CommandKind extends SingleValuedField[String] with ParentField {
-    override final val name = SolrSchema.CommandKind
+  case object Command extends SingleValuedField[String] with ParentField {
+    override val name = SolrSchema.Command
     override val implicits = FieldImplicits()
   }
 

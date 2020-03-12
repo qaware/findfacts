@@ -6,7 +6,7 @@ import scala.util.{Failure, Success, Try}
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.BaseEt
 import de.qaware.findfacts.core.QueryService.{FacetResult, ResultList}
-import de.qaware.findfacts.core.dt.{ResolvedThyEt, ShortCmd}
+import de.qaware.findfacts.core.dt.{ResolvedThyEt, ShortBlock}
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
 import de.qaware.findfacts.webapp.utils.JsonMappings
 
@@ -93,7 +93,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
   @ApiOperation(
     value = "SearchComponent query",
     notes = "Accepts a search query and returns list of all results.",
-    response = classOf[ShortCmd],
+    response = classOf[ShortBlock],
     responseContainer = "List",
     httpMethod = "POST"
   )
@@ -118,7 +118,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
       UnprocessableEntity("Cursor must not be blank")
     } else {
       val search = queryService.getResultShortlist(request.body)
-      logQueryErr(request.body.toString, search, (list: ResultList[ShortCmd]) => Ok(list.asJson))
+      logQueryErr(request.body.toString, search, (list: ResultList[ShortBlock]) => Ok(list.asJson))
     }
   }
 
@@ -134,7 +134,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
       if (id.isBlank) {
         UnprocessableEntity("Id must not be blank")
       } else {
-        val entity = queryService.getResult(id)
+        val entity = queryService.getBlock(id)
         // Handle possible result values
         logQueryErr[Option[BaseEt]](s"id:$id", entity, {
           case Some(value) => Ok(value.asJson)
@@ -171,19 +171,19 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, json
   @ApiOperation(
     value = "Gets a single command.",
     notes = "Retrieves the shortened information about a single command.",
-    response = classOf[Option[ShortCmd]],
+    response = classOf[Option[ShortBlock]],
     httpMethod = "GET"
   )
   @ApiResponses(
     Array(new ApiResponse(code = 400, message = NotFoundMsg), new ApiResponse(code = 422, message = "Not an id")))
-  def shortCmd(@ApiParam(value = "ID of cmd to fetch", required = true) id: String): Action[AnyContent] =
+  def shortBlock(@ApiParam(value = "ID of cmd to fetch", required = true) id: String): Action[AnyContent] =
     Action { implicit request: Request[AnyContent] =>
       if (id.isBlank) {
         UnprocessableEntity("Id must not be blank")
       } else {
-        val entity = queryService.getShortResult(id)
+        val entity = queryService.getShortBlock(id)
 
-        logQueryErr[Option[ShortCmd]](s"id:$id", entity, {
+        logQueryErr[Option[ShortBlock]](s"id:$id", entity, {
           case Some(value) => Ok(value.asJson)
           case None =>
             logger.info(s"Elem not found for id: $id")

@@ -2,9 +2,9 @@ package de.qaware.findfacts.core
 
 import scala.util.Try
 
-import de.qaware.findfacts.common.dt.{BaseEt, EtField}
+import de.qaware.findfacts.common.dt.{CodeblockEt, EtField}
 import de.qaware.findfacts.core.QueryService.{FacetResult, ResultList}
-import de.qaware.findfacts.core.dt.{ResolvedThyEt, ShortCmd}
+import de.qaware.findfacts.core.dt.{ResolvedThyEt, ShortBlock}
 
 /** Query service interface. */
 trait QueryService {
@@ -14,16 +14,16 @@ trait QueryService {
     * @param id to get
     * @return query result
     */
-  def getResult(id: EtField.Id.T): Try[Option[BaseEt]]
+  def getBlock(id: EtField.Id.T): Try[Option[CodeblockEt]]
 
-  /** Returns the short version of an cmd by id.
+  /** Returns the short version of an entity by id.
     *
     * @param id to get
     * @return query result
     */
-  def getShortResult(id: EtField.Id.T): Try[Option[ShortCmd]]
+  def getShortBlock(id: EtField.Id.T): Try[Option[ShortBlock]]
 
-  /** Finds an entity by id and resolves its references to short entities.
+  /** Finds a theory entity by id and resolves its references to short entities.
     *
     * @param id to get
     * @return resolved query result
@@ -42,7 +42,7 @@ trait QueryService {
     * @param filterQuery to execute
     * @return query result as shortlist
     */
-  def getResultShortlist(filterQuery: FilterQuery): Try[ResultList[ShortCmd]]
+  def getResultShortlist(filterQuery: FilterQuery): Try[ResultList[ShortBlock]]
 }
 
 /** Companion object for type aliases. */

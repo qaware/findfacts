@@ -20,7 +20,6 @@ sealed trait BaseEt {
 
 /** Fields for Entities that from the semantic theory. */
 sealed trait TheoryEt extends BaseEt {
-
   /** Name of the entity. */
   val name: Name.T
 
@@ -53,7 +52,7 @@ final case class CodeblockEt private (
     override val id: Id.T,
     theory: SourceTheory.T,
     startLine: StartLine.T,
-    command: CommandKind.T,
+    command: Command.T,
     srcBefore: SourceTextBefore.T,
     src: SourceText.T,
     srcAfter: SourceTextAfter.T,
@@ -64,12 +63,12 @@ final case class CodeblockEt private (
       endPos: Int,
       theory: SourceTheory.T,
       startLine: StartLine.T,
-      cmdKind: CommandKind.T,
+      command: Command.T,
       srcBefore: SourceTextBefore.T,
       src: SourceText.T,
       srcAfter: SourceTextAfter.T,
       entities: TheoryChildren.T = List.empty) = {
-    this(CodeblockEt.makeId(theory, startPos, endPos), theory, startLine, cmdKind, srcBefore, src, srcAfter, entities)
+    this(CodeblockEt.makeId(theory, startPos, endPos), theory, startLine, command, srcBefore, src, srcAfter, entities)
   }
 }
 

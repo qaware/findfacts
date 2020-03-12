@@ -4,15 +4,15 @@
 @()
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="height: 100%">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <title>FindFacts</title>
 
-        @* Material components elm asseets. *@
-
+        @* Material components elm assets. *@
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500|Material+Icons">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto+Mono:300,400">
         <link rel="stylesheet" href="https://unpkg.com/material-components-web-elm@@2.1.1/dist/material-components-web-elm.min.css">
         <script src="https://unpkg.com/material-components-web-elm@@2.1.1/dist/material-components-web-elm.min.js"></script>
 
@@ -30,6 +30,9 @@
 
         @* Use compiled elm script. Auto-detection of minified script does not work for some reason. *@
         <script src="@routes.Assets.versioned("lib/search-webapp-ui/elmMain.min.js")" type="text/javascript"></script>
+
+        @* Add style to body, since elm will overwrite any set here *@
+        <style type="text/css">body {height: 100%}</style>
     </head>
     <body>
         @* Run the application. *@

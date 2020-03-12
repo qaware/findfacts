@@ -4,8 +4,9 @@ package de.qaware.findfacts.common.dt.solr
 object SolrSchema {
   // scalastyle:off scaladoc Justification: better explained in the entity classes.
   final val Id = "id"
+  final val ParentFlag = "parent_flag"
   final val TheoryKind = "thy_kind"
-  final val CommandKind = "cmd_kind"
+  final val Command = "command"
   final val SourceTheory = "theory"
   final val StartLine = "start_line"
   final val SourceTextBefore = "src_before"

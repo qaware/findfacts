@@ -32,7 +32,7 @@ import Material.Button exposing (buttonConfig)
 import Material.Card as Card exposing (cardConfig, cardPrimaryActionConfig)
 import Material.DataTable as Table exposing (DataTableRow)
 import Material.Elevation as Elevation
-import Material.Extra.Typography as ExtraTypography
+import Material.Extra.Code as Code
 import Material.LayoutGrid as Grid
 import Material.LinearProgress as Progress
 import Material.Theme as Theme
@@ -63,7 +63,7 @@ type State
 
 
 type alias StateInternal =
-    { blocks : List ShortCmd
+    { blocks : List ShortBlock
     , blockState : Dict String Bool
     }
 
@@ -97,7 +97,7 @@ searching =
 
 {-| Initializes a new state with the given results. Not an update function since Old results can be discarded.
 -}
-init : Result String (ResultList ShortCmd) -> State
+init : Result String (ResultList ShortBlock) -> State
 init result =
     case result of
         Ok resultList ->
@@ -105,7 +105,6 @@ init result =
                 { blocks = resultList.values
                 , blockState =
                     resultList.values
-                        |> getBlocks
                         |> List.map .id
                         |> List.map (pairWith False)
                         |> Dict.fromList
@@ -133,7 +132,7 @@ view state (Config conf) =
             Values res ->
                 [ Grid.layoutGrid []
                     (res.blocks
-                        |> List.map (renderCmd conf res)
+                        |> List.map (renderBlock conf res)
                         |> List.intersperse (br [] [])
                     )
                 ]
@@ -163,79 +162,49 @@ toggleBlockOpen id state =
 
 
 -- HELPERS
-
-
-getBlocks cmds =
-    cmds
-        |> List.filterMap
-            (\cmd ->
-                case cmd of
-                    Block block ->
-                        Just block
-
-                    _ ->
-                        Nothing
-            )
-
-
-
 -- RENDERING
 
 
-renderCmd : ConfigInternal msg -> StateInternal -> ShortCmd -> Html msg
-renderCmd conf state cmd =
-    case cmd of
-        Doc doc ->
-            lazy renderDocItem (renderDocContent doc)
-
-        Block block ->
-            renderBlockItem conf state block
-
-
-renderDocItem : Html msg -> Html msg
-renderDocItem content =
-    Card.card { cardConfig | additionalAttributes = [ Elevation.z1 ] }
-        { blocks = [ Card.cardBlock <| Grid.layoutGrid [ Grid.alignLeft ] [ content ] ], actions = Nothing }
-
-
-renderBlockItem : ConfigInternal msg -> StateInternal -> ShortBlock -> Html msg
-renderBlockItem conf state block =
+renderBlock : ConfigInternal msg -> StateInternal -> ShortBlock -> Html msg
+renderBlock conf state block =
+    let
+        content =
+            lazy2 renderBlockContent (state.blockState |> Dict.get block.id |> Maybe.withDefault False) block
+    in
     Card.card { cardConfig | additionalAttributes = [ Elevation.z1 ] }
         { blocks =
             Card.cardPrimaryAction
-                { cardPrimaryActionConfig | onClick = Just <| conf.toMsg <| toggleBlockOpen block.id state }
-                [ Card.cardBlock <|
-                    lazy2 renderBlockContent (state.blockState |> Dict.get block.id |> Maybe.withDefault False) block
-                ]
+                { cardPrimaryActionConfig | onClick = Just <| conf.toDetailMsg block.id }
+                [ Card.cardBlock <| content ]
         , actions =
-            Just <|
-                Card.cardActions
-                    { buttons =
-                        [ Card.cardActionButton { buttonConfig | onClick = Just <| conf.toDetailMsg block.id } "details"
-                        , block.entities |> List.map .id |> renderFindUsageButton conf block.src
-                        ]
-                    , icons = []
-                    }
+            if List.isEmpty block.entities then
+                Nothing
+
+            else
+                Just <|
+                    Card.cardActions
+                        { buttons =
+                            [ block.entities |> List.map .id |> renderFindUsedByButton conf block.src, renderFindUsesButton ]
+                        , icons = []
+                        }
         }
 
 
-renderFindUsageButton conf block ids =
-    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsageMsg block ids } "find usage"
+renderFindUsesButton =
+    Card.cardActionButton { buttonConfig | onClick = Nothing } "uses what"
 
 
-renderDocContent : Documentation -> Html msg
-renderDocContent doc =
-    div []
-        [ div [ Typography.caption, style "margin-bottom" "10pt" ] [ text doc.file ]
-        , ExtraTypography.code [] doc.src
-        ]
+renderFindUsedByButton conf block ids =
+    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsageMsg block ids } "used by"
 
 
 renderBlockContent : Bool -> ShortBlock -> Html msg
 renderBlockContent open block =
-    Grid.layoutGrid [ Grid.alignLeft ]
+    Grid.layoutGrid [ Grid.alignLeft, style "width" "100%" ]
         [ div [ Typography.caption, style "margin-bottom" "10pt" ] [ text block.file ]
-        , ExtraTypography.code [] block.src
+        , Code.block block.src
+            |> Code.withLineNumbersFrom block.startLine
+            |> Code.view
         , if open then
             Table.dataTable Table.dataTableConfig
                 { thead =

@@ -39,15 +39,14 @@ import Material.Button as Button exposing (buttonConfig)
 import Material.Chips as Chip exposing (FilterChip, filterChipConfig)
 import Material.Elevation as Elevation
 import Material.Extra.Chips as Chips
+import Material.Extra.Code as Code
 import Material.Extra.Divider as Divider
 import Material.Extra.Menu as Menu
-import Material.Extra.Typography as ExtraTypography
 import Material.Icon exposing (iconConfig)
 import Material.IconButton as IconButton exposing (iconButtonConfig)
 import Material.LayoutGrid as Grid
 import Material.List as MList exposing (listItemConfig)
 import Material.TextField as TextField exposing (textFieldConfig)
-import Material.Theme as Theme
 import Material.Typography as Typography
 import Maybe.Extra
 import Set exposing (Set)
@@ -67,11 +66,10 @@ type alias NamedField =
 facetableFields : AnyDict String Field NamedField
 facetableFields =
     AnyDict.fromList fieldToString
-        [ ( CmdKind, "Command" )
+        [ ( Command, "Command" )
         , ( SrcFile, "Source Theory" )
         , ( Kind, "Entity" )
         , ( ConstTypeFacet, "Type" )
-        , ( DocKind, "Documentation" )
         ]
         |> AnyDict.map NamedField
 
@@ -86,10 +84,10 @@ type alias FilterField =
 termFilterableFields : AnyDict String Field FilterField
 termFilterableFields =
     AnyDict.fromList fieldToString
-        [ ( Src, FilterField "Source Text" Nothing )
+        [ ( Command, FilterField "Command" <| Just Command )
+        , ( Src, FilterField "Source Text" Nothing )
         , ( SrcFile, FilterField "Source Theory" <| Just SrcFile )
         , ( Name, FilterField "Entity Name" <| Just NameFacet )
-        , ( Prop, FilterField "Proposition" <| Nothing )
         , ( ConstType, FilterField "Constant Type" <| Just ConstTypeFacet )
         ]
         |> AnyDict.map (\k v -> v k)
@@ -864,8 +862,8 @@ renderUsedIn : ConfigInternal msg -> (() -> State) -> UsageBlock -> Html msg
 renderUsedIn conf removeFn usedIn =
     renderCloseableEntry conf
         removeFn
-        "Used In"
-        (ExtraTypography.code [ style "max-height" "72px", style "overflow" "auto" ] usedIn.src)
+        "Uses"
+        (Code.block usedIn.src |> Code.withMaxHeight 160 |> Code.view)
 
 
 renderFieldFacet : ConfigInternal msg -> (Facet -> State) -> NamedField -> Facet -> Html msg

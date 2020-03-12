@@ -5,11 +5,11 @@ import scala.language.{postfixOps, reflectiveCalls}
 import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BaseEt, ConstantEt, EtField, FactEt, TypeEt}
+import de.qaware.findfacts.common.dt.{CodeblockEt, ConstantEt, EtField, FactEt, TheoryEt, TypeEt}
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.common.utils.TryUtils._
 import de.qaware.findfacts.core.QueryService.{FacetResult, ResultList}
-import de.qaware.findfacts.core.dt.{ResolvedConstant, ResolvedFact, ResolvedThyEt, ResolvedType, ShortCmd, ShortThyEt}
+import de.qaware.findfacts.core.dt.{ResolvedConstant, ResolvedFact, ResolvedThyEt, ResolvedType, ShortBlock, ShortThyEt}
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
 import org.apache.solr.client.solrj
 import org.apache.solr.client.solrj.SolrRequest.METHOD
@@ -126,44 +126,40 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
 
   override def getResultResolved(id: EtField.Id.T): Try[Option[ResolvedThyEt]] = {
     val res: Try[Option[Try[ResolvedThyEt]]] = for {
-      resOpt <- getResult(id)
+      resOpt <- getById[TheoryEt](id)
     } yield
       for {
-        res <- resOpt
+        elem <- resOpt
       } yield
-        res match {
-          case ConstantEt(id, _, _, propositionUses, typeUses, constantType) =>
+        elem match {
+          case ConstantEt(id, _, uses, constantType) =>
             for {
-              propUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(propositionUses: _*))
-              typeUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(typeUses: _*))
-            } yield ResolvedConstant(id, constantType, typeUsesRes.toList, propUsesRes.toList)
-          case FactEt(id, _, _, propositionUses, proofUses) =>
+              resolved <- getResult[ShortThyEt](mapper.buildQueryById(uses: _*))
+            } yield ResolvedConstant(id, constantType, resolved.toList)
+          case FactEt(id, _, uses) =>
             for {
-              propUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(propositionUses: _*))
-              proofUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(proofUses: _*))
-            } yield ResolvedFact(id, propUsesRes.toList, proofUsesRes.toList)
-          case TypeEt(id, _, _, propositionUses) =>
+              resolved <- getResult[ShortThyEt](mapper.buildQueryById(uses: _*))
+            } yield ResolvedFact(id, resolved.toList)
+          case TypeEt(id, _, uses) =>
             for {
-              propUsesRes <- getResult[ShortThyEt](mapper.buildQueryById(propositionUses: _*))
-            } yield ResolvedType(id, propUsesRes.toList)
+              resolved <- getResult[ShortThyEt](mapper.buildQueryById(uses: _*))
+            } yield ResolvedType(id, resolved.toList)
           case _ => return Success(None)
         }
     res.map(_.map(_.toEither.left.map(t => return Failure(t)).merge))
   }
 
-  override def getResult(id: EtField.Id.T): Try[Option[BaseEt]] =
-    getResult[BaseEt](mapper.buildQueryById(id)) map {
-      case Vector(elem) => Some(elem)
-      case _ => None
-    }
-
-  override def getShortResult(id: EtField.Id.T): Try[Option[ShortCmd]] = {
-    getResult[ShortCmd](mapper.buildQueryById(id)) map {
+  private def getById[A](id: EtField.Id.T)(implicit fromSolrDoc: FromSolrDoc[A]): Try[Option[A]] = {
+    getResult(mapper.buildQueryById(id))(fromSolrDoc) map {
       case Vector(elem) => Some(elem)
       case _ => None
     }
   }
 
-  override def getResultShortlist(filterQuery: FilterQuery): Try[ResultList[ShortCmd]] =
-    getResultList[ShortCmd](filterQuery)
+  override def getBlock(id: EtField.Id.T): Try[Option[CodeblockEt]] = getById[CodeblockEt](id)
+
+  override def getShortBlock(id: EtField.Id.T): Try[Option[ShortBlock]] = getById[ShortBlock](id)
+
+  override def getResultShortlist(filterQuery: FilterQuery): Try[ResultList[ShortBlock]] =
+    getResultList[ShortBlock](filterQuery)
 }

@@ -37,6 +37,7 @@ module Util exposing
 
 import Dict.Any as AnyDict exposing (AnyDict)
 import Html exposing (Html, div, text)
+import Html.Attributes exposing (style)
 import Html.Parser
 import Html.Parser.Util
 import Json.Decode as Decode exposing (Decoder, Error)
@@ -190,7 +191,7 @@ renderHtml : String -> Html Never
 renderHtml html =
     case Html.Parser.run html of
         Ok nodes ->
-            div [] <| Html.Parser.Util.toVirtualDom nodes
+            div [ style "display" "inline-block" ] <| Html.Parser.Util.toVirtualDom nodes
 
         _ ->
             text html

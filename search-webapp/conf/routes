@@ -17,7 +17,7 @@ GET     /assets/*file                       controllers.Assets.versioned(file)
 # Retrieves detailed information about a single entity
 GET     /v1/entities/:id                    de.qaware.findfacts.webapp.controllers.QueryController.entity(id: String)
 # Retrieves short entry for a single command
-GET     /v1/entities/cmd/short/:id          de.qaware.findfacts.webapp.controllers.QueryController.shortCmd(id: String)
+GET     /v1/entities/block/short/:id        de.qaware.findfacts.webapp.controllers.QueryController.shortBlock(id: String)
 # Resolves a theory entity one level deep
 GET     /v1/entities/theory/resolved/:id    de.qaware.findfacts.webapp.controllers.QueryController.resolved(id: String)
 # Searches by a complete query

@@ -11,7 +11,7 @@ import shapeless.tag.Tagged
   */
 trait Variant[A <: EnumEntry, F <: SingleValuedField[A], B <: A]
 
-/** Companion object to wrap tag. */
+/** Companion object. */
 object Variant {
 
   /** Extending this type tags the class with [[Variant]].
@@ -21,4 +21,5 @@ object Variant {
     * @tparam B concrete variant type
     */
   type Discriminator[A <: EnumEntry, F <: SingleValuedField[A], B <: A] = Tagged[Variant[A, F, B]]
+
 }

@@ -21,31 +21,16 @@ type alias ResultList a =
     }
 
 
-type ShortCmd
-    = Block ShortBlock
-    | Doc Documentation
-
-
 type alias ShortBlock =
     { id : String
     , file : String
+    , command : String
+    , startLine : Int
+    , srcBefore : String
     , src : String
+    , srcAfter : String
     , entities : List ShortEt
     }
-
-
-type alias Documentation =
-    { id : String
-    , file : String
-    , src : String
-    , docKind : DocumentationKind
-    }
-
-
-type DocumentationKind
-    = Latex
-    | Meta
-    | Inline
 
 
 type alias ShortEt =
@@ -70,21 +55,19 @@ type ThyEt
 type alias ConstantEt =
     { id : String
     , typ : String
-    , typUses : List ShortEt
-    , propUses : List ShortEt
+    , uses : List ShortEt
     }
 
 
 type alias FactEt =
     { id : String
-    , propUses : List ShortEt
-    , proofUses : List ShortEt
+    , uses : List ShortEt
     }
 
 
 type alias TypeEt =
     { id : String
-    , ctorUses : List ShortEt
+    , uses : List ShortEt
     }
 
 
@@ -94,16 +77,17 @@ type alias TypeEt =
 
 type Field
     = Id
-    | CmdKind
-    | Src
     | SrcFile
+    | Command
+    | StartLine
+    | SrcBefore
+    | Src
+    | SrcAfter
     | Name
     | NameFacet
     | Kind
-    | Prop
     | ConstType
     | ConstTypeFacet
-    | DocKind
     | Uses
 
 
@@ -162,33 +146,29 @@ kindToString kind =
             "Type"
 
 
-documentationKindToString : DocumentationKind -> String
-documentationKindToString kind =
-    case kind of
-        Latex ->
-            "Latex"
-
-        Meta ->
-            "Meta"
-
-        Inline ->
-            "Inline"
-
-
 fieldToString : Field -> String
 fieldToString field =
     case field of
         Id ->
             "Id"
 
-        CmdKind ->
-            "CommandKind"
+        SrcFile ->
+            "SourceTheory"
+
+        Command ->
+            "Command"
+
+        StartLine ->
+            "StartLine"
+
+        SrcBefore ->
+            "SourceTextBefore"
 
         Src ->
             "SourceText"
 
-        SrcFile ->
-            "SourceTheory"
+        SrcAfter ->
+            "SourceTextAfter"
 
         Kind ->
             "Kind"
@@ -199,20 +179,14 @@ fieldToString field =
         NameFacet ->
             "NameFacet"
 
-        Prop ->
-            "Proposition"
-
         ConstType ->
             "ConstantType"
 
         ConstTypeFacet ->
             "ConstantTypeFacet"
 
-        DocKind ->
-            "DocumentationKind"
-
         Uses ->
-            "PropositionUses"
+            "Uses"
 
 
 
@@ -225,14 +199,23 @@ fieldFromString str =
         "Id" ->
             Ok Id
 
-        "CommandKind" ->
-            Ok CmdKind
+        "SourceTheory" ->
+            Ok SrcFile
+
+        "Command" ->
+            Ok Command
+
+        "StartLine" ->
+            Ok StartLine
+
+        "SourceTextBefore" ->
+            Ok SrcBefore
 
         "SourceText" ->
             Ok Src
 
-        "SourceTheory" ->
-            Ok SrcFile
+        "SourceTextAfter" ->
+            Ok SrcAfter
 
         "Kind" ->
             Ok Kind
@@ -243,19 +226,13 @@ fieldFromString str =
         "NameFacet" ->
             Ok NameFacet
 
-        "Proposition" ->
-            Ok Prop
-
         "ConstantType" ->
             Ok ConstType
 
         "ConstantTypeFacet" ->
             Ok ConstTypeFacet
 
-        "DocumentationKind" ->
-            Ok DocKind
-
-        "PropositionUses" ->
+        "Uses" ->
             Ok Uses
 
         _ ->
@@ -276,22 +253,6 @@ kindFromString str =
 
         _ ->
             Err <| "Invalid theory entity kind: " ++ str
-
-
-documentationKindFromString : String -> Result String DocumentationKind
-documentationKindFromString str =
-    case str of
-        "Meta" ->
-            Ok Meta
-
-        "Inline" ->
-            Ok Inline
-
-        "Latex" ->
-            Ok Latex
-
-        _ ->
-            Err <| "No such documentation kind: " ++ str
 
 
 
@@ -376,31 +337,16 @@ kindDecoder =
     resultStringDecoder kindFromString
 
 
-documentationKindDecoder : Decoder DocumentationKind
-documentationKindDecoder =
-    resultStringDecoder documentationKindFromString
-
-
-shortCmdDecoder : Decoder ShortCmd
-shortCmdDecoder =
-    Decode.oneOf [ Decode.map Block shortBlockDecoder, Decode.map Doc documentationDecoder ]
-
-
-documentationDecoder : Decoder Documentation
-documentationDecoder =
-    Decode.map4 Documentation
-        (Decode.field "id" Decode.string)
-        (Decode.field "theory" Decode.string)
-        (Decode.field "src" Decode.string)
-        (Decode.field "docKind" documentationKindDecoder)
-
-
 shortBlockDecoder : Decoder ShortBlock
 shortBlockDecoder =
-    Decode.map4 ShortBlock
+    Decode.map8 ShortBlock
         (Decode.field "id" Decode.string)
         (Decode.field "theory" Decode.string)
+        (Decode.field "command" Decode.string)
+        (Decode.field "startLine" Decode.int)
+        (Decode.field "srcBefore" Decode.string)
         (Decode.field "src" Decode.string)
+        (Decode.field "srcAfter" Decode.string)
         (Decode.field "entities" (Decode.list shortEtDecoder))
 
 
@@ -429,19 +375,17 @@ resultFacetingDecoder =
 
 constantEtDecoder : Decoder ConstantEt
 constantEtDecoder =
-    Decode.map4 ConstantEt
+    Decode.map3 ConstantEt
         (Decode.field "id" Decode.string)
         (Decode.field "typ" Decode.string)
-        (Decode.field "typUses" (Decode.list shortEtDecoder))
-        (Decode.field "propUses" (Decode.list shortEtDecoder))
+        (Decode.field "uses" (Decode.list shortEtDecoder))
 
 
 factEtDecoder : Decoder FactEt
 factEtDecoder =
-    Decode.map3 FactEt
+    Decode.map2 FactEt
         (Decode.field "id" Decode.string)
-        (Decode.field "propUses" (Decode.list shortEtDecoder))
-        (Decode.field "proofUses" (Decode.list shortEtDecoder))
+        (Decode.field "uses" (Decode.list shortEtDecoder))
 
 
 typeEtDecoder : Decoder TypeEt

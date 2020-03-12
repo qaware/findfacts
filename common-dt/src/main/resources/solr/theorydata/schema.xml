@@ -3,7 +3,7 @@
     <fields>
         <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
         <field name="id" type="string" required="true" docValues="false" uninvertible="true" multiValued="false" omitTermFreqAndPositions="true"/>
-        <field name="cmd_kind" type="string" docValues="true" multiValued="false"/>
+        <field name="command" type="string" docValues="true" multiValued="false"/>
         <field name="thy_kind" type="string" docValues="true" multiValued="false"/>
         <field name="theory" type="string" docValues="true" multiValued="false" omitNorms="true"/>
         <field name="start_line" type="pint" multiValued="false"/>
@@ -83,12 +83,5 @@
                 <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
         </fieldType>
-        <!-- Enum kinds cause solr errors when doing advanced faceting. Workaround is to use strings instead (not that expensive for docvalues fields.) -->
-        <fieldType name="cmd_kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
-                   enumName="CommandKind"/>
-        <fieldType name="thy_kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
-                   enumName="TheoryKind"/>
-        <fieldType name="doc_kind" class="solr.EnumFieldType" docValues="true" enumsConfig="enumsconfig.xml"
-                   enumName="DocumentationKind"/>
     </types>
 </schema>

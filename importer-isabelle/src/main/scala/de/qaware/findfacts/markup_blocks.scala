@@ -21,8 +21,11 @@ object Markup_Blocks
     val BY = Value("by")
     val CASE = Value("case")
     val CLOSE = Value("}")
+    val CONSIDER = Value("consider")
     val DEFER = Value("defer")
     val DONE = Value("done")
+    val DOT = Value(".")
+    val DOTDOT = Value("..")
     val END = Value("end")
     val FINALLY = Value("finally")
     val FIX = Value("fix")
@@ -67,7 +70,7 @@ object Markup_Blocks
         val start_index = if (acc.isEmpty) 1 else acc.last.range.stop
 
         val content = XML.content(text)
-        val html = HTML.output(Symbol.decode_yxml(content), hidden = false, structural = true)
+        val html = HTML.output(Symbol.decode_yxml(content), hidden = false, structural = false)
 
         val block = Block(Text.Range(start_index, start_index + Symbol.length(content)), start_line, html)
 

@@ -11,7 +11,6 @@ import Components.Search as Search
 import DataTypes exposing (..)
 import Html exposing (Html, a, b, br, div, h1, h2, h3, p, span, text)
 import Html.Attributes exposing (attribute, href, style)
-import Html.Events exposing (onMouseEnter)
 import Html.Lazy exposing (lazy, lazy2)
 import Http
 import Json.Decode as Decode
@@ -120,7 +119,7 @@ type Msg
     | ResultsMsg Results.State
     | ResultsDetail String
     | ResultsUsingMsg String (List String)
-    | FilterResult (Result Http.Error (ResultList ShortCmd))
+    | FilterResult (Result Http.Error (ResultList ShortBlock))
       -- Details component
     | DetailsResult (Result Http.Error ShortBlock)
     | DetailsMsg (Maybe String) Details.State
@@ -391,7 +390,7 @@ executeFilterQuery apiBaseUrl query =
     Http.post
         { url = apiBaseUrl ++ "/v1/search"
         , body = Http.jsonBody (encodeFilterQuery query)
-        , expect = Http.expectJson FilterResult (resultListDecoder shortCmdDecoder)
+        , expect = Http.expectJson FilterResult (resultListDecoder shortBlockDecoder)
         }
 
 
@@ -400,7 +399,7 @@ executeFilterQuery apiBaseUrl query =
 executeBlockQuery : String -> String -> Cmd Msg
 executeBlockQuery apiBaseUrl blockId =
     Http.get
-        { url = apiBaseUrl ++ "/v1/entities/cmd/short/" ++ blockId
+        { url = apiBaseUrl ++ "/v1/entities/block/short/" ++ blockId
         , expect = Http.expectJson DetailsResult shortBlockDecoder
         }
 
@@ -471,14 +470,10 @@ view model =
     in
     { title = "FindFacts"
     , body =
-        [ div (ite locked [ attribute "pointer-events" "none" ] [])
+        [ div (style "height" "100%" :: ite locked [ attribute "pointer-events" "none" ] [])
             [ lazy renderDrawer drawerOpen
             , Drawer.drawerScrim [] []
-            , div [ Drawer.appContent, style "background-color" "rgb(248,248,248)", style "min-height" "100vh" ] <|
-                [ renderTopBar
-                , br [] []
-                , lazy renderPage page
-                ]
+            , div [ Drawer.appContent, style "height" "100%" ] [ renderTopBar, lazy renderPage page ]
             ]
         ]
     }
@@ -510,7 +505,7 @@ renderTopBar : Html Msg
 renderTopBar =
     TopAppBar.topAppBar { topAppBarConfig | dense = True, additionalAttributes = [ Elevation.z4 ] }
         [ TopAppBar.row
-            [ style "max-width" "1170px", style "margin" "0 auto" ]
+            [ style "max-width" "1200px", style "margin" "0 auto" ]
             [ TopAppBar.section [ TopAppBar.alignStart ]
                 [ IconButton.iconButton
                     { iconButtonConfig
@@ -529,25 +524,40 @@ renderTopBar =
 -}
 renderPage : Page -> Html Msg
 renderPage page =
-    Grid.layoutGrid [ style "max-width" "1170px", style "margin" "0 auto", TopAppBar.denseFixedAdjust ] <|
-        case page of
-            Home search paging results ->
-                renderPageHome search paging results
+    case page of
+        Home search paging results ->
+            renderPageHome search paging results |> renderInPage [ style "min-width" "360px" ]
 
-            Details details ->
-                Details.config DetailsMsg |> Details.view details
+        Details details ->
+            [ Details.view details (Details.config DetailsMsg) ] |> renderInPage []
 
-            Help ->
-                renderPageHelp
+        Help ->
+            renderPageHelp |> renderInPage []
 
-            Feedback emailState ->
-                renderPageFeedback emailState
+        Feedback emailState ->
+            renderPageFeedback emailState |> renderInPage []
 
-            About ->
-                renderPageAbout
+        About ->
+            renderPageAbout |> renderInPage []
 
-            NotFound ->
-                renderPageNotFound
+        NotFound ->
+            renderPageNotFound |> renderInPage []
+
+
+{-| Renders content in a page environment.
+-}
+renderInPage : List (Html.Attribute Msg) -> List (Html Msg) -> Html Msg
+renderInPage additionalAttrs content =
+    div ([ style "background-color" "rgb(248,248,248)", style "min-height" "100%" ] ++ additionalAttrs)
+        [ content
+            |> Grid.layoutGrid
+                [ style "background-color" "rgb(248,248,248)"
+                , style "max-width" "1200px"
+                , style "margin" "0 auto"
+                , style "min-height" "100%"
+                , TopAppBar.denseFixedAdjust
+                ]
+        ]
 
 
 {-| Renders the main home page.

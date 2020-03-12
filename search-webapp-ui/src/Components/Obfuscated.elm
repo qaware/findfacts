@@ -102,6 +102,10 @@ view (State state) (Config conf) =
             [ obfuscate state.content |> conf.toObfuscated ]
 
 
+
+-- INTERNALS
+
+
 obfuscate : List String -> Html msg
 obfuscate chars =
     chars

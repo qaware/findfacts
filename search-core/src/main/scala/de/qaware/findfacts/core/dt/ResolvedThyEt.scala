@@ -9,33 +9,21 @@ sealed trait ResolvedThyEt
   *
   * @param id unique identifier
   * @param typ of the constant
-  * @param typUses referenced types
-  * @param propUses referenced consts
+  * @param uses referenced entities
   */
-case class ResolvedConstant(
-    id: String,
-    typ: String,
-    typUses: List[ShortThyEt],
-    propUses: List[ShortThyEt],
-    kind: Kind = Kind.Constant)
+case class ResolvedConstant(id: String, typ: String, uses: List[ShortThyEt], kind: Kind = Kind.Constant)
     extends ResolvedThyEt
 
 /** Resolved information for facts.
   *
   * @param id unique identifier
-  * @param propUses referenced consts
-  * @param proofUses referenced facts
+  * @param uses referenced entities
   */
-case class ResolvedFact(
-    id: String,
-    propUses: List[ShortThyEt],
-    proofUses: List[ShortThyEt],
-    kind: Kind = Kind.Fact)
-    extends ResolvedThyEt
+case class ResolvedFact(id: String, uses: List[ShortThyEt], kind: Kind = Kind.Fact) extends ResolvedThyEt
 
 /** Resolved information for types.
   *
   * @param id unique identifier
-  * @param uses referenced types
+  * @param uses referenced entities
   */
 case class ResolvedType(id: String, uses: List[ShortThyEt], kind: Kind = Kind.Type) extends ResolvedThyEt
