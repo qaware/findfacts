@@ -22,8 +22,9 @@ import Dict exposing (Dict)
 import Html exposing (Html, br, div, h4, text)
 import Html.Attributes exposing (style)
 import Html.Lazy exposing (lazy)
+import Material.Button exposing (buttonConfig)
 import Material.Card as Card exposing (cardPrimaryActionConfig)
-import Material.DataTable as Table
+import Material.DataTable as Table exposing (dataTableHeaderCellConfig)
 import Material.Elevation as Elevation
 import Material.Extra.Code as Code
 import Material.Extra.Divider as Divider
@@ -42,7 +43,9 @@ type Config msg
 
 
 type alias ConfigInternal msg =
-    { toMsg : Maybe String -> State -> msg }
+    { toMsg : Maybe String -> State -> msg
+    , toUsedByMsg : String -> List String -> msg
+    }
 
 
 {-| Opaque state type for detail result component.
@@ -73,9 +76,9 @@ type ResultState
 
 {-| Creates a config for a detail result component.
 -}
-config : (Maybe String -> State -> msg) -> Config msg
-config toMsg =
-    Config (ConfigInternal toMsg)
+config : (Maybe String -> State -> msg) -> (String -> List String -> msg) -> Config msg
+config toMsg toUsedByMsg =
+    Config (ConfigInternal toMsg toUsedByMsg)
 
 
 {-| Create an initially empty state.
@@ -242,8 +245,13 @@ renderEntity state conf et =
                 }
                 [ head ]
                 ++ [ body ]
-        , actions = Nothing
+        , actions =
+            Just <| Card.cardFullBleedActions <| renderFindUsedByButton conf state.block.src [ et.id ]
         }
+
+
+renderFindUsedByButton conf block ids =
+    Card.cardActionButton { buttonConfig | onClick = Just <| conf.toUsedByMsg block ids } "used by"
 
 
 renderEntityDetails : EntityState -> Html msg
@@ -286,16 +294,11 @@ renderUses entities =
         :: ite (List.isEmpty entities)
             []
             [ Table.dataTable Table.dataTableConfig
-                { thead = []
+                { thead = [ Table.dataTableHeaderRow [] [ Table.dataTableHeaderCell dataTableHeaderCellConfig [ text "Kind" ], Table.dataTableHeaderCell dataTableHeaderCellConfig [ text "Name" ] ] ]
                 , tbody =
                     entities
                         |> List.map
-                            (.name
-                                >> text
-                                >> List.singleton
-                                >> Table.dataTableCell Table.dataTableCellConfig
-                                >> List.singleton
-                                >> Table.dataTableRow Table.dataTableRowConfig
-                            )
+                            (\et -> [ Table.dataTableCell Table.dataTableCellConfig [ text <| kindToString et.kind ], Table.dataTableCell Table.dataTableCellConfig [ text et.name ] ])
+                        |> List.map (Table.dataTableRow Table.dataTableRowConfig)
                 }
             ]

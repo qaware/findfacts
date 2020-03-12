@@ -118,7 +118,7 @@ type Msg
       -- Results component
     | ResultsMsg Results.State
     | ResultsDetail String
-    | ResultsUsingMsg String (List String)
+    | FindUsedByMsg String (List String)
     | FilterResult (Result Http.Error (ResultList ShortBlock))
       -- Details component
     | DetailsResult (Result Http.Error ShortBlock)
@@ -161,7 +161,7 @@ update msg model =
                 ( ResultsDetail id, _ ) ->
                     ( { model | state = Locked False page }, Navigation.pushUrl model.navKey <| urlEncodeDetail id )
 
-                ( ResultsUsingMsg block ids, Home _ _ _ ) ->
+                ( FindUsedByMsg block ids, _ ) ->
                     ( { model | state = Locked False page }
                     , Navigation.pushUrl model.navKey <| urlEncodeHome (Search.initUsing block ids) Paging.empty
                     )
@@ -529,7 +529,7 @@ renderPage page =
             renderPageHome search paging results |> renderInPage [ style "min-width" "360px" ]
 
         Details details ->
-            [ Details.view details (Details.config DetailsMsg) ] |> renderInPage []
+            [ Details.view details (Details.config DetailsMsg FindUsedByMsg) ] |> renderInPage []
 
         Help ->
             renderPageHelp |> renderInPage []
@@ -577,7 +577,7 @@ renderPageHome search paging results =
         ]
     , lazy2 Search.view search (Search.config SearchInternalMsg SearchMsg)
     , br [] []
-    , lazy2 Results.view results (Results.config ResultsMsg ResultsDetail ResultsUsingMsg)
+    , lazy2 Results.view results (Results.config ResultsMsg ResultsDetail FindUsedByMsg)
     , br [] []
     , lazy2 Paging.view paging (Paging.config PagingMsg)
     ]

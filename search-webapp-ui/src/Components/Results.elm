@@ -184,14 +184,10 @@ renderBlock conf state block =
                 Just <|
                     Card.cardActions
                         { buttons =
-                            [ block.entities |> List.map .id |> renderFindUsedByButton conf block.src, renderFindUsesButton ]
+                            [ block.entities |> List.map .id |> renderFindUsedByButton conf block.src ]
                         , icons = []
                         }
         }
-
-
-renderFindUsesButton =
-    Card.cardActionButton { buttonConfig | onClick = Nothing } "uses what"
 
 
 renderFindUsedByButton conf block ids =

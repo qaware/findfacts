@@ -16,7 +16,7 @@ object SolrQueryLiterals {
   final val All = "*"
 
   /** Query to filter parent values. */
-  final val QueryParent = "cmd_kind:*"
+  final val QueryParent = "command:*"
 
   /** Query to get all values. */
   final val QueryAll = "*:*"
