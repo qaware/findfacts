@@ -39,7 +39,7 @@ class ExtractBlocksStep extends ImportStep {
     } else if (src.trim.startsWith("(*")) {
       "(*"
     } else {
-      src.trim.split("\\s+|\\(|‹|\\{|\\[").headOption.getOrElse("")
+      src.trim.split("\\s+|\\(|‹|\\{|\\[|✐").headOption.getOrElse("")
     }
   }
 

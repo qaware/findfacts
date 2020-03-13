@@ -2,25 +2,20 @@ package de.qaware.findfacts.core.solrimpl
 
 import java.util.regex.Matcher
 
-import scala.util.{Success, Try}
-
-import de.qaware.findfacts.common.dt.EtField.{Children, Id}
+import de.qaware.findfacts.common.da.api.{MultiValuedField, OptionalField, SingleValuedField}
+import de.qaware.findfacts.common.dt.EtField
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.common.utils.TryUtils._
-import de.qaware.findfacts.core.QueryService.ResultList
 import de.qaware.findfacts.core.solrimpl.SolrQueryLiterals.All
 import de.qaware.findfacts.core.{And, Exact, FieldFilter, Filter, FilterQuery, InRange, InResult, Not, Or, Term}
 
-/** Children for id-only blocks. */
-case object IdChildren extends Children[Id.T] {
-  override implicit val implicits: FieldImplicits[Id.T] = FieldImplicits()
-}
+import scala.util.{Failure, Success, Try}
 
 /** Mapper to map filters to solr query strings. */
 class SolrFilterMapper {
 
   /** Maximum number of children for recursive queries. */
-  final val MaxChildren = 1000
+  final val MaxInnerResult = 1000
 
   /** Characters that need to be escaped. Special characters that may be used: * ? */
   private final val SpecialChars =
@@ -33,14 +28,28 @@ class SolrFilterMapper {
 
   private final val ExactEscapeRegex = (SpecialChars ++ ExactSpecialChars).map(s => s"($s)").mkString("|").r
 
-  private def innerQuery(fq: List[FieldFilter], toQuery: ResultList[IdChildren.T] => String)(
+  private def innerQuery(field: EtField, fq: List[FieldFilter], toQuery: Seq[String] => String)(
       implicit queryService: SolrQueryService): Try[String] = {
-    queryService.getResultList[IdChildren.T](FilterQuery(fq, MaxChildren))(FromSolrDoc[IdChildren.T]).map(toQuery)
+    val results: Try[Seq[_]] = field match {
+      case f: OptionalField[_] =>
+        val results = queryService.getResultVector[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
+        results.map(_.flatMap(_.asInstanceOf[Option[_]]))
+      case f: MultiValuedField[_] =>
+        val results = queryService.getResultVector[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
+        results.map(_.flatMap(_.asInstanceOf[List[_]]))
+      case f: SingleValuedField[_] =>
+        queryService.getResultVector[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
+      case _ => return Failure(new IllegalArgumentException(s"Field ${field.name} not allowed in query"))
+    }
+    results.map(_.map(_.toString)).map(toQuery)
   }
 
-  private def anyInResult(res: ResultList[IdChildren.T]): String = res match {
-    case ResultList(Vector(), _, _) => s"(${SolrQueryLiterals.Not}$All)"
-    case ResultList(values, _, _) => s"(${values.flatten.mkString(" ")})"
+  private def anyInResult(res: Seq[String]): String = {
+    if (res.isEmpty) {
+      s"(${SolrQueryLiterals.Not}$All)"
+    } else {
+      s"(${res.mkString(" ")})"
+    }
   }
 
   /** Escapes a value string.
@@ -75,6 +84,6 @@ class SolrFilterMapper {
     case Term(inner) => Success(escape(inner, exact = false))
     case Exact(inner) => Success(escape(inner, exact = true))
     case InRange(from, to) => Success(s"[$from TO $to]")
-    case InResult(of) => innerQuery(of, anyInResult)
+    case InResult(ofField, query) => innerQuery(ofField, query, anyInResult)
   }
 }

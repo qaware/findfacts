@@ -1,21 +1,20 @@
 package de.qaware.findfacts.core.solrimpl
 
-import scala.collection.JavaConverters._
-import scala.language.{postfixOps, reflectiveCalls}
-import scala.util.{Failure, Success, Try}
-
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{CodeblockEt, ConstantEt, EtField, FactEt, TheoryEt, TypeEt}
+import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, TypeEt}
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.common.utils.TryUtils._
 import de.qaware.findfacts.core.QueryService.{FacetResult, ResultList}
 import de.qaware.findfacts.core.dt.{ResolvedConstant, ResolvedFact, ResolvedThyEt, ResolvedType, ShortBlock, ShortThyEt}
-import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
+import de.qaware.findfacts.core.{Exact, FacetQuery, FieldFilter, FilterQuery, Or, QueryService}
 import org.apache.solr.client.solrj
 import org.apache.solr.client.solrj.SolrRequest.METHOD
 import org.apache.solr.client.solrj.request.json.JsonQueryRequest
 import org.apache.solr.client.solrj.response.QueryResponse
 import org.apache.solr.client.solrj.{SolrClient, SolrServerException}
+
+import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
 
 /** Solr impl of the query service.
   *
@@ -24,6 +23,9 @@ import org.apache.solr.client.solrj.{SolrClient, SolrServerException}
   */
 class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends QueryService {
   private val logger = Logger[SolrQueryService]
+
+  /** Make this implicitly available. */
+  private implicit val queryService: SolrQueryService = this
 
   /** Get result from solr */
   private def getSolrResult(query: Either[solrj.SolrQuery, JsonQueryRequest]): Try[QueryResponse] = {
@@ -43,6 +45,54 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     }
   }
 
+  private def mapSingle[A](resp: QueryResponse, typed: Seq[A]): Option[A] = typed match {
+    case Seq(elem) => Some(elem)
+    case elems => None
+  }
+
+  private def mapResults[A](resp: QueryResponse, typed: Seq[A]): Vector[A] = typed.toVector
+
+  private def mapResultList[A](resp: QueryResponse, typed: Seq[A]): ResultList[A] = {
+    ResultList(typed.toVector, resp.getResults.getNumFound, resp.getNextCursorMark)
+  }
+
+  /** Generic method to get results.
+    *
+    * @param query to find results for
+    * @param qBuilder to build solr query
+    * @param rMapper to map typed results to desired type
+    * @param docMapper to map solr docs to results
+    * @tparam A type of result entities
+    * @tparam B result type
+    * @return container with results
+    */
+  private def getResults[A, B](
+      query: FilterQuery,
+      qBuilder: FilterQuery => Try[solrj.SolrQuery],
+      rMapper: (QueryResponse, Seq[A]) => B)(implicit docMapper: FromSolrDoc[A]): Try[B] = {
+    if (query.pageSize < 0) {
+      return Failure(new IllegalArgumentException("Page size cannot be negative"))
+    }
+
+    for {
+      query <- qBuilder(query)
+      () = docMapper.getSolrFields.foreach(f => query.addField(f.name))
+      res <- getSolrResult(Left(query))
+      typedRes <- tryFailFirst(res.getResults.asScala.map(docMapper.fromSolrDoc))
+    } yield rMapper(res, typedRes)
+  }
+
+  private[solrimpl] def getResultVector[A](query: FilterQuery)(implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] =
+    getResults[A, Vector[A]](query, mapper.buildFilterQuery, mapResults)
+
+  private def idsFilterQuery(ids: EtField.Id.T*): FilterQuery = {
+    val idFilters = ids.toList match {
+      case List(t) => Exact(t)
+      case t1 :: t2 :: tn => Or(Exact(t1), Exact(t2), tn.map(Exact(_)): _*)
+    }
+    FilterQuery(List(FieldFilter(EtField.Id, idFilters)), ids.size)
+  }
+
   override def getResultFacet(facetQuery: FacetQuery): Try[FacetResult] = {
     if (facetQuery.maxFacets < 0) {
       return Failure(new IllegalArgumentException("Maximum number of facets cannot be negative"))
@@ -57,7 +107,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     }
 
     for {
-      solrQuery <- mapper.buildFacetQuery(this, facetQuery)
+      solrQuery <- mapper.buildBlockFacetQuery(facetQuery)
       solrResult <- getSolrResult(Right(solrQuery))
     } yield {
       // Handle null values in response / for facets
@@ -85,81 +135,67 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     }
   }
 
-  /** Get result docs and map to entity.
-    *
-    * @param filterQuery fo execute
-    * @param docMapper for result types
-    * @tparam A type of result
-    * @return vector containing results, result count, and next cursor or error
-    */
-  def getResultList[A](filterQuery: FilterQuery)(implicit docMapper: FromSolrDoc[A]): Try[ResultList[A]] = {
-    if (filterQuery.pageSize < 0) {
-      return Failure(new IllegalArgumentException("Page size cannot be negative"))
-    }
-
-    val results = for {
-      query <- mapper.buildFilterQuery(this, filterQuery)
-      () = docMapper.getSolrFields.foreach(f => query.addField(f.name))
-      solrRes <- getSolrResult(Left(query))
-    } yield {
-      val resList: Try[Seq[A]] = solrRes.getResults.asScala.map(docMapper.fromSolrDoc)
-      resList.map(r => ResultList(r.toVector, solrRes.getResults.getNumFound, solrRes.getNextCursorMark))
-    }
-    results.flatten
-  }
-
-  /** Get single doc by id and map to entity.
-    *
-    * @param query solr query to search for
-    * @param docMapper for result type
-    * @tparam A type of result
-    * @return option containing result if found
-    */
-  private def getResult[A](query: solrj.SolrQuery)(implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] = {
-    docMapper.getSolrFields.foreach(f => query.addField(f.name))
-    val res: Try[Try[Seq[A]]] = for {
-      solrRes <- getSolrResult(Left(query))
-    } yield solrRes.getResults.asScala.map(docMapper.fromSolrDoc)
-
-    res.flatten.map(_.toVector)
-  }
-
   override def getResultResolved(id: EtField.Id.T): Try[Option[ResolvedThyEt]] = {
     val res: Try[Option[Try[ResolvedThyEt]]] = for {
-      resOpt <- getById[TheoryEt](id)
+      resOpt <- getResults[BaseEt, Option[BaseEt]](idsFilterQuery(id), mapper.buildFilterQuery, mapSingle)
     } yield
       for {
         elem <- resOpt
       } yield
         elem match {
-          case ConstantEt(id, _, uses, constantType) =>
+          case ConstantEt(id, _, uses, constantType, _) =>
             for {
-              resolved <- getResult[ShortThyEt](mapper.buildQueryById(uses: _*))
+              resolved <- getResults[ShortThyEt, Vector[ShortThyEt]](
+                idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
+                mapper.buildFilterQuery,
+                mapResults)
             } yield ResolvedConstant(id, constantType, resolved.toList)
-          case FactEt(id, _, uses) =>
+          case FactEt(id, _, uses, _) =>
             for {
-              resolved <- getResult[ShortThyEt](mapper.buildQueryById(uses: _*))
+              resolved <- getResults[ShortThyEt, Vector[ShortThyEt]](
+                idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
+                mapper.buildFilterQuery,
+                mapResults)
             } yield ResolvedFact(id, resolved.toList)
-          case TypeEt(id, _, uses) =>
+          case TypeEt(id, _, uses, _) =>
             for {
-              resolved <- getResult[ShortThyEt](mapper.buildQueryById(uses: _*))
+              resolved <- getResults[ShortThyEt, Vector[ShortThyEt]](
+                idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
+                mapper.buildFilterQuery,
+                mapResults)
             } yield ResolvedType(id, resolved.toList)
           case _ => return Success(None)
         }
     res.map(_.map(_.toEither.left.map(t => return Failure(t)).merge))
   }
 
-  private def getById[A](id: EtField.Id.T)(implicit fromSolrDoc: FromSolrDoc[A]): Try[Option[A]] = {
-    getResult(mapper.buildQueryById(id))(fromSolrDoc) map {
-      case Vector(elem) => Some(elem)
-      case _ => None
+  override def getBlock(id: EtField.Id.T): Try[Option[CodeblockEt]] = {
+    val res = getResults[CodeblockEt, Option[CodeblockEt]](idsFilterQuery(id), mapper.buildBlockFilterQuery, mapSingle)
+    if (res.map(_.isEmpty).getOrElse(false)) {
+      // Try to fetch child doc on empty result
+      getResults[CodeblockEt, Option[CodeblockEt]](
+        FilterQuery(List(FieldFilter(EtField.ChildId, Exact(id))), 2),
+        mapper.buildBlockFilterQuery,
+        mapSingle)
+    } else {
+      res
     }
   }
 
-  override def getBlock(id: EtField.Id.T): Try[Option[CodeblockEt]] = getById[CodeblockEt](id)
+  override def getShortBlock(id: EtField.Id.T): Try[Option[ShortBlock]] = {
+    val res = getResults[ShortBlock, Option[ShortBlock]](idsFilterQuery(id), mapper.buildBlockFilterQuery, mapSingle)
+    if (res.map(_.isEmpty).getOrElse(false)) {
+      // Try to fetch child doc on empty result
+      getResults[ShortBlock, Option[ShortBlock]](
+        FilterQuery(List(FieldFilter(EtField.ChildId, Exact(id))), 2),
+        mapper.buildBlockFilterQuery,
+        mapSingle)
+    } else {
+      res
+    }
+  }
 
-  override def getShortBlock(id: EtField.Id.T): Try[Option[ShortBlock]] = getById[ShortBlock](id)
-
-  override def getResultShortlist(filterQuery: FilterQuery): Try[ResultList[ShortBlock]] =
-    getResultList[ShortBlock](filterQuery)
+  override def getResultShortlist(filterQuery: FilterQuery): Try[ResultList[ShortBlock]] = {
+    getResults[ShortBlock, ResultList[ShortBlock]](filterQuery, mapper.buildBlockFilterQuery, mapResultList)
+  }
 }

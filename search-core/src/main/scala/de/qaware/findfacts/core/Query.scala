@@ -51,9 +51,10 @@ final case class InRange(from: Int, to: Int) extends Filter
 
 /** Filters for ids in a recursive query.
   *
-  * @param of filters yielding ids to compare to
+  * @param ofField to extract in query results
+  * @param query filters in which results to search
   */
-final case class InResult(of: List[FieldFilter]) extends Filter
+final case class InResult(ofField: EtField, query: List[FieldFilter]) extends Filter
 
 /** Query to facet on, i.e. list number of occurrences for each distinct value.
   *

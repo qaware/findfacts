@@ -82,7 +82,7 @@ view : Config msg -> Html msg
 view (Config conf) =
     let
         innerBlock =
-            lazy3 renderBlock conf.src [ ExtraTypography.code1 ] conf.startLine
+            lazy3 renderBlock conf.src ExtraTypography.code1 conf.startLine
 
         htmlBlocks =
             case conf.context of
@@ -94,7 +94,7 @@ view (Config conf) =
                           else
                             [ lazy3 renderBlock
                                 before
-                                [ ExtraTypography.code2 ]
+                                ExtraTypography.code2
                                 (conf.startLine |> Maybe.map (\l -> l - (List.length <| String.lines before)))
                             , Divider.divider
                             ]
@@ -106,7 +106,7 @@ view (Config conf) =
                             [ Divider.divider
                             , lazy3 renderBlock
                                 after
-                                [ ExtraTypography.code2 ]
+                                ExtraTypography.code2
                                 (conf.startLine |> Maybe.map (\l -> l + (List.length <| String.lines conf.src)))
                             ]
                         ]
@@ -121,13 +121,13 @@ view (Config conf) =
 -- RENDERING
 
 
-renderBlock : String -> List (Html.Attribute msg) -> Maybe Int -> Html msg
-renderBlock src extraAttrs startLine =
-    startLine |> Maybe.map (renderLineNumbers src extraAttrs) |> Maybe.withDefault (renderCode src extraAttrs)
+renderBlock : String -> Html.Attribute msg -> Maybe Int -> Html msg
+renderBlock src font startLine =
+    startLine |> Maybe.map (renderLineNumbers src font) |> Maybe.withDefault (renderCode src font)
 
 
-renderLineNumbers : String -> List (Html.Attribute msg) -> Int -> Html msg
-renderLineNumbers src extraAttrs start =
+renderLineNumbers : String -> Html.Attribute msg -> Int -> Html msg
+renderLineNumbers src font start =
     let
         numLines =
             List.length <| String.lines src
@@ -145,12 +145,12 @@ renderLineNumbers src extraAttrs start =
                     , style "margin-right" "16px"
                     ]
     in
-    div [ style "display" "inline-flex" ] [ linesBlock, renderCode src extraAttrs ]
+    div [ style "display" "inline-flex" ] [ linesBlock, renderCode src font ]
 
 
-renderCode : String -> List (Html.Attribute msg) -> Html msg
-renderCode src extraAttrs =
-    code ([ style "float" "left" ] ++ extraAttrs) [ pre [] [ Html.map never <| renderHtml src ] ]
+renderCode : String -> Html.Attribute msg -> Html msg
+renderCode src font =
+    code [ style "float" "left" ] [ pre [ font ] [ Html.map never <| renderHtml src ] ]
 
 
 maxDiv : Int -> List (Html.Attribute msg)

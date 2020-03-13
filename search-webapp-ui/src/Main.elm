@@ -227,13 +227,7 @@ updatePage apiBaseUrl msg page =
                     ( Home search Paging.empty <| Results.init (Err <| explainHttpError e), Cmd.none )
 
         ( SearchFacetResult id result, Home search paging results ) ->
-            case result of
-                Ok res ->
-                    ( Home (Search.update res id search) paging results, Cmd.none )
-
-                Err e ->
-                    -- TODO display error in searcher
-                    ( page, Cmd.none )
+            ( Home (Search.update (Result.mapError explainHttpError result) id search) paging results, Cmd.none )
 
         ( EmailMsg state, Feedback _ ) ->
             ( Feedback state, Cmd.none )
@@ -316,7 +310,7 @@ parseHome model maybeSearch maybePaging =
                     in
                     case mergeResult of
                         Search.Outdated fqs ->
-                            ( Home newSearch Paging.empty Results.searching
+                            ( Home newSearch newPaging Results.searching
                             , Cmd.batch
                                 ((executeFilterQuery model.apiBaseUrl <| Paging.buildFilterQuery fqs newPaging)
                                     :: (Search.buildFacetQueries newSearch

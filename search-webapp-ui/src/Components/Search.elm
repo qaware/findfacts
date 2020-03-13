@@ -127,6 +127,7 @@ type alias StateInternal =
     , usedIn : Maybe UsageBlock
     , uses : Maybe UsageBlock
     , facets : Faceting
+    , facetError : Maybe String
     }
 
 
@@ -175,6 +176,7 @@ empty =
             Nothing
             Nothing
             (AnyDict.empty <| .field >> fieldToString)
+            Nothing
 
 
 {-| Encodes the search component persistent parts as JSON.
@@ -208,6 +210,7 @@ decoder =
                     usedIn
                     uses
                     facets
+                    Nothing
             )
             (Decode.map (Maybe.withDefault "") <| DecodeExtra.optionalField "term" Decode.string)
             (Decode.map (Maybe.withDefault Array.empty)
@@ -230,18 +233,23 @@ type ResultFor
 
 {-| Updates the search component with a new facet result.
 -}
-update : ResultFaceting -> ResultFor -> State -> State
+update : Result String ResultFaceting -> ResultFor -> State -> State
 update result assignment (State state) =
-    case assignment of
-        Facets ->
-            -- no information about selection, but new counts
-            State { state | facets = updateFaceting result state.facets }
+    case result of
+        Ok faceting ->
+            case assignment of
+                Facets ->
+                    -- no information about selection, but new counts
+                    State { state | facets = updateFaceting faceting state.facets }
 
-        FieldSearchers ->
-            State { state | fieldSearcherFacets = result }
+                FieldSearchers ->
+                    State { state | fieldSearcherFacets = faceting }
 
-        NewFieldSearcher ->
-            State { state | fieldSearcherFacets = AnyDict.union state.fieldSearcherFacets result }
+                NewFieldSearcher ->
+                    State { state | fieldSearcherFacets = AnyDict.union state.fieldSearcherFacets faceting }
+
+        Err cause ->
+            State { state | facetError = Just cause }
 
 
 {-| Different outcomes of a merge.
@@ -376,7 +384,17 @@ view (State state) (Config conf) =
                     |> Array.toList
                  )
                     ++ (state.usedIn
-                            |> Maybe.map (renderUsedIn conf (\_ -> State { state | usedIn = Nothing }) >> List.singleton)
+                            |> Maybe.map
+                                (renderUsage conf (\_ -> State { state | usedIn = Nothing }) "Uses"
+                                    >> List.singleton
+                                )
+                            |> Maybe.withDefault []
+                       )
+                    ++ (state.uses
+                            |> Maybe.map
+                                (renderUsage conf (\_ -> State { state | uses = Nothing }) "Used In"
+                                    >> List.singleton
+                                )
                             |> Maybe.withDefault []
                        )
                 )
@@ -385,13 +403,18 @@ view (State state) (Config conf) =
         , br [] []
         ]
             ++ singletonIf (not <| List.isEmpty faceting) (Grid.layoutGrid [ Elevation.z2 ] faceting)
+            ++ (state.facetError
+                    |> Maybe.map (text >> List.singleton >> Grid.layoutGrid [ Elevation.z2 ] >> List.singleton)
+                    |> Maybe.withDefault []
+               )
 
 
 {-| Checks if two search components yield the same query.
 -}
 sameQuery : State -> State -> Bool
 sameQuery (State state1) (State state2) =
-    state1.filters == state2.filters
+    buildFQs state1.term state1.fieldSearchers state1.facets state1.usedIn state1.uses
+        == buildFQs state2.term state2.fieldSearchers state2.facets state2.usedIn state2.uses
 
 
 {-| Builds facet queries with search facet fields from filters and field searchers.
@@ -417,6 +440,7 @@ initUsedBy block ids =
             (Just <| UsageBlock block ids)
             Nothing
             (AnyDict.empty (.field >> fieldToString))
+            Nothing
 
 
 initUses : String -> List String -> State
@@ -430,6 +454,7 @@ initUses block ids =
             Nothing
             (Just <| UsageBlock block ids)
             (AnyDict.empty (.field >> fieldToString))
+            Nothing
 
 
 
@@ -705,7 +730,7 @@ buildUsesFQ uses =
     uses.ids
         |> List.map Term
         |> unionFilters
-        |> Maybe.map (FieldFilter Id >> List.singleton >> InResult Uses >> FieldFilter Id)
+        |> Maybe.map (FieldFilter Id >> List.singleton >> InResult Uses >> FieldFilter ChildId)
 
 
 unionFilters : List Filter -> Maybe Filter
@@ -740,8 +765,10 @@ renderFieldSearcher conf updateFn maybeFacet fieldSearcher =
         (\() -> updateFn Nothing)
         fieldSearcher.field.name
         (Grid.layoutGridInner []
-            [ Grid.layoutGridCell [ Grid.alignMiddle, Grid.span4Phone, Grid.span8Tablet, Grid.span4Desktop ] [ renderSelectableTextField conf (Just >> updateFn) maybeFacet fieldSearcher ]
-            , Grid.layoutGridCell [ Grid.alignMiddle, Grid.span8 ] [ renderFSValues conf (Just >> updateFn) fieldSearcher ]
+            [ Grid.layoutGridCell [ Grid.alignMiddle, Grid.span4Phone, Grid.span8Tablet, Grid.span4Desktop ]
+                [ renderSelectableTextField conf (Just >> updateFn) maybeFacet fieldSearcher ]
+            , Grid.layoutGridCell [ Grid.alignMiddle, Grid.span8 ]
+                [ renderFSValues conf (Just >> updateFn) fieldSearcher ]
             ]
         )
 
@@ -751,7 +778,8 @@ renderCloseableEntry conf onClose name content =
     Grid.layoutGridInner []
         [ Grid.layoutGridCell [ Grid.span3Phone, Grid.span7Tablet, Grid.span11Desktop ]
             [ Grid.layoutGridInner [ Typography.body1 ]
-                [ Grid.layoutGridCell [ Grid.alignTop, Grid.span4Phone, Grid.span3Tablet, Grid.span2Desktop ] [ div [ style "padding-top" "16px" ] [ text name ] ]
+                [ Grid.layoutGridCell [ Grid.alignTop, Grid.span4Phone, Grid.span3Tablet, Grid.span2Desktop ]
+                    [ div [ style "padding-top" "16px" ] [ text name ] ]
                 , Grid.layoutGridCell [ Grid.alignMiddle, Grid.span5Tablet, Grid.span10Desktop ] [ content ]
                 ]
             ]
@@ -886,11 +914,11 @@ renderAddSearcherButton conf state =
         )
 
 
-renderUsedIn : ConfigInternal msg -> (() -> State) -> UsageBlock -> Html msg
-renderUsedIn conf removeFn usedIn =
+renderUsage : ConfigInternal msg -> (() -> State) -> String -> UsageBlock -> Html msg
+renderUsage conf removeFn name usedIn =
     renderCloseableEntry conf
         removeFn
-        "Uses"
+        name
         (Code.block usedIn.src |> Code.withMaxHeight 160 |> Code.view)
 
 

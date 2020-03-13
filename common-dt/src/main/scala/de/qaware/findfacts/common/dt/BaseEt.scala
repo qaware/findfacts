@@ -20,6 +20,7 @@ sealed trait BaseEt {
 
 /** Fields for Entities that from the semantic theory. */
 sealed trait TheoryEt extends BaseEt {
+
   /** Name of the entity. */
   val name: Name.T
 
@@ -57,7 +58,8 @@ final case class CodeblockEt private (
     src: SourceText.T,
     srcAfter: SourceTextAfter.T,
     entities: TheoryChildren.T
-) extends BaseEt {
+) extends BaseEt
+    with Discriminator[Kind, EtField.DocKind.type, Kind.Block.type] {
   def this(
       startPos: Int,
       endPos: Int,
@@ -94,7 +96,8 @@ final case class ConstantEt private (
     override val id: Id.T,
     override val name: Name.T,
     override val uses: Uses.T,
-    constantType: ConstantType.T)
+    constantType: ConstantType.T,
+    docKind: DocKind.T = Kind.Constant)
     extends TheoryEt
     with Discriminator[Kind, EtField.Kind.type, Kind.Constant.type] {
   def this(name: Name.T, uses: Uses.T, constantType: ConstantType.T) =
@@ -102,14 +105,22 @@ final case class ConstantEt private (
 }
 
 /** Any fact. */
-final case class FactEt private (override val id: Id.T, override val name: Name.T, override val uses: Uses.T)
+final case class FactEt private (
+    override val id: Id.T,
+    override val name: Name.T,
+    override val uses: Uses.T,
+    docKind: DocKind.T = Kind.Fact)
     extends TheoryEt
     with Discriminator[Kind, EtField.Kind.type, Kind.Fact.type] {
   def this(name: Name.T, uses: Uses.T) = this(TheoryEt.makeId(Kind.Fact, name), name, uses)
 }
 
 /** Type entity. */
-final case class TypeEt private (override val id: Id.T, override val name: Name.T, override val uses: Uses.T)
+final case class TypeEt private (
+    override val id: Id.T,
+    override val name: Name.T,
+    override val uses: Uses.T,
+    docKind: DocKind.T = Kind.Type)
     extends TheoryEt
     with Discriminator[Kind, EtField.Kind.type, Kind.Type.type] {
   def this(name: Name.T, uses: Uses.T) = this(TheoryEt.makeId(Kind.Type, name), name, uses)

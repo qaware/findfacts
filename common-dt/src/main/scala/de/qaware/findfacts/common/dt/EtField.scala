@@ -27,7 +27,19 @@ object EtField extends DefaultEnum[EtField] {
 
   /** Unique id. */
   case object Id extends SingleValuedField[String] with EtField {
-    override final val name = SolrSchema.Id
+    override val name = SolrSchema.Id
+    override val implicits = FieldImplicits()
+  }
+
+  /** Document kind. */
+  case object DocKind extends SingleValuedField[Kind] with EtField {
+    override val name = SolrSchema.DocKind
+    override val implicits = FieldImplicits()
+  }
+
+  /** Id of child document. */
+  case object ChildId extends SingleValuedField[String] with ChildField {
+    override val name = SolrSchema.Id
     override val implicits = FieldImplicits()
   }
 

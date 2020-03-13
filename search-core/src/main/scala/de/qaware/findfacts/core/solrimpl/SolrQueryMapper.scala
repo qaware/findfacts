@@ -4,7 +4,7 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 
 import de.qaware.findfacts.common.dt.EtField
-import de.qaware.findfacts.core.solrimpl.SolrQueryLiterals.{All, ParentTag, QueryParent}
+import de.qaware.findfacts.core.solrimpl.SolrQueryLiterals.{ParentTag, QueryParent}
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery}
 import org.apache.solr.client.solrj
 import org.apache.solr.client.solrj.SolrQuery.ORDER
@@ -29,6 +29,9 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
   /** Query to select parent docs. */
   final val ParentQuery = "{!parent tag=top filters=$" + s"$ChildFq which=" + s"$QueryParent}"
 
+  /** Query to select all docs */
+  final val AllQuery = "*:*"
+
   /** Parent query when there are no child filters. */
   final val ParentQueryAllChildren = "{!parent tag=top which=" + s"$QueryParent}"
 
@@ -50,13 +53,13 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
   /** Name of the field which scores results, on which the result set is sorted. */
   final val ScoreField = "score"
 
-  /** Builds solr query for a filter query.
+  /** Builds solr query (that retrieves parent blocks) for a filter query.
     *
     * @param queryService for recursive calls
     * @param query to map
     * @return solrquery representation that can be fed to a solrJ client
     */
-  def buildFilterQuery(queryService: SolrQueryService, query: FilterQuery): Try[solrj.SolrQuery] = {
+  def buildBlockFilterQuery(query: FilterQuery)(implicit queryService: SolrQueryService): Try[solrj.SolrQuery] = {
     fieldFilterMapper.mapFieldFilters(query.filters)(queryService) map { filters =>
       val solrQuery = new solrj.SolrQuery()
         .setFacet(false)
@@ -78,11 +81,37 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
       }
 
       // Set cursor to start or next cursor for paging
+      solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, query.cursor match {
+        case None => CursorMarkParams.CURSOR_MARK_START
+        case Some(cursor) => cursor
+      })
       solrQuery
-        .set(CursorMarkParams.CURSOR_MARK_PARAM, query.cursor match {
-          case None => CursorMarkParams.CURSOR_MARK_START
-          case Some(cursor) => cursor
-        })
+    }
+  }
+
+  /** Builds solr query for a filter query. This will NOT resolve parent/child relations.
+    *
+    * @param queryService for recursive calls
+    * @param query to map
+    * @return solrquery representation that can be fed to a solrJ client
+    */
+  def buildFilterQuery(query: FilterQuery)(implicit queryService: SolrQueryService): Try[solrj.SolrQuery] = {
+    fieldFilterMapper.mapFieldFilters(query.filters)(queryService) map { filters =>
+      val solrQuery = new solrj.SolrQuery()
+        .setQuery(AllQuery)
+        .setFacet(false)
+        .addField(ChildField)
+        .setRows(query.pageSize)
+        .addSort(ScoreField, ORDER.desc)
+        .addSort(EtField.Id.name, ORDER.asc)
+
+      solrQuery.setFilterQueries(filters.fqs ++ filters.childFqs: _*)
+
+      // Set cursor to start or next cursor for paging
+      solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, query.cursor match {
+        case None => CursorMarkParams.CURSOR_MARK_START
+        case Some(cursor) => cursor
+      })
       solrQuery
     }
   }
@@ -93,7 +122,7 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
     * @param facetQuery to transform
     * @return solr query
     */
-  def buildFacetQuery(queryService: SolrQueryService, facetQuery: FacetQuery): Try[JsonQueryRequest] = {
+  def buildBlockFacetQuery(facetQuery: FacetQuery)(implicit queryService: SolrQueryService): Try[JsonQueryRequest] = {
     fieldFilterMapper.mapFieldFilters(facetQuery.filters)(queryService) map { filters =>
       val jsonRequest = new JsonQueryRequest()
         .setLimit(0)
@@ -129,17 +158,5 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
 
       jsonRequest
     }
-  }
-
-  /** Builds a solr query to retrieve a single document by id.
-    *
-    * @param ids to search for
-    * @return built solr query
-    */
-  def buildQueryById(ids: String*): solrj.SolrQuery = {
-    val idQuery = ids.map(filterMapper.escape(_, exact = false)).mkString(" ")
-    new solrj.SolrQuery()
-      .setQuery(s"${EtField.Id.name}:($idQuery)")
-      .setFields(All, ChildField)
   }
 }

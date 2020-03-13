@@ -77,6 +77,7 @@ type alias TypeEt =
 
 type Field
     = Id
+    | ChildId
     | SrcFile
     | Command
     | StartLine
@@ -152,6 +153,9 @@ fieldToString field =
         Id ->
             "Id"
 
+        ChildId ->
+            "ChildId"
+
         SrcFile ->
             "SourceTheory"
 
@@ -198,6 +202,9 @@ fieldFromString str =
     case str of
         "Id" ->
             Ok Id
+
+        "ChildId" ->
+            Ok ChildId
 
         "SourceTheory" ->
             Ok SrcFile

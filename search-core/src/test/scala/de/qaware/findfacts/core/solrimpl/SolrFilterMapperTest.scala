@@ -34,7 +34,7 @@ class SolrFilterMapperTest extends FunSuite with Matchers with MockFactory {
     val res = Success(ResultList[IdChildren.T](Vector(List(Id("id1"), Id("id2")), List(Id("id3"))), 3, ""))
     (queryService
       .getResultList(_: FilterQuery)(_: FromSolrDoc[IdChildren.T]))
-      .expects(FilterQuery(subQ, sut.MaxChildren, None), *)
+      .expects(FilterQuery(subQ, sut.MaxInnerResult, None), *)
       .returning(res)
 
     sut.mapFilter(InResult(subQ)).get should equal("(id1 id2 id3)")

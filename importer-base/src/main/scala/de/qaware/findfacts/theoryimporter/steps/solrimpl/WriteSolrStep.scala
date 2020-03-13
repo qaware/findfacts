@@ -2,9 +2,8 @@ package de.qaware.findfacts.theoryimporter.steps.solrimpl
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
-
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.CodeblockEt
+import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt}
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
 import de.qaware.findfacts.theoryimporter.ImportError
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
@@ -34,7 +33,7 @@ class WriteSolrStep(solrClient: SolrClient) extends ImportStep {
 
     // Add all entities
     Try {
-      val mapper = ToSolrDoc[CodeblockEt]
+      val mapper = ToSolrDoc[BaseEt]
 
       solrClient.add(entities.map(mapper.toSolrDoc).asJava)
 
