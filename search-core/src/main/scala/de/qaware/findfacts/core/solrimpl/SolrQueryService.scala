@@ -47,7 +47,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
 
   private def mapSingle[A](resp: QueryResponse, typed: Seq[A]): Option[A] = typed match {
     case Seq(elem) => Some(elem)
-    case elems => None
+    case _ => None
   }
 
   private def mapResults[A](resp: QueryResponse, typed: Seq[A]): Vector[A] = typed.toVector
@@ -66,7 +66,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     * @tparam B result type
     * @return container with results
     */
-  private def getResults[A, B](
+  private def getRes[A, B](
       query: FilterQuery,
       qBuilder: FilterQuery => Try[solrj.SolrQuery],
       rMapper: (QueryResponse, Seq[A]) => B)(implicit docMapper: FromSolrDoc[A]): Try[B] = {
@@ -82,8 +82,25 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
     } yield rMapper(res, typedRes)
   }
 
-  private[solrimpl] def getResultVector[A](query: FilterQuery)(implicit docMapper: FromSolrDoc[A]): Try[Vector[A]] =
-    getResults[A, Vector[A]](query, mapper.buildFilterQuery, mapResults)
+  /** Get result elements for a query. Does not resolve parent/child relation.
+    *
+    * @param query to execute
+    * @param docMapper to map solr docs to results
+    * @tparam A type of result entities
+    * @return result list, or error
+    */
+  def getResults[A](query: FilterQuery)(implicit docMapper: FromSolrDoc[A]): Try[ResultList[A]] =
+    getRes[A, ResultList[A]](query, mapper.buildFilterQuery, mapResultList)
+
+  /** Get result blocks for a query.
+    *
+    * @param query to execute
+    * @param docMapper to map solr docs to results
+    * @tparam A type of blocks
+    * @return result list of blocks, or error
+    */
+  def getResultBlocks[A](query: FilterQuery)(implicit docMapper: FromSolrDoc[A]): Try[ResultList[A]] =
+    getRes[A, ResultList[A]](query, mapper.buildBlockFilterQuery, mapResultList)
 
   private def idsFilterQuery(ids: EtField.Id.T*): FilterQuery = {
     val idFilters = ids.toList match {
@@ -137,7 +154,7 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
 
   override def getResultResolved(id: EtField.Id.T): Try[Option[ResolvedThyEt]] = {
     val res: Try[Option[Try[ResolvedThyEt]]] = for {
-      resOpt <- getResults[BaseEt, Option[BaseEt]](idsFilterQuery(id), mapper.buildFilterQuery, mapSingle)
+      resOpt <- getRes[BaseEt, Option[BaseEt]](idsFilterQuery(id), mapper.buildFilterQuery, mapSingle)
     } yield
       for {
         elem <- resOpt
@@ -145,21 +162,21 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
         elem match {
           case ConstantEt(id, _, uses, constantType, _) =>
             for {
-              resolved <- getResults[ShortThyEt, Vector[ShortThyEt]](
+              resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
                 idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
                 mapper.buildFilterQuery,
                 mapResults)
             } yield ResolvedConstant(id, constantType, resolved.toList)
           case FactEt(id, _, uses, _) =>
             for {
-              resolved <- getResults[ShortThyEt, Vector[ShortThyEt]](
+              resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
                 idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
                 mapper.buildFilterQuery,
                 mapResults)
             } yield ResolvedFact(id, resolved.toList)
           case TypeEt(id, _, uses, _) =>
             for {
-              resolved <- getResults[ShortThyEt, Vector[ShortThyEt]](
+              resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
                 idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
                 mapper.buildFilterQuery,
                 mapResults)
@@ -170,10 +187,10 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
   }
 
   override def getBlock(id: EtField.Id.T): Try[Option[CodeblockEt]] = {
-    val res = getResults[CodeblockEt, Option[CodeblockEt]](idsFilterQuery(id), mapper.buildBlockFilterQuery, mapSingle)
+    val res = getRes[CodeblockEt, Option[CodeblockEt]](idsFilterQuery(id), mapper.buildBlockFilterQuery, mapSingle)
     if (res.map(_.isEmpty).getOrElse(false)) {
       // Try to fetch child doc on empty result
-      getResults[CodeblockEt, Option[CodeblockEt]](
+      getRes[CodeblockEt, Option[CodeblockEt]](
         FilterQuery(List(FieldFilter(EtField.ChildId, Exact(id))), 2),
         mapper.buildBlockFilterQuery,
         mapSingle)
@@ -183,10 +200,10 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
   }
 
   override def getShortBlock(id: EtField.Id.T): Try[Option[ShortBlock]] = {
-    val res = getResults[ShortBlock, Option[ShortBlock]](idsFilterQuery(id), mapper.buildBlockFilterQuery, mapSingle)
+    val res = getRes[ShortBlock, Option[ShortBlock]](idsFilterQuery(id), mapper.buildBlockFilterQuery, mapSingle)
     if (res.map(_.isEmpty).getOrElse(false)) {
       // Try to fetch child doc on empty result
-      getResults[ShortBlock, Option[ShortBlock]](
+      getRes[ShortBlock, Option[ShortBlock]](
         FilterQuery(List(FieldFilter(EtField.ChildId, Exact(id))), 2),
         mapper.buildBlockFilterQuery,
         mapSingle)
@@ -196,6 +213,6 @@ class SolrQueryService(connection: SolrClient, mapper: SolrQueryMapper) extends 
   }
 
   override def getResultShortlist(filterQuery: FilterQuery): Try[ResultList[ShortBlock]] = {
-    getResults[ShortBlock, ResultList[ShortBlock]](filterQuery, mapper.buildBlockFilterQuery, mapResultList)
+    getRes[ShortBlock, ResultList[ShortBlock]](filterQuery, mapper.buildBlockFilterQuery, mapResultList)
   }
 }

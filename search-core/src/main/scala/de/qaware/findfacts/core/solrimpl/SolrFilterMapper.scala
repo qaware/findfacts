@@ -32,13 +32,13 @@ class SolrFilterMapper {
       implicit queryService: SolrQueryService): Try[String] = {
     val results: Try[Seq[_]] = field match {
       case f: OptionalField[_] =>
-        val results = queryService.getResultVector[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
-        results.map(_.flatMap(_.asInstanceOf[Option[_]]))
+        val results = queryService.getResults[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
+        results.map(_.values.flatMap(_.asInstanceOf[Option[_]]))
       case f: MultiValuedField[_] =>
-        val results = queryService.getResultVector[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
-        results.map(_.flatMap(_.asInstanceOf[List[_]]))
+        val results = queryService.getResults[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
+        results.map(_.values.flatMap(_.asInstanceOf[List[_]]))
       case f: SingleValuedField[_] =>
-        queryService.getResultVector[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
+        queryService.getResults[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T]).map(_.values)
       case _ => return Failure(new IllegalArgumentException(s"Field ${field.name} not allowed in query"))
     }
     results.map(_.map(_.toString)).map(toQuery)

@@ -1,10 +1,10 @@
 package de.qaware.findfacts.theoryimporter.steps
 
-import scala.collection.mutable
-
 import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, FactEt, TheoryEt, TypeEt}
 import de.qaware.findfacts.common.utils.DefaultMultiMap
 import de.qaware.findfacts.theoryimporter.TheoryView.Position
+
+import scala.collection.mutable
 
 /** Holds mutable context shared throughout the steps.
   *
@@ -32,7 +32,11 @@ final case class StepContext(
     * @return immutabel view on theory entiteis by position
     */
   def theoryEtsByPosition: Map[Position, List[TheoryEt]] = {
-    consts.toMap.mapValues(_.toList) ++ types.toMap.mapValues(_.toList) ++ facts.toMap.mapValues(_.toList)
+    (consts.toMap.mapValues(_.toList).toList ++
+      types.toMap.mapValues(_.toList).toList ++
+      facts.toMap.mapValues(_.toList).toList)
+      .groupBy(_._1)
+      .mapValues(_.flatMap(_._2))
   }
 
   /** Immutable view on all entities.

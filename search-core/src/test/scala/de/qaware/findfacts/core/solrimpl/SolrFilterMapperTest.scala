@@ -1,15 +1,15 @@
 package de.qaware.findfacts.core.solrimpl
 
-import scala.util.Success
-
 import de.qaware.findfacts.common.dt.EtField
-import de.qaware.findfacts.common.dt.EtField.Id
+import de.qaware.findfacts.common.dt.EtField.Uses
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.core
 import de.qaware.findfacts.core.QueryService.ResultList
 import de.qaware.findfacts.core.{Exact, FieldFilter, FilterQuery, InRange, InResult, Term}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FunSuite, Matchers}
+
+import scala.util.Success
 
 class SolrFilterMapperTest extends FunSuite with Matchers with MockFactory {
   implicit val queryService: SolrQueryService = mock[SolrQueryService]
@@ -31,13 +31,13 @@ class SolrFilterMapperTest extends FunSuite with Matchers with MockFactory {
 
   test("Test filter mapping for recursive query") {
     val subQ = List(FieldFilter(EtField.Kind, Term("sub")))
-    val res = Success(ResultList[IdChildren.T](Vector(List(Id("id1"), Id("id2")), List(Id("id3"))), 3, ""))
+    val res = Success(ResultList(Vector(Uses(List("id1", "id2")), Uses(List("id3"))), 2, ""))
     (queryService
-      .getResultList(_: FilterQuery)(_: FromSolrDoc[IdChildren.T]))
+      .getResults(_: FilterQuery)(_: FromSolrDoc[Uses.T]))
       .expects(FilterQuery(subQ, sut.MaxInnerResult, None), *)
       .returning(res)
 
-    sut.mapFilter(InResult(subQ)).get should equal("(id1 id2 id3)")
+    sut.mapFilter(InResult(Uses, subQ)).get should equal("(id1 id2 id3)")
   }
 
   test("Test term escaping") {
