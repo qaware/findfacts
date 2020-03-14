@@ -41,7 +41,7 @@ final class LocalSolr private (solrHome: File, core: String) extends SolrReposit
   /** Core config files that are created per default. */
   final val SolrCoreFiles = Seq(
     "schema.xml",
-    "enumsconfig.xml",
+    "synonyms.txt",
     "core.properties",
     "conf/solrconfig.xml"
   )

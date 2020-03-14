@@ -13,6 +13,10 @@ class StepContextTest extends org.scalatest.FunSuite with Matchers with BeforeAn
     override def offset: Int = 2
     override def endOffset: Int = 7
   }
+  val pos1 = new Position {
+    override def offset: Int = 2
+    override def endOffset: Int = 7
+  }
 
   def context: StepContext = {
     val ctx = StepContext()
@@ -20,7 +24,7 @@ class StepContextTest extends org.scalatest.FunSuite with Matchers with BeforeAn
     ctx.blocks.add(block)
     ctx.consts.addBinding(pos, const)
     ctx.facts.addBinding(pos, fact)
-    ctx.types.addBinding(pos, typ)
+    ctx.types.addBinding(pos1, typ)
 
     ctx
   }

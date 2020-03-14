@@ -21,13 +21,13 @@ class SolrMappingIT extends FunSuite with Matchers with BeforeAndAfterEach with 
   case class Base2()
 
   test("Writing to and reading from solr") {
-    val const = new ConstantEt("const", "const _ = ...", List("Hol.equiv", "Hol.inJ"), List("Nat"), "'a => Nat")
-    val fact = new FactEt("const_is_pos", "const _ > 0", List("Const.const"), List("Fact.Hol.Stuff", "Fact.Hol.other"))
-    val typ = new TypeEt("Nat", "Nat = 0 | Suc Nat", List("Nat"))
+    val const = new ConstantEt("const", List("Hol.equiv", "Hol.inJ", "Nat"), "'a => Nat")
+    val fact = new FactEt("const_is_pos", List("Const.const", "Fact.Hol.Stuff", "Fact.Hol.other"))
+    val typ = new TypeEt("Nat", List("Nat"))
 
-    val doc = new DocumentationEt("file", 6, 7, "(* comment *)", DocKind.Meta)
-    val block = new CodeblockEt("file", 1, 6, "src text").copy(entities = List(const, fact))
-    val block1 = new CodeblockEt("file1", 2, 5, "other src text").copy(entities = List(typ))
+    val doc = new CodeblockEt(5, 7, "file", 2, "(*", "\n", "(* comment *)", "\n\n lemma...")
+    val block = new CodeblockEt(8, 11, "file", 6, "fun", "*)\n", "fun ...src text...", "\n\n", List(const, fact))
+    val block1 = new CodeblockEt(0, 6, "file1", 1, "other", "\n", "other src text", "\n", List(typ))
 
     val toMapper = ToSolrDoc[BaseEt]
     val fromMapper = FromSolrDoc[BaseEt]
@@ -45,6 +45,7 @@ class SolrMappingIT extends FunSuite with Matchers with BeforeAndAfterEach with 
     // Child docs are empty since *:* query does not join
     result should have size 6
     result should contain allElementsOf List(const, doc, fact, typ)
-    result.collect { case c: CodeblockEt => c } map (_.id) should contain theSameElementsAs List(block, block1).map(_.id)
+    val resultBlocks = result.collect { case c: CodeblockEt => c } map (_.id)
+    resultBlocks should contain theSameElementsAs List(doc, block, block1).map(_.id)
   }
 }

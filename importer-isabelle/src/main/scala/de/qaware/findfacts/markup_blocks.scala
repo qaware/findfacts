@@ -37,6 +37,7 @@ object Markup_Blocks
     val MOREOVER = Value("moreover")
     val NEXT = Value("next")
     val NITPICK = Value("nitpick")
+    val NOTE = Value("note")
     val OBTAIN = Value("obtain")
     val OOPS = Value("oops")
     val PROOF = Value("proof")

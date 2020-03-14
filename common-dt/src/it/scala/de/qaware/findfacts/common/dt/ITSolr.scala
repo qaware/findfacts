@@ -1,6 +1,5 @@
 package de.qaware.findfacts.common.dt
 
-import java.nio.file.Path
 import java.util.UUID
 
 import better.files.{File, Resource}

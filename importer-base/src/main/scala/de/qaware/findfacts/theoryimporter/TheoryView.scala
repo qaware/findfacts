@@ -203,6 +203,19 @@ object TheoryView {
     def endOffset: Int
 
     override def toString: String = s"[$offset..$endOffset]"
+
+    def canEqual(other: Any): Boolean = other.isInstanceOf[Position]
+    override def equals(other: Any): Boolean = other match {
+      case that: Position =>
+        (that canEqual this) &&
+          offset == that.offset &&
+          endOffset == that.endOffset
+      case _ => false
+    }
+    override def hashCode(): Int = {
+      val state = Seq(offset, endOffset)
+      state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    }
   }
   object Position {
     def unapply(arg: Position): Option[(Int, Int)] = Some(arg.offset, arg.endOffset)

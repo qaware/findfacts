@@ -64,7 +64,7 @@
                 <charFilter class="solr.HTMLStripCharFilterFactory"/>
                 <tokenizer class="solr.StandardTokenizerFactory"/>
                 <filter class="solr.LowerCaseFilterFactory"/>
-                <filter class="solr.SynonymGraphFilterFactory" synonyms="isabellesynonyms.txt"/>
+                <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt"/>
             </analyzer>
         </fieldType>
         <fieldType name="full_text" class="solr.TextField">

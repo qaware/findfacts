@@ -1,9 +1,8 @@
 package de.qaware.findfacts.core
 
-import de.qaware.findfacts.common.dt.EtField.{Kind, Name, PropositionUses, StartPosition}
+import de.qaware.findfacts.common.dt.EtField.{StartLine, Uses}
 import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, ITSolr, Kind}
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
-import de.qaware.findfacts.core.dt.ShortBlock
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import org.apache.solr.client.solrj.{SolrClient, SolrQuery}
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Inside, Matchers}
@@ -15,10 +14,10 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
 
   override def beforeAll(): Unit = {
     // Add integration test data set
-    val const1 = new ConstantEt("Const1", "...", List("someid"), Nil, "'a => 'b")
-    val block1 = CodeblockEt("ExampleThy.1", "ExampleThy", 1, 11, "fun Example = ...", List(const1))
-    val fact1 = new FactEt("ConstIsFact", "IsFact Const1", List(const1.id), Nil)
-    val block2 = CodeblockEt("ExampleThy.12", "ExampleThy", 12, 14, "lemma ...", List(fact1))
+    val const1 = new ConstantEt("Const1", List("someid"), "'a => 'b")
+    val block1 = new CodeblockEt(1, 11, "ExampleThy", 1, "fun", "\n", "fun Example = ...", "\n...", List(const1))
+    val fact1 = new FactEt("ConstIsFact", List(const1.id))
+    val block2 = new CodeblockEt(12, 14, "ExampleThy", 3, "lemma", "\n...", "lemma ...", "(* stuff *)", List(fact1))
 
     val mapper = ToSolrDoc[BaseEt]
     solr.add(mapper.toSolrDoc(block1))
@@ -33,22 +32,22 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
   }
 
   test("Filter query") {
-    val query = FilterQuery(List(FieldFilter(StartPosition, InRange(10, 30))))
+    val query = FilterQuery(List(FieldFilter(StartLine, InRange(2, 5))))
     val result = queryModule.service.getResultShortlist(query)
 
     val resList = result.get
     resList.count should be(1)
     resList.values should have size 1
     inside(resList.values) {
-      case Vector(ShortBlock(id, theory, src, entities)) =>
-        id should equal("ExampleThy.12")
-        entities should have size 1
-        entities.head.name should equal("ConstIsFact")
+      case Vector(block) =>
+        block.id should equal("ExampleThy.12.14")
+        block.entities should have size 1
+        block.entities.head.name should equal("ConstIsFact")
     }
   }
 
   test("Filter query shortlist") {
-    val query = FilterQuery(List(FieldFilter(Kind, Exact(Kind.Constant.entryName))))
+    val query = FilterQuery(List(FieldFilter(EtField.Kind, Exact(Kind.Constant.entryName))))
     val result = queryModule.service.getResultShortlist(query)
 
     val resList = result.get
@@ -60,8 +59,8 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
   }
 
   test("Recursive query") {
-    val innerQuery = List(FieldFilter(Kind, Exact(Kind.Constant.toString)))
-    val query = FilterQuery(List(FieldFilter(PropositionUses, InResult(innerQuery))))
+    val innerQuery = List(FieldFilter(EtField.Kind, Exact(Kind.Constant.toString)))
+    val query = FilterQuery(List(FieldFilter(Uses, InResult(EtField.Id, innerQuery))))
     val result = queryModule.service.getResultShortlist(query)
 
     result.get.values should have size 1
@@ -70,10 +69,10 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
   }
 
   test("Facet query") {
-    val query = FacetQuery(List(), Set(EtField.StartPosition))
+    val query = FacetQuery(List(), Set(EtField.StartLine))
     val result = queryModule.service.getResultFacet(query)
 
     val resultFacet = result.get
-    resultFacet should equal(Map(EtField.StartPosition -> Map("1" -> 1, "12" -> 1)))
+    resultFacet should equal(Map(EtField.StartLine -> Map("1" -> 1, "3" -> 1)))
   }
 }
