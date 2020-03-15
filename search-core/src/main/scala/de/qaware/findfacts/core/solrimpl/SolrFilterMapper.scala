@@ -17,6 +17,9 @@ class SolrFilterMapper {
   /** Maximum number of children for recursive queries. */
   final val MaxInnerResult = 1000
 
+  /** Default proximity for phrases. */
+  final val DefaultPhraseProximity = 10
+
   /** Characters that need to be escaped. Special characters that may be used: * ? */
   private final val SpecialChars =
     Set("\\+", "-", "&&", "\\|\\|", "!", "\\(", "\\)", "\\{", "\\}", "\\[", "\\]", "\\^", "\"", "~", ":", "\\\\", "\\/", "\\s+")
@@ -60,7 +63,7 @@ class SolrFilterMapper {
     */
   def escape(value: String, exact: Boolean): String = {
     if (exact) {
-      "\"" + ExactEscapeRegex.replaceAllIn(value, m => Matcher.quoteReplacement(s"\\$m")) + "\""
+      "\"" + ExactEscapeRegex.replaceAllIn(value, m => Matcher.quoteReplacement(s"\\$m")) + "\"~" + DefaultPhraseProximity
     } else {
       val escaped = EscapeRegex.replaceAllIn(value, m => Matcher.quoteReplacement(s"\\$m"))
       if (escaped == "") "\"\"" else s"($escaped)"

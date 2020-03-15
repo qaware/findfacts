@@ -73,6 +73,12 @@ object EtField extends DefaultEnum[EtField] {
     override val implicits = FieldImplicits()
   }
 
+  /** Facetable field for source theory. */
+  case object SourceTheoryFacet extends SingleValuedField[String] with ParentField {
+    override final val name = SolrSchema.SourceTheoryFacet
+    override val implicits = FieldImplicits()
+  }
+
   /** Start position of entity definition, in absolute isabelle characters. */
   case object StartLine extends SingleValuedField[Int] with ParentField {
     override final val name = SolrSchema.StartLine

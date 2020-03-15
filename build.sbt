@@ -5,7 +5,7 @@ Global / onChangedBuildSource := IgnoreSourceChanges
 
 // Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
-ThisBuild / version := "0.1.0-SNAPSHOT"
+ThisBuild / version := "0.2.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.10"
 ThisBuild / resolvers ++= Resolvers.all
 // Use java 11

@@ -67,7 +67,7 @@ facetableFields : AnyDict String Field NamedField
 facetableFields =
     AnyDict.fromList fieldToString
         [ ( Command, "Command" )
-        , ( SrcFile, "Source Theory" )
+        , ( SrcFileFacet, "Source Theory" )
         , ( Kind, "Entity" )
         , ( ConstTypeFacet, "Type" )
         ]
@@ -86,7 +86,7 @@ termFilterableFields =
     AnyDict.fromList fieldToString
         [ ( Command, FilterField "Command" <| Just Command )
         , ( Src, FilterField "Source Text" Nothing )
-        , ( SrcFile, FilterField "Source Theory" <| Just SrcFile )
+        , ( SrcFile, FilterField "Source Theory" <| Just SrcFileFacet )
         , ( Name, FilterField "Entity Name" <| Just NameFacet )
         , ( ConstType, FilterField "Constant Type" <| Just ConstTypeFacet )
         ]

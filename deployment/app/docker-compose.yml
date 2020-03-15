@@ -2,7 +2,7 @@ version: '3'
 
 services:
   app:
-    image: findfacts/findfacts:0.1.0-SNAPSHOT
+    image: findfacts/findfacts:0.2.0
     container_name: prod_app
     restart: always
     env_file:

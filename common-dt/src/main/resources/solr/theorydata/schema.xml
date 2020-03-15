@@ -2,29 +2,28 @@
 <schema name="theorydata" version="1.6">
     <fields>
         <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
-        <field name="id" type="string" required="true" docValues="false" uninvertible="true" multiValued="false" omitTermFreqAndPositions="true"/>
+        <field name="id" type="string" required="true" docValues="false" uninvertible="true" multiValued="false"
+               omitTermFreqAndPositions="true"/>
         <field name="kind" type="string" required="true" docValues="true" multiValued="false"/>
         <field name="command" type="string" docValues="true" multiValued="false"/>
         <field name="thy_kind" type="string" docValues="true" multiValued="false"/>
-        <field name="theory" type="string" docValues="true" multiValued="false" omitNorms="true"/>
+        <field name="theory" type="name_text" multiValued="false" omitNorms="true"/>
+        <field name="theory_facet" type="string" docValues="true" multiValued="false" omitNorms="true"/>
         <field name="start_line" type="pint" multiValued="false"/>
-        <field name="name" type="full_text" multiValued="false" omitNorms="true"/>
-        <field name="name_facet" type="string" multiValued="false" omitNorms="true"/>
-        <field name="type" type="type_syntax" multiValued="false"/>
-        <field name="type_facet" type="string" multiValued="false"/>
-        <field name="doc_kind" type="string" docValues="true" multiValued="false"/>
-        <field name="prop" type="term_syntax" uninvertible="false" multiValued="false"/>
-        <field name="src_before" type="source_text" uninvertible="false" multiValued="false"/>
+        <field name="name" type="name_text" multiValued="false" omitNorms="true"/>
+        <field name="name_facet" type="string" docValues="true" multiValued="false" omitNorms="true"/>
+        <field name="type" type="type_text" multiValued="false"/>
+        <field name="type_facet" type="string" docValues="true" multiValued="false"/>
+        <field name="src_before" type="string" uninvertible="false" multiValued="false"/>
         <field name="src" type="source_text" uninvertible="false" multiValued="false"/>
-        <field name="src_after" type="source_text" uninvertible="false" multiValued="false"/>
+        <field name="src_after" type="string" uninvertible="false" multiValued="false"/>
         <field name="uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
-        <field name="type_uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
-        <field name="proof_uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
         <field name="_version_" type="plong" indexed="false" stored="false" multiValued="false"/>
     </fields>
 
-    <copyField source="type" dest="type_facet"/>
+    <copyField source="theory" dest="theory_facet"/>
     <copyField source="name" dest="name_facet"/>
+    <copyField source="type" dest="type_facet"/>
 
     <uniqueKey>id</uniqueKey>
 
@@ -33,54 +32,83 @@
         <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
         <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
         <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
-        <fieldType name="type_syntax" class="solr.TextField">
-            <analyzer>
-                <filter class="solr.ASCIIFoldingFilterFactory" preserveOriginal="false"/>
-                <filter class="solr.PatternReplaceCharFilterFactory" pattern="⇒" replacement="->"/>
-                <tokenizer class="solr.PatternTokenizerFactory" pattern="[\(\)\{\},]|::|->|([^\(\)\{\},\s:-]|:[^\(\)\{\},\s:]|-[^\(\)\{\},\s>])+" group="0"/>
+        <fieldType name="type_text" class="solr.TextField">
+            <analyzer type="index">
+                <!-- Break type down into type tokens -->
+                <tokenizer class="solr.PatternTokenizerFactory"
+                           pattern="\s*([\(\)\{\},⇒]|::|([^\(\)\{\},⇒\s:]|:[^\(\)\{\},⇒\s:])+)\s*"
+                           group="1"/>
+                <!-- Add non-ascii string representations -->
+                <filter class="solr.ASCIIFoldingFilterFactory" preserveOriginal="true"/>
+                <!-- Split names -->
+                <filter class="solr.WordDelimiterGraphFilterFactory"
+                        generateWordParts="1" catenateWords="0"
+                        generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
+                        catenateAll="0" splitOnCaseChange="1"
+                        stemEnglishPossessive="0" preserveOriginal="1"/>
+                <filter class="solr.FlattenGraphFilterFactory"/>
+                <!-- lower-case everything -->
                 <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
-        </fieldType>
-        <fieldType name="term_syntax" class="solr.TextField">
-            <analyzer>
-                <tokenizer class="solr.StandardTokenizerFactory">
-                </tokenizer>
+            <analyzer type="query">
+                <!-- Break type down into type tokens -->
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="=>" replacement="⇒"/>
+                <tokenizer class="solr.PatternTokenizerFactory"
+                           pattern="\s*([\(\)\{\},⇒]|::|([^\(\)\{\},⇒\s:]|:[^\(\)\{\},⇒\s:])+)\s*"
+                           group="1"/>
+                <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
         </fieldType>
         <fieldType name="source_text" class="solr.TextField">
             <analyzer type="index">
+                <!-- Html tags shouldn't be tokenized, so strip them first -->
                 <charFilter class="solr.HTMLStripCharFilterFactory"/>
-                <filter class="solr.PatternReplaceCharFilterFactory" pattern="_" replacement=" _ "/>
-                <tokenizer class="solr.StandardTokenizerFactory"/>
+                <!-- Tokenize by whitespace + control characters -->
+                <tokenizer class="solr.PatternTokenizerFactory"
+                           pattern="\s*(::|[\(\)\{\}\[\]\.,:&quot;]|[^\p{ASCII}]|((?![^\p{ASCII}])[^\(\)\{\}\[\]\.,:&quot;\s])+)\s*"
+                           group="1"/>
+                <!-- Add string representations of non-ascii characters -->
+                <filter class="solr.ASCIIFoldingFilterFactory" preserveOriginal="true"/>
+                <!-- Add words from tokens as well -->
                 <filter class="solr.WordDelimiterGraphFilterFactory"
-                        generateWordParts="1" catenateWords="1"
+                        generateWordParts="1" catenateWords="0"
                         generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
                         catenateAll="0" splitOnCaseChange="1"
-                        stemEnglishPossessive="1" preserveOriginal="1"/>
-                <filter class="solr.LowerCaseFilterFactory"/>
+                        stemEnglishPossessive="0" preserveOriginal="1"/>
                 <filter class="solr.FlattenGraphFilterFactory"/>
+                <!-- Finally lower-case everything -->
+                <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
             <analyzer type="query">
-                <charFilter class="solr.HTMLStripCharFilterFactory"/>
-                <tokenizer class="solr.StandardTokenizerFactory"/>
-                <filter class="solr.LowerCaseFilterFactory"/>
+                <!-- Replace these before tokenization as they would be split into multiple tokens -->
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\[\|" replacement="⟦"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\|\]" replacement="⟧"/>
+                <!-- Tokenize by whitespace + control characters -->
+                <tokenizer class="solr.PatternTokenizerFactory"
+                           pattern="\s*(::|[\(\)\{\}\[\]\.,:&quot;]|[^\p{ASCII}]|((?![^\p{ASCII}])[^\(\)\{\}\[\]\.,:&quot;\s])+)\s*"
+                           group="1"/>
+                <!-- Replace isabelle special character names by the characters -->
                 <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt"/>
+                <!-- Can't replace '*=>' in the synonym file as '=>' is part of the syntax, and there is no escaping-->
+                <filter class="solr.PatternReplaceFilterFactory" pattern="==>" replacement="⟹"/>
+                <filter class="solr.PatternReplaceFilterFactory" pattern="=>" replacement="⇒"/>
+                <!-- Finally lower-case -->
+                <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
         </fieldType>
-        <fieldType name="full_text" class="solr.TextField">
+        <fieldType name="name_text" class="solr.TextField">
             <analyzer type="index">
-                <filter class="solr.PatternReplaceCharFilterFactory" pattern="_" replacement=" _ "/>
-                <tokenizer class="solr.StandardTokenizerFactory"/>
+                <tokenizer class="solr.WhitespaceTokenizerFactory" rule="java" />
                 <filter class="solr.WordDelimiterGraphFilterFactory"
-                        generateWordParts="1" catenateWords="1"
+                        generateWordParts="1" catenateWords="0"
                         generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
                         catenateAll="0" splitOnCaseChange="1"
-                        stemEnglishPossessive="1" preserveOriginal="1"/>
-                <filter class="solr.LowerCaseFilterFactory"/>
+                        stemEnglishPossessive="0" preserveOriginal="1"/>
                 <filter class="solr.FlattenGraphFilterFactory"/>
+                <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
             <analyzer type="query">
-                <tokenizer class="solr.StandardTokenizerFactory"/>
+                <tokenizer class="solr.WhitespaceTokenizerFactory" rule="java" />
                 <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
         </fieldType>

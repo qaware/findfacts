@@ -79,6 +79,7 @@ type Field
     = Id
     | ChildId
     | SrcFile
+    | SrcFileFacet
     | Command
     | StartLine
     | SrcBefore
@@ -159,6 +160,9 @@ fieldToString field =
         SrcFile ->
             "SourceTheory"
 
+        SrcFileFacet ->
+            "SourceTheoryFacet"
+
         Command ->
             "Command"
 
@@ -208,6 +212,9 @@ fieldFromString str =
 
         "SourceTheory" ->
             Ok SrcFile
+
+        "SourceTheoryFacet" ->
+            Ok SrcFileFacet
 
         "Command" ->
             Ok Command

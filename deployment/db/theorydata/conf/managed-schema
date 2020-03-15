@@ -1,53 +1,72 @@
 <schema name="theorydata" version="1.6">
-    <uniqueKey>id</uniqueKey>
-    <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
-    <fieldType name="full_text" class="solr.TextField">
-        <analyzer type="index">
-            <tokenizer class="solr.StandardTokenizerFactory"/>
-            <filter class="solr.PatternReplaceCharFilterFactory" pattern="_" replacement=" _ "/>
-            <filter class="solr.WordDelimiterFilterFactory" catenateNumbers="0" generateNumberParts="1" stemEnglishPossessive="1" splitOnCaseChange="1" generateWordParts="1" splitOnNumerics="1" preserveOriginal="1" catenateAll="0" catenateWords="1"/>
-            <filter class="solr.LowerCaseFilterFactory"/>
-        </analyzer>
-        <analyzer type="query">
-            <tokenizer class="solr.StandardTokenizerFactory"/>
-            <filter class="solr.LowerCaseFilterFactory"/>
-        </analyzer>
-    </fieldType>
-    <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
-    <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
-    <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
-    <fieldType name="term_syntax" class="solr.TextField">
-        <analyzer>
-            <tokenizer class="solr.StandardTokenizerFactory"/>
-        </analyzer>
-    </fieldType>
-    <fieldType name="type_syntax" class="solr.TextField">
-        <analyzer>
-            <tokenizer class="solr.PatternTokenizerFactory" pattern="[\(\)\{\},]|::|->|([^\(\)\{\},\s:-]|:[^\(\)\{\},\s:]|-[^\(\)\{\},\s>])+" group="0"/>
-            <filter class="solr.ASCIIFoldingFilterFactory" preserveOriginal="false"/>
-            <filter class="solr.PatternReplaceCharFilterFactory" pattern="⇒" replacement="->"/>
-            <filter class="solr.LowerCaseFilterFactory"/>
-        </analyzer>
-    </fieldType>
-    <field name="_root_" type="string" docValues="false" indexed="true" stored="false"/>
-    <field name="_version_" type="plong" multiValued="false" indexed="false" stored="false"/>
-    <field name="cmd_kind" type="string" multiValued="false" docValues="true"/>
-    <field name="doc_kind" type="string" multiValued="false" docValues="true"/>
-    <field name="end_pos" type="pint" multiValued="false" uninvertible="false"/>
-    <field name="id" type="string" uninvertible="true" omitTermFreqAndPositions="true" docValues="false" multiValued="false" required="true"/>
-    <field name="name" type="full_text" multiValued="false" omitNorms="true"/>
-    <field name="name_facet" type="string" multiValued="false" omitNorms="true"/>
-    <field name="proof_uses" type="string" uninvertible="false" omitTermFreqAndPositions="true" multiValued="true"/>
-    <field name="prop" type="term_syntax" multiValued="false" uninvertible="false"/>
-    <field name="src" type="full_text" multiValued="false" uninvertible="false"/>
-    <field name="start_line" type="pint" multiValued="false"/>
-    <field name="start_pos" type="pint" multiValued="false" uninvertible="false"/>
-    <field name="theory" type="string" omitNorms="true" docValues="true" multiValued="false"/>
-    <field name="thy_kind" type="string" multiValued="false" docValues="true"/>
-    <field name="type" type="type_syntax" multiValued="false"/>
-    <field name="type_facet" type="string" multiValued="false"/>
-    <field name="type_uses" type="string" uninvertible="false" omitTermFreqAndPositions="true" multiValued="true"/>
-    <field name="uses" type="string" uninvertible="false" omitTermFreqAndPositions="true" multiValued="true"/>
-    <copyField source="name" dest="name_facet"/>
-    <copyField source="type" dest="type_facet"/>
+  <uniqueKey>id</uniqueKey>
+  <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
+  <fieldType name="name_text" class="solr.TextField">
+    <analyzer type="index">
+      <tokenizer class="solr.WhitespaceTokenizerFactory" rule="java"/>
+      <filter class="solr.WordDelimiterGraphFilterFactory" catenateNumbers="0" generateNumberParts="1" stemEnglishPossessive="0" s>
+      <filter class="solr.FlattenGraphFilterFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.WhitespaceTokenizerFactory" rule="java"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+  </fieldType>
+  <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+  <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
+  <fieldType name="source_text" class="solr.TextField">
+    <analyzer type="index">
+      <charFilter class="solr.HTMLStripCharFilterFactory"/>
+      <tokenizer class="solr.PatternTokenizerFactory" pattern="\s*(::|[\(\)\{\}\[\]\.,:&quot;]|[^\p{ASCII}]|((?![^\p{ASCII}])[^\(\>
+      <filter class="solr.ASCIIFoldingFilterFactory" preserveOriginal="true"/>
+      <filter class="solr.WordDelimiterGraphFilterFactory" catenateNumbers="0" generateNumberParts="1" stemEnglishPossessive="0" s>
+      <filter class="solr.FlattenGraphFilterFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+      <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\[\|" replacement="⟦"/>
+      <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\|\]" replacement="⟧"/>
+      <tokenizer class="solr.PatternTokenizerFactory" pattern="\s*(::|[\(\)\{\}\[\]\.,:&quot;]|[^\p{ASCII}]|((?![^\p{ASCII}])[^\(\>
+      <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt"/>
+      <filter class="solr.PatternReplaceFilterFactory" pattern="==>" replacement="⟹"/>
+      <filter class="solr.PatternReplaceFilterFactory" pattern="=>" replacement="⇒"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+  </fieldType>
+  <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+  <fieldType name="type_text" class="solr.TextField">
+    <analyzer type="index">
+      <tokenizer class="solr.PatternTokenizerFactory" pattern="\s*([\(\)\{\},⇒]|::|([^\(\)\{\},⇒\s:]|:[^\(\)\{\},⇒\s:])+)\s*" grou>
+      <filter class="solr.ASCIIFoldingFilterFactory" preserveOriginal="true"/>
+      <filter class="solr.WordDelimiterGraphFilterFactory" catenateNumbers="0" generateNumberParts="1" stemEnglishPossessive="0" s>
+      <filter class="solr.FlattenGraphFilterFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+      <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="=>" replacement="⇒"/>
+      <tokenizer class="solr.PatternTokenizerFactory" pattern="\s*([\(\)\{\},⇒]|::|([^\(\)\{\},⇒\s:]|:[^\(\)\{\},⇒\s:])+)\s*" grou>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+  </fieldType>
+  <field name="_root_" type="string" docValues="false" indexed="true" stored="false"/>
+  <field name="_version_" type="plong" multiValued="false" indexed="false" stored="false"/>
+  <field name="command" type="string" multiValued="false" docValues="true"/>
+  <field name="id" type="string" uninvertible="true" omitTermFreqAndPositions="true" docValues="false" multiValued="false" require>
+  <field name="kind" type="string" docValues="true" multiValued="false" required="true"/>
+  <field name="name" type="name_text" multiValued="false" omitNorms="true"/>
+  <field name="name_facet" type="string" omitNorms="true" docValues="true" multiValued="false"/>
+  <field name="src" type="source_text" multiValued="false" uninvertible="false"/>
+  <field name="src_after" type="string" multiValued="false" uninvertible="false"/>
+  <field name="src_before" type="string" multiValued="false" uninvertible="false"/>
+  <field name="start_line" type="pint" multiValued="false"/>
+  <field name="theory" type="name_text" multiValued="false" omitNorms="true"/>
+  <field name="theory_facet" type="string" omitNorms="true" docValues="true" multiValued="false"/>
+  <field name="thy_kind" type="string" multiValued="false" docValues="true"/>
+  <field name="type" type="type_text" multiValued="false"/>
+  <field name="type_facet" type="string" multiValued="false" docValues="true"/>
+  <field name="uses" type="string" uninvertible="false" omitTermFreqAndPositions="true" multiValued="true"/>
+  <copyField source="name" dest="name_facet"/>
+  <copyField source="theory" dest="theory_facet"/>
+  <copyField source="type" dest="type_facet"/>
 </schema>

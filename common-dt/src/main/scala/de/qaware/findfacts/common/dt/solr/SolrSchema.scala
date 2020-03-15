@@ -9,6 +9,7 @@ object SolrSchema {
   final val TheoryKind = "thy_kind"
   final val Command = "command"
   final val SourceTheory = "theory"
+  final val SourceTheoryFacet = "theory_facet"
   final val StartLine = "start_line"
   final val SourceTextBefore = "src_before"
   final val SourceText = "src"

@@ -24,17 +24,6 @@
 
   <luceneMatchVersion>8.2.0</luceneMatchVersion>
 
-  <lib dir="${solr.install.dir:../../../..}/contrib/extraction/lib" regex=".*\.jar" />
-  <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-cell-\d.*\.jar" />
-
-  <lib dir="${solr.install.dir:../../../..}/contrib/clustering/lib/" regex=".*\.jar" />
-  <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-clustering-\d.*\.jar" />
-
-  <lib dir="${solr.install.dir:../../../..}/contrib/langid/lib/" regex=".*\.jar" />
-  <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-langid-\d.*\.jar" />
-
-  <lib dir="${solr.install.dir:../../../..}/contrib/velocity/lib" regex=".*\.jar" />
-
   <!-- Data Directory
 
        Used to specify an alternate directory to hold all index data
@@ -50,19 +39,19 @@
     <str name="managedSchemaResourceName">managed-schema</str>
   </schemaFactory>
 
-    <!-- The DirectoryFactory to use for indexes.
+  <!-- The DirectoryFactory to use for indexes.
 
-         solr.StandardDirectoryFactory is filesystem
-         based and tries to pick the best implementation for the current
-         JVM and platform.  solr.NRTCachingDirectoryFactory, the default,
-         wraps solr.StandardDirectoryFactory and caches small files in memory
-         for better NRT performance.
+       solr.StandardDirectoryFactory is filesystem
+       based and tries to pick the best implementation for the current
+       JVM and platform.  solr.NRTCachingDirectoryFactory, the default,
+       wraps solr.StandardDirectoryFactory and caches small files in memory
+       for better NRT performance.
 
-         One can force a particular implementation via solr.MMapDirectoryFactory,
-         solr.NIOFSDirectoryFactory, or solr.SimpleFSDirectoryFactory.
+       One can force a particular implementation via solr.MMapDirectoryFactory,
+       solr.NIOFSDirectoryFactory, or solr.SimpleFSDirectoryFactory.
 
-         solr.RAMDirectoryFactory is memory based and not persistent.
-      -->
+       solr.RAMDirectoryFactory is memory based and not persistent.
+    -->
   <directoryFactory name="DirectoryFactory"
                     class="${solr.directoryFactory:solr.NRTCachingDirectoryFactory}"/>
 
@@ -161,9 +150,7 @@
          postOptimize - fired after every optimize command
       -->
 
-    <lst name="defaults">
-      <str name="update.chain">count-multiples</str>
-    </lst>
+    <lst name="defaults"/>
   </updateHandler>
 
   <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -396,39 +383,11 @@
     </lst>
   </requestHandler>
 
-  <initParams path="/update/**,/query,/select,/tvrh,/elevate,/spell">
+  <initParams path="/update/**,/query,/select">
     <lst name="defaults">
       <str name="df">_text_</str>
     </lst>
   </initParams>
-
-  <!-- Term Vector Component
-
-       http://wiki.apache.org/solr/TermVectorComponent
-    -->
-  <searchComponent name="tvComponent" class="solr.TermVectorComponent"/>
-
-  <!-- Clustering Component. (Omitted here. See the default Solr example for a typical configuration.) -->
-
-  <!-- Terms Component
-
-       http://wiki.apache.org/solr/TermsComponent
-
-       A component to return terms and document frequency of those
-       terms
-    -->
-  <searchComponent name="terms" class="solr.TermsComponent"/>
-
-  <!-- A request handler for demonstrating the terms component -->
-  <requestHandler name="/terms" class="solr.SearchHandler" startup="lazy">
-    <lst name="defaults">
-      <bool name="terms">true</bool>
-      <bool name="distrib">false</bool>
-    </lst>
-    <arr name="components">
-      <str>terms</str>
-    </arr>
-  </requestHandler>
 
   <!-- Highlighting Component
 
@@ -541,31 +500,6 @@
 
     -->
 
-  <updateRequestProcessorChain name="count-multiples">
-    <processor class="solr.CloneFieldUpdateProcessorFactory">
-      <str name="source">prop</str>
-      <str name="dest">prop_count</str>
-    </processor>
-    <processor class="solr.CloneFieldUpdateProcessorFactory">
-      <str name="source">uses</str>
-      <str name="dest">uses_count</str>
-    </processor>
-    <processor class="solr.CountFieldValuesUpdateProcessorFactory">
-      <str name="fieldName">prop_count</str>
-    </processor>
-    <processor class="solr.CountFieldValuesUpdateProcessorFactory">
-      <str name="fieldName">uses_count</str>
-    </processor>
-    <processor class="solr.DefaultValueUpdateProcessorFactory">
-      <str name="fieldName">prop_count</str>
-      <int name="value">0</int>
-    </processor>
-    <processor class="solr.DefaultValueUpdateProcessorFactory">
-      <str name="fieldName">uses_count</str>
-      <int name="value">0</int>
-    </processor>
-  </updateRequestProcessorChain>
-
   <!-- Response Writers
 
        http://wiki.apache.org/solr/QueryResponseWriter
@@ -584,21 +518,6 @@
      If you expect a MIME type of "application/json" just remove this override.
     -->
     <str name="content-type">text/plain; charset=UTF-8</str>
-  </queryResponseWriter>
-
-  <!--
-     Custom response writers can be declared as needed...
-    -->
-  <queryResponseWriter name="velocity" class="solr.VelocityResponseWriter" startup="lazy">
-    <str name="template.base.dir">${velocity.template.base.dir:}</str>
-  </queryResponseWriter>
-
-  <!-- XSLT response writer transforms the XML output by any xslt file found
-       in Solr's conf/xslt directory.  Changes to xslt files are checked for
-       every xsltCacheLifetimeSeconds.
-    -->
-  <queryResponseWriter name="xslt" class="solr.XSLTResponseWriter">
-    <int name="xsltCacheLifetimeSeconds">5</int>
   </queryResponseWriter>
 
 </config>
