@@ -2,7 +2,7 @@ version: '3'
 
 services:
   app:
-    image: findfacts/findfacts:0.2.0
+    image: findfacts/findfacts:0.2.0-SNAPSHOT
     container_name: prod_app
     restart: always
     env_file:
@@ -11,6 +11,7 @@ services:
     environment:
       - VIRTUAL_PORT=9000
       - SOLR_HOST=solr
+      - SOLR_CORE=theorydata-0.2.0-SNAPSHOT
     logging:
       driver: syslog
       options:

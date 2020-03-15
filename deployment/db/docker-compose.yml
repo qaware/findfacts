@@ -8,12 +8,12 @@ services:
     environment:
       - SOLR_HEAP=2g
     volumes:
-      - ./theorydata:/opt/solr/server/solr/configsets/theorydata:ro
+      - ./configsets:/opt/solr/server/solr/configsets:ro
       - data:/var/solr
     command:
       - solr-precreate
-      - theorydata
-      - /opt/solr/server/solr/configsets/theorydata
+      - theorydata-0.2.0-SNAPSHOT
+      - /opt/solr/server/solr/configsets/theorydata-0.2.0-SNAPSHOT
     logging:
       driver: syslog
       options:
