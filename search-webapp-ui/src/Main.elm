@@ -596,6 +596,16 @@ renderPageHelp =
         , b [] [ text "terms" ]
         , text " by special characters, such as whitespace, '.', '_', or '-'."
         ]
+    , h2 [ Typography.headline4 ] [ text "Isabelle Characters" ]
+    , p [ Typography.body1 ]
+        [ text "To search for isabelle characters, use the abbreviation (if unique): "
+        , a [ href "#search?page=[]&q={\"term\"%3A\"==>\"}" ] [ text "==>" ]
+        , text ", the isabelle markup : "
+        , a [ href "#search?page=[]&q={\"term\"%3A\"\\<Longrightarrow>\"}" ] [ text "\\<Longrightarrow>" ]
+        , text ", or the unicode representation: "
+        , a [ href "#search?page=[]&q={\"term\"%3A\"⟹\"}" ] [ text "⟹" ]
+        , text "."
+        ]
     , h2 [ Typography.headline4 ] [ text "Main Search Bar" ]
     , p [ Typography.body1 ]
         [ text "The main search bar will match for any of your search terms - listings results first where multiple terms match."
@@ -644,6 +654,11 @@ renderPageFeedback obfuscated =
             |> Obfuscated.withObfuscate (\e -> a [ href "" ] [ e ])
             |> Obfuscated.view obfuscated
         , text ". If you have a specific question, please include the URL!"
+        ]
+    , p [ Typography.body1 ]
+        [ text "Please also consider filling out this short "
+        , a [ href "https://forms.gle/K7Dmae9m5uVViPb57" ] [ text "survey" ]
+        , text ". It won't take more than five minutes."
         ]
     ]
 
