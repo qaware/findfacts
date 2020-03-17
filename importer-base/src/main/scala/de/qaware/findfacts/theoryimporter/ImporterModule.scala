@@ -11,6 +11,8 @@ import de.qaware.findfacts.theoryimporter.steps.impl.thy.{
   TypExtractor
 }
 import de.qaware.findfacts.theoryimporter.steps.impl.util.IdBuilder
+
+import scala.language.postfixOps
 // scalastyle:off
 import de.qaware.findfacts.theoryimporter.steps.impl._
 // scalastyle:on
@@ -21,12 +23,12 @@ trait ImporterModule {
   private val logger = Logger[ImporterModule]
 
   // internals
-  private lazy val nameExtractor = wire[NameExtractor]
-  private lazy val typeExtractor = wire[TypExtractor]
-  private lazy val termExtractor = wire[TermExtractor]
-  private lazy val propExtractor = wire[PropExtractor]
-  private lazy val proofExtractor = wire[ProofExtractor]
-  private lazy val idBuilder = wire[IdBuilder]
+  lazy val nameExtractor: NameExtractor = wire[NameExtractor]
+  lazy val typeExtractor: TypExtractor = wire[TypExtractor]
+  lazy val termExtractor: TermExtractor = wire[TermExtractor]
+  lazy val propExtractor: PropExtractor = wire[PropExtractor]
+  lazy val proofExtractor: ProofExtractor = wire[ProofExtractor]
+  lazy val idBuilder: IdBuilder = wire[IdBuilder]
 
   /** Steps of an import. */
   lazy val steps: Seq[ImportStep] = Seq(
@@ -50,19 +52,17 @@ trait ImporterModule {
   def importSession(theories: Seq[Theory]): List[ImportError] = {
     logger.info("Starting import...")
 
-    val errors = for {
-      theory <- theories
-      context = StepContext()
-      _ = logger.info(s"Processing theory ${theory.name}")
-      step <- steps
-      error <- step.apply(theory)(context)
-    } yield {
-      logger.warn(s"Error during import: $error")
-      logger.debug(s"Details: ${error.getDebugInfo}")
-      error
-    }
+    theories flatMap { theory =>
+      logger.info(s"Processing theory ${theory.name}")
 
-    logger.info("Finished importing.")
-    errors.toList
+      implicit val ctx: StepContext = StepContext()
+      val errors = steps.flatMap(_(theory))
+
+      errors foreach { error =>
+        logger.warn(s"Error during import: $error")
+        logger.debug(s"Details: ${error.getDebugInfo}")
+      }
+      errors
+    } toList
   }
 }

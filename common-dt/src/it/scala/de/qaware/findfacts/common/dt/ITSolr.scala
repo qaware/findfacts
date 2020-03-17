@@ -10,6 +10,6 @@ object ITSolr {
   def apply(): SolrRepository = {
     val tmpSolr = File(Resource.getUrl("solr/")) / UUID.randomUUID().toString
     tmpSolr.createDirectory()
-    LocalSolr(tmpSolr.toJava, "theorydata")
+    LocalSolr(tmpSolr.toJava)
   }
 }

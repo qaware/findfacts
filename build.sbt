@@ -5,7 +5,7 @@ Global / onChangedBuildSource := IgnoreSourceChanges
 
 // Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
-ThisBuild / version := "0.2.0-SNAPSHOT"
+ThisBuild / version := "0.2.1-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.10"
 ThisBuild / resolvers ++= Resolvers.all
 // Use java 11
@@ -48,7 +48,7 @@ lazy val root = (project in file("."))
   )
   .enablePlugins(SonarConfiguration)
 
-// Controls aggregation of subproject that need the elm-compiler (depending if ui profile is active)
+// Controls aggregation of sub-project that need the elm-compiler (depending if ui profile is active)
 lazy val ui = project
   .settings(
     publish / skip := true,
@@ -56,7 +56,7 @@ lazy val ui = project
   )
   .aggregate(`search-webapp`)
 
-// Controls aggregation of subprojects that need isablelle (depending if loaders profile is active)
+// Controls aggregation of sub-projects that need isabelle (depending if loaders profile is active)
 lazy val loaders = project
   .settings(
     publish / skip := true,
@@ -99,7 +99,7 @@ lazy val `importer-base` = project
   .settings(
     fork in run := true,
     javaOptions ++= Seq("-Xmx24G", "-Xss512m"),
-    libraryDependencies ++= Seq(cmdOpts, cats),
+    libraryDependencies ++= Seq(cmdOpts, cats)
   )
   .dependsOn(`common-dt`, `common-da-solr`, `common-utils`)
 
@@ -119,13 +119,13 @@ lazy val `importer-isabelle` = project
     publish / skip := true,
     isabelleTool := "dump_importer",
     isabelleExecutable := (baseDirectory in isabelle).value / "bin" / "isabelle",
+    isabelleSettings := Seq("SOLR_CONFIGSET=theorydata-" + version.value),
     libraryDependencies ++= loggingBackend
   )
   .dependsOn(`importer-base`, `isabelle`)
   .enablePlugins(IsabelleToolPlugin)
 
 // Search application
-
 // Core search module
 lazy val `search-core` = project
   .configs(IntegrationTest)
@@ -156,3 +156,11 @@ lazy val `search-webapp` = project
 lazy val `search-webapp-ui` = project
   .settings(publish / skip := true)
   .enablePlugins(ElmPlugin)
+
+// Tools
+lazy val `symbol-synonyms-tool` = project
+  .settings(
+    publish / skip := true,
+    libraryDependencies ++= (loggingBackend ++ Seq(cmdOpts))
+  )
+  .dependsOn(`search-core`)

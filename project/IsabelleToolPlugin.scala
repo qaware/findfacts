@@ -13,6 +13,7 @@ object IsabelleToolPlugin extends AutoPlugin {
   object autoImport {
     lazy val isabelleExecutable = settingKey[File]("Compile isabelle jars")
     lazy val isabelleTool = settingKey[String]("isabelle tool defined by project")
+    lazy val isabelleSettings = settingKey[Seq[String]]("isabelle tool additional settings")
     lazy val isabelleComponentAssembly = taskKey[File]("isabelle component assembly task")
   }
 
@@ -27,7 +28,9 @@ object IsabelleToolPlugin extends AutoPlugin {
 
       // Write settings file
       val file = (crossTarget in Compile).value / "etc" / "settings"
-      val contents = "classpath \"$COMPONENT/" + fatJarName + "\"\nisabelle_scala_tools \"" + toolClass + "\""
+      val contents = "classpath \"$COMPONENT/" + fatJarName + "\"\n" +
+        "isabelle_scala_tools \"" + toolClass + "\"\n" +
+        isabelleSettings.value.mkString("\n")
       IO.write(file, contents)
 
       file

@@ -1,21 +1,26 @@
 package de.qaware.findfacts.common.dt
 
-import scala.collection.JavaConverters._
+import de.qaware.findfacts.common.solr.LocalSolr
 
+import scala.collection.JavaConverters._
 import de.qaware.findfacts.common.solr.mapper.{FromSolrDoc, ToSolrDoc}
 import org.apache.solr.client.solrj.SolrQuery
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite, Matchers}
 
 class SolrMappingIT extends FunSuite with Matchers with BeforeAndAfterEach with BeforeAndAfterAll {
-  final val solrClient = ITSolr.apply().solrConnection()
+  final val solr = ITSolr()
+
+  override def beforeAll(): Unit = {
+    solr.createIndex(LocalSolr.DefaultCoreName)
+  }
 
   override def beforeEach(): Unit = {
-    solrClient.deleteByQuery("*:*")
-    val status = solrClient.commit()
+    solr.solrConnection.deleteByQuery("*:*")
+    val status = solr.solrConnection.commit()
     status.getStatus should (be(200) or be(0))
   }
 
-  override def afterAll(): Unit = solrClient.close()
+  override def afterAll(): Unit = solr.close()
 
   case class Base1()
   case class Base2()
@@ -34,11 +39,11 @@ class SolrMappingIT extends FunSuite with Matchers with BeforeAndAfterEach with 
     val docs = List(block, block1, doc).map(toMapper.toSolrDoc)
 
     // Add docs
-    solrClient.add(docs.asJava)
-    solrClient.commit()
+    solr.solrConnection.add(docs.asJava)
+    solr.solrConnection.commit()
 
     // Read docs from solrClient
-    val resp = solrClient.query(new SolrQuery("*:*"))
+    val resp = solr.solrConnection.query(new SolrQuery("*:*"))
     val resultDocs = resp.getResults.asScala.toList
     val result = resultDocs.map(fromMapper.fromSolrDoc).map(_.get)
 

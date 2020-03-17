@@ -1,2 +1,0 @@
-\\Doublerightarrow,\\doublerightarrow => ⟹
-\\Rightarrow,\\rightarrow => ⇒

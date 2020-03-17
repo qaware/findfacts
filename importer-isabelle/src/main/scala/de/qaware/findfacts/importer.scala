@@ -8,10 +8,9 @@ package de.qaware.findfacts
 
 
 import de.qaware.findfacts.Theory._
-import de.qaware.findfacts.common.solr.RemoteSolr
+import de.qaware.findfacts.common.solr.{RemoteSolr, SolrRepository}
 import de.qaware.findfacts.theoryimporter.ImporterModule
 import de.qaware.findfacts.theoryimporter.solrimpl.SolrImporterModule
-import org.apache.solr.client.solrj.SolrClient
 import isabelle._
 
 
@@ -21,14 +20,15 @@ object Importer
   /* import a session to solr */
 
   def solr_import(
-    provider: Export.Provider,
-    session_name: String,
-    theory_names: List[String],
-    solr: SolrClient,
-    progress: Progress = No_Progress)
+     collection_name: String,
+     provider: Export.Provider,
+     session_name: String,
+     theory_names: List[String],
+     solr_repository: SolrRepository,
+     progress: Progress = No_Progress)
   {
-    val importer = new SolrImporterModule {
-      override def solrClient: SolrClient = solr
+    val importer = new SolrImporterModule(collection_name) {
+      override def solr: SolrRepository = solr_repository
     }
     import_session(provider, session_name, theory_names, importer, progress)
   }
@@ -77,7 +77,7 @@ object Importer
   {
     /* arguments */
 
-    var solr_core = "theorydata"
+    var solr_collection = "theorydata"
     var sessions: List[String] = Nil
 
     val getopts = Getopts("""
@@ -85,23 +85,27 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR HOST PORT
 
   Options are:
     -B NAME       import session NAME
-    -C NAME       sorl core NAME
+    -C NAME       sorl collection NAME
 
   Import isabelle dump from DUMPDIR into solr db.
   Only one solr connection may be specified.
 """,
       "B:" -> (arg => sessions = sessions ::: List(arg)),
-      "C:" -> (arg => solr_core = arg))
+      "C:" -> (arg => solr_collection = arg))
 
     val more_args = getopts(args)
 
+    val configset = Isabelle_System.getenv("SOLR_CONFIGSET")
+
     val (dump_dir, solr_repository) = more_args match {
-      case dump :: host :: port :: Nil => (Path.explode(dump), RemoteSolr(host,  Value.Int.parse(port), solr_core))
+      case dump :: host :: port :: Nil => (Path.explode(dump), RemoteSolr(host,  Value.Int.parse(port), configset))
       case _ => getopts.usage
     }
 
-    using(solr_repository.solrConnection()) { solr =>
-      val importer_module = new SolrImporterModule { override def solrClient: SolrClient = solr }
+    using(solr_repository) { solr_repository =>
+      val importer_module = new SolrImporterModule(solr_collection) {
+        override def solr: SolrRepository = solr_repository
+      }
 
       val progress = new Console_Progress()
 

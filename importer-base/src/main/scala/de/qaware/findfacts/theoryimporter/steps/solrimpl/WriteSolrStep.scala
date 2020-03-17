@@ -1,54 +1,50 @@
 package de.qaware.findfacts.theoryimporter.steps.solrimpl
 
-import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt}
+import de.qaware.findfacts.common.dt.BaseEt
+import de.qaware.findfacts.common.solr.SolrRepository
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
 import de.qaware.findfacts.theoryimporter.ImportError
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
 import de.qaware.findfacts.theoryimporter.steps.{ImportStep, StepContext}
-import org.apache.solr.client.solrj.{SolrClient, SolrServerException}
+
+import scala.collection.JavaConverters._
 
 /** Step to write entities to solr.
-  *
-  * @param solrClient connection of the importer
+  * @param collection to write to
+  * @param solr connection of the importer
   */
-class WriteSolrStep(solrClient: SolrClient) extends ImportStep {
+class WriteSolrStep(collection: String, solr: SolrRepository) extends ImportStep {
 
   /** HTTP status ok code */
-  final val STATUS_OK = 200
+  final val StatusOk = 200
 
   private val logger = Logger[WriteSolrStep]
 
   override def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
+    solr.createIndex(collection)
     val entities = ctx.blocks
 
     if (entities.isEmpty) {
       logger.debug(s"Nothing to import")
-      return List.empty
-    }
+      List.empty
+    } else {
+      logger.debug(s"Importing ${entities.size} entities to solr...")
 
-    logger.debug(s"Importing ${entities.size} entities to solr...")
-
-    // Add all entities
-    Try {
+      // Add all entities
       val mapper = ToSolrDoc[BaseEt]
 
-      solrClient.add(entities.map(mapper.toSolrDoc).asJava)
+      solr.solrConnection.add(collection, entities.map(mapper.toSolrDoc).asJava)
 
       // Commit, wait for response and check if it is ok
-      val res = solrClient.commit()
-      if (res.getStatus != 0 && res.getStatus != STATUS_OK) {
-        throw new SolrServerException(s"Error ${res.getStatus} while writing to solr")
+      val res = solr.solrConnection.commit(collection)
+      if (res.getStatus != 0 && res.getStatus != StatusOk) {
+        logger.error(s"Error occurred while writing to solr: $res")
+        throw new IllegalStateException(s"Error ${res.getStatus} while writing to solr")
       }
-    } match {
-      case Failure(ex) =>
-        logger.debug("Exception occurred while writing to solr: ", ex)
-        List(ImportError(this, "*", ex.getMessage, ex.getStackTrace.mkString("\n")))
-      case Success(_) =>
-        logger.debug("Finished importing to solr")
-        List.empty
+
+      logger.debug("Finished importing to solr")
+      List.empty
     }
   }
 }

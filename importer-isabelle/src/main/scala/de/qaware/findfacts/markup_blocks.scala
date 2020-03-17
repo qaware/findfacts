@@ -18,6 +18,7 @@ object Markup_Blocks
     val AND = Value("and")
     val APPLY = Value("apply")
     val ASSUME = Value("assume")
+    val BACK = Value("back")
     val BY = Value("by")
     val CASE = Value("case")
     val CLOSE = Value("}")
@@ -30,7 +31,9 @@ object Markup_Blocks
     val END = Value("end")
     val FINALLY = Value("finally")
     val FIX = Value("fix")
+    val FOCUS = Value("focus")
     val FROM = Value("from")
+    val GUESS = Value("guess")
     val HAVE = Value("have")
     val HENCE = Value("hence")
     val LET = Value("let")
@@ -40,13 +43,22 @@ object Markup_Blocks
     val NOTE = Value("note")
     val OBTAIN = Value("obtain")
     val OOPS = Value("oops")
+    val PREFER = Value("prefer")
+    val PRESUME = Value("presume")
     val PROOF = Value("proof")
     val QED = Value("qed")
+    val QUICKCHECK = Value("quickcheck")
+    val REFUTE = Value("refute")
+    val SCHEMATIC_GOAL = Value("schematic_goal")
     val SHOW = Value("show")
+    val SLEDGEHAMMER = Value("sledgehammer")
+    val SORRY = Value("sorry")
     val SUBGOAL = Value("subgoal")
+    val SUPPLY = Value("supply")
     val TERMINATION = Value("termination")
     val THEN = Value("then")
     val THUS = Value("thus")
+    val TRY0 = Value("try0")
     val ULTIMATELY = Value("ultimately")
     val UNFOLDING = Value("unfolding")
     val USING = Value("using")
@@ -81,7 +93,9 @@ object Markup_Blocks
           case _ => false
         }
 
-        val isAppendToken = content.isBlank || Append_Token.values.exists(tkn => content.trim.startsWith(tkn.toString))
+        val isAppendToken = content.isBlank || Append_Token.values.exists { tkn =>
+          content.trim.startsWith(tkn.toString) || content.trim.startsWith("@" + tkn.toString)
+        }
 
         if (acc.nonEmpty && isAppendToken) {
           acc.dropRight(1) :+ acc.last.append(block)

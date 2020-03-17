@@ -44,20 +44,20 @@ class WebappModule(context: Context)
 
   // Connect to remote solr.
   override lazy val solrClient: SolrClient =
-    configuration.get[SolrRepository]("solr")(WebappModule.repositoryLoader).solrConnection()
+    configuration.get[SolrRepository]("solr")(WebappModule.repositoryLoader).solrConnection
 
-  private val jsonMappings: JsonMappings = wire[JsonMappings]
+  lazy val jsonMappings: JsonMappings = wire[JsonMappings]
 
   // Wire up controllers for the router
-  private lazy val homeController: HomeController = wire[HomeController]
-  private lazy val queryController: QueryController = wire[QueryController]
-  private lazy val docsController: ApiHelpController = wire[ApiHelpController]
+  lazy val homeController: HomeController = wire[HomeController]
+  lazy val queryController: QueryController = wire[QueryController]
+  lazy val docsController: ApiHelpController = wire[ApiHelpController]
 
   // Swagger plugin creates api doc. Cannot be lazy as it needs to be initialized first for api discovery.
-  private val swaggerPlugin: SwaggerPlugin = wire[SwaggerPluginImpl]
+  lazy val swaggerPlugin: SwaggerPlugin = wire[SwaggerPluginImpl]
 
   // Wire up router, which provides the main entry point for play
-  private lazy val routesPrefix = "/"
+  protected lazy val routesPrefix = "/"
   override lazy val router: Router = wire[Routes]
 }
 
@@ -69,6 +69,8 @@ object WebappModule {
   final val Port = "port"
   final val ZKHost = "zkhost"
   final val ZKHosts = "zkhosts"
+  final val NumShards = "numShards"
+  final val NumReplicas = "numReplicas"
   final val Core = "core"
 
   /** Configuration loader for zk hosts. */
@@ -87,7 +89,10 @@ object WebappModule {
     } else {
       CloudSolr(
         config.getObjectList(ZKHosts).asScala.map(c => zkHostLoader.load(c.toConfig, ZKHost)),
-        config.getString(Core))
+        config.getString(Core),
+        config.getInt(NumShards),
+        config.getInt(NumReplicas)
+      )
     }
   }
 }

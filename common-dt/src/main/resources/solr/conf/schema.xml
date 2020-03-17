@@ -81,8 +81,24 @@
             </analyzer>
             <analyzer type="query">
                 <!-- Replace these before tokenization as they would be split into multiple tokens -->
-                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\[\|" replacement="⟦"/>
-                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\|\]" replacement="⟧"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q(|\E" replacement="⦇"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q|)\E" replacement="⦈"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q[|\E" replacement="⟦"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q|]\E" replacement="⟧"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q{|\E" replacement="⦃"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q|}\E" replacement="⦄"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q:\E" replacement="∈"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q~:\E" replacement="∉"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q(=\E" replacement="⊆"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q)=\E" replacement="⊇"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q[=\E" replacement="⊑"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q]=\E" replacement="⊒"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q.=\E" replacement="≐"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q...\E" replacement="…"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q=_(\E" replacement="⇘"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q=_)\E" replacement="⇙"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q=^(\E" replacement="⇗"/>
+                <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q=^)\E" replacement="⇖"/>
                 <!-- Tokenize by whitespace + control characters -->
                 <tokenizer class="solr.PatternTokenizerFactory"
                            pattern="\s*(::|[\(\)\{\}\[\]\.,:&quot;]|[^\p{ASCII}]|((?![^\p{ASCII}])[^\(\)\{\}\[\]\.,:&quot;\s])+)\s*"
@@ -90,8 +106,8 @@
                 <!-- Replace isabelle special character names by the characters -->
                 <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt"/>
                 <!-- Can't replace '*=>' in the synonym file as '=>' is part of the syntax, and there is no escaping-->
-                <filter class="solr.PatternReplaceFilterFactory" pattern="==>" replacement="⟹"/>
-                <filter class="solr.PatternReplaceFilterFactory" pattern="=>" replacement="⇒"/>
+                <filter class="solr.PatternReplaceFilterFactory" pattern="\Q==>\E" replacement="⟹"/>
+                <filter class="solr.PatternReplaceFilterFactory" pattern="\Q=>\E" replacement="⇒"/>
                 <!-- Finally lower-case -->
                 <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
