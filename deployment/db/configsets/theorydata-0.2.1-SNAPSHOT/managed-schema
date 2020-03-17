@@ -47,8 +47,8 @@
       <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="\Q=^)\E" replacement="⇖"/>
       <tokenizer class="solr.PatternTokenizerFactory" pattern="\s*(::|[\(\)\{\}\[\]\.,:&quot;]|[^\p{ASCII}]|((?![^\p{ASCII}])[^\(\)\{\}\[\]\.,:&quot;\s])+)\s*" group="1"/>
       <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt"/>
-      <filter class="solr.PatternReplaceFilterFactory" pattern="\Q=>\E" replacement="⇒"/>
       <filter class="solr.PatternReplaceFilterFactory" pattern="\Q==>\E" replacement="⟹"/>
+      <filter class="solr.PatternReplaceFilterFactory" pattern="\Q=>\E" replacement="⇒"/>
       <filter class="solr.LowerCaseFilterFactory"/>
     </analyzer>
   </fieldType>
