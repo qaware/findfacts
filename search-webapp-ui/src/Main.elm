@@ -599,9 +599,9 @@ renderPageHelp =
     , h2 [ Typography.headline4 ] [ text "Isabelle Characters" ]
     , p [ Typography.body1 ]
         [ text "To search for isabelle characters, use the abbreviation (if unique): "
-        , a [ href "#search?page=[]&q={\"term\"%3A\"==>\"}" ] [ text "==>" ]
+        , a [ href "#search?q={\"term\"%3A\"%3D%3D>\"}" ] [ text "==>" ]
         , text ", the isabelle markup : "
-        , a [ href "#search?page=[]&q={\"term\"%3A\"\\<Longrightarrow>\"}" ] [ text "\\<Longrightarrow>" ]
+        , a [ href "#search?page=[]&q={\"term\"%3A\"\\\\<Longrightarrow>\"}" ] [ text "\\<Longrightarrow>" ]
         , text ", or the unicode representation: "
         , a [ href "#search?page=[]&q={\"term\"%3A\"⟹\"}" ] [ text "⟹" ]
         , text "."
