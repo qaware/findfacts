@@ -56,11 +56,13 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
   /** Builds solr query (that retrieves parent blocks) for a filter query.
     *
     * @param queryService for recursive calls
+    * @param index for recursive calls
     * @param query to map
     * @return solrquery representation that can be fed to a solrJ client
     */
-  def buildBlockFilterQuery(query: FilterQuery)(implicit queryService: SolrQueryService): Try[solrj.SolrQuery] = {
-    fieldFilterMapper.mapFieldFilters(query.filters)(queryService) map { filters =>
+  def buildBlockFilterQuery(
+      query: FilterQuery)(implicit index: String, queryService: SolrQueryService): Try[solrj.SolrQuery] = {
+    fieldFilterMapper.mapFieldFilters(query.filters) map { filters =>
       val solrQuery = new solrj.SolrQuery()
         .setFacet(false)
         .addField(ChildField)
@@ -92,11 +94,13 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
   /** Builds solr query for a filter query. This will NOT resolve parent/child relations.
     *
     * @param queryService for recursive calls
+    * @param index for recursive calls
     * @param query to map
     * @return solrquery representation that can be fed to a solrJ client
     */
-  def buildFilterQuery(query: FilterQuery)(implicit queryService: SolrQueryService): Try[solrj.SolrQuery] = {
-    fieldFilterMapper.mapFieldFilters(query.filters)(queryService) map { filters =>
+  def buildFilterQuery(
+      query: FilterQuery)(implicit index: String, queryService: SolrQueryService): Try[solrj.SolrQuery] = {
+    fieldFilterMapper.mapFieldFilters(query.filters) map { filters =>
       val solrQuery = new solrj.SolrQuery()
         .setQuery(AllQuery)
         .setFacet(false)
@@ -119,11 +123,13 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
   /** Builds solr query for a facet query.
     *
     * @param queryService for recursive calls
+    * @param index for recursive calls
     * @param facetQuery to transform
     * @return solr query
     */
-  def buildBlockFacetQuery(facetQuery: FacetQuery)(implicit queryService: SolrQueryService): Try[JsonQueryRequest] = {
-    fieldFilterMapper.mapFieldFilters(facetQuery.filters)(queryService) map { filters =>
+  def buildBlockFacetQuery(
+      facetQuery: FacetQuery)(implicit index: String, queryService: SolrQueryService): Try[JsonQueryRequest] = {
+    fieldFilterMapper.mapFieldFilters(facetQuery.filters) map { filters =>
       val jsonRequest = new JsonQueryRequest()
         .setLimit(0)
 

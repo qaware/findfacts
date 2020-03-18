@@ -11,10 +11,10 @@ import de.qaware.findfacts.theoryimporter.steps.{ImportStep, StepContext}
 import scala.collection.JavaConverters._
 
 /** Step to write entities to solr.
-  * @param collection to write to
+  * @param index to write to
   * @param solr connection of the importer
   */
-class WriteSolrStep(collection: String, solr: SolrRepository) extends ImportStep {
+class WriteSolrStep(index: String, solr: SolrRepository) extends ImportStep {
 
   /** HTTP status ok code */
   final val StatusOk = 200
@@ -22,7 +22,7 @@ class WriteSolrStep(collection: String, solr: SolrRepository) extends ImportStep
   private val logger = Logger[WriteSolrStep]
 
   override def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
-    solr.createIndex(collection)
+    solr.createIndex(index)
     val entities = ctx.blocks
 
     if (entities.isEmpty) {
@@ -34,10 +34,10 @@ class WriteSolrStep(collection: String, solr: SolrRepository) extends ImportStep
       // Add all entities
       val mapper = ToSolrDoc[BaseEt]
 
-      solr.solrConnection.add(collection, entities.map(mapper.toSolrDoc).asJava)
+      solr.solrConnection.add(index, entities.map(mapper.toSolrDoc).asJava)
 
       // Commit, wait for response and check if it is ok
-      val res = solr.solrConnection.commit(collection)
+      val res = solr.solrConnection.commit(index)
       if (res.getStatus != 0 && res.getStatus != StatusOk) {
         logger.error(s"Error occurred while writing to solr: $res")
         throw new IllegalStateException(s"Error ${res.getStatus} while writing to solr")

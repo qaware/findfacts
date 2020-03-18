@@ -4,7 +4,6 @@ import java.util.regex.Matcher
 
 import de.qaware.findfacts.common.da.api.{MultiValuedField, OptionalField, SingleValuedField}
 import de.qaware.findfacts.common.dt.EtField
-import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.common.utils.TryUtils._
 import de.qaware.findfacts.core.solrimpl.SolrQueryLiterals.All
 import de.qaware.findfacts.core.{And, Exact, FieldFilter, Filter, FilterQuery, InRange, InResult, Not, Or, Term}
@@ -32,16 +31,17 @@ class SolrFilterMapper {
   private final val ExactEscapeRegex = (SpecialChars ++ ExactSpecialChars).map(s => s"($s)").mkString("|").r
 
   private def innerQuery(field: EtField, fq: List[FieldFilter], toQuery: Seq[String] => String)(
-      implicit queryService: SolrQueryService): Try[String] = {
+      implicit index: String,
+      queryService: SolrQueryService): Try[String] = {
     val results: Try[Seq[_]] = field match {
       case f: OptionalField[_] =>
-        val results = queryService.getResults[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
+        val results = queryService.getResults[f.T](FilterQuery(fq, MaxInnerResult))
         results.map(_.values.flatMap(_.asInstanceOf[Option[_]]))
       case f: MultiValuedField[_] =>
-        val results = queryService.getResults[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T])
+        val results = queryService.getResults[f.T](FilterQuery(fq, MaxInnerResult))
         results.map(_.values.flatMap(_.asInstanceOf[List[_]]))
       case f: SingleValuedField[_] =>
-        queryService.getResults[f.T](FilterQuery(fq, MaxInnerResult))(FromSolrDoc[f.T]).map(_.values)
+        queryService.getResults[f.T](FilterQuery(fq, MaxInnerResult)).map(_.values)
       case _ => return Failure(new IllegalArgumentException(s"Field ${field.name} not allowed in query"))
     }
     results.map(_.map(_.toString)).map(toQuery)
@@ -76,7 +76,7 @@ class SolrFilterMapper {
     * @param queryService to execute recursive queries
     * @return mapped filter or error if recursive querying failed
     */
-  def mapFilter(filter: Filter)(implicit queryService: SolrQueryService): Try[String] = filter match {
+  def mapFilter(filter: Filter)(implicit index: String, queryService: SolrQueryService): Try[String] = filter match {
     case Not(filter) => mapFilter(filter).map(f => s"(${SolrQueryLiterals.Not}$f)")
     case Or(f1, f2, fn @ _*) =>
       val filters: Try[Seq[String]] = (f1 +: f2 +: fn).map(mapFilter)

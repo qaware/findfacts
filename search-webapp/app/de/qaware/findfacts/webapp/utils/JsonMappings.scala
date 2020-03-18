@@ -15,22 +15,22 @@ class JsonMappings {
   // scalastyle:off scaladoc
 
   // Encoding
-  private val constantEtEncoder = deriveEncoder[ConstantEt]
-  private val factEtEncoder = deriveEncoder[FactEt]
-  private val typeEtEncoder = deriveEncoder[TypeEt]
-  private val thyEtEncoder: Encoder[TheoryEt] = Encoder.instance {
+  implicit val constantEtEncoder: Encoder[ConstantEt] = deriveEncoder[ConstantEt]
+  implicit val factEtEncoder: Encoder[FactEt] = deriveEncoder[FactEt]
+  implicit val typeEtEncoder: Encoder[TypeEt] = deriveEncoder[TypeEt]
+  implicit val thyEtEncoder: Encoder[TheoryEt] = Encoder.instance {
     case c: ConstantEt => constantEtEncoder(c)
     case f: FactEt => factEtEncoder(f)
     case t: TypeEt => typeEtEncoder(t)
   }
-  private val codeblockEtEncoder = deriveEncoder[CodeblockEt]
+  implicit val codeblockEtEncoder: Encoder[CodeblockEt] = deriveEncoder[CodeblockEt]
   implicit val baseEtEncoder: Encoder[BaseEt] = Encoder.instance {
     case c: CodeblockEt => codeblockEtEncoder(c)
     case t: TheoryEt => thyEtEncoder(t)
   }
-  private val resolvedConstantEncoder = deriveEncoder[ResolvedConstant]
-  private val resolvedFactEncoder = deriveEncoder[ResolvedFact]
-  private val resolvedTypeEncoder = deriveEncoder[ResolvedType]
+  implicit val resolvedConstantEncoder: Encoder[ResolvedConstant] = deriveEncoder[ResolvedConstant]
+  implicit val resolvedFactEncoder: Encoder[ResolvedFact] = deriveEncoder[ResolvedFact]
+  implicit val resolvedTypeEncoder: Encoder[ResolvedType] = deriveEncoder[ResolvedType]
   implicit val resolvedEncoder: Encoder[ResolvedThyEt] = Encoder.instance {
     // Remove top union type layer from json
     case c: ResolvedConstant => resolvedConstantEncoder(c)

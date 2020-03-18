@@ -2,19 +2,20 @@ package de.qaware.findfacts.core
 
 import de.qaware.findfacts.common.dt.EtField.{StartLine, Uses}
 import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, ITSolr, Kind}
-import de.qaware.findfacts.common.solr.LocalSolr
+import de.qaware.findfacts.common.solr.{LocalSolr, SolrRepository}
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
-import org.apache.solr.client.solrj.{SolrClient, SolrQuery}
+import org.apache.solr.client.solrj.SolrQuery
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Inside, Matchers}
 
 /** Test base functionality of query module with a setup that's as simple as possible.  */
 class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with Inside {
-  final val solr = ITSolr()
-  final val queryModule: QueryModule = new SolrQueryModule { override lazy val solrClient: SolrClient = solr.solrConnection }
+  final val itSolr = ITSolr()
+  final val queryModule: QueryModule = new SolrQueryModule { override lazy val solr: SolrRepository = itSolr }
+  implicit val index: String = LocalSolr.DefaultCoreName
 
   override def beforeAll(): Unit = {
-    solr.createIndex(LocalSolr.DefaultCoreName)
+    itSolr.createIndex(LocalSolr.DefaultCoreName)
 
     // Add integration test data set
     val const1 = new ConstantEt("Const1", List("someId"), "'a => 'b")
@@ -23,15 +24,15 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
     val block2 = new CodeblockEt(12, 14, "ExampleThy", 3, "lemma", "\n...", "lemma ...", "(* stuff *)", List(fact1))
 
     val mapper = ToSolrDoc[BaseEt]
-    solr.solrConnection.add(mapper.toSolrDoc(block1))
-    solr.solrConnection.add(mapper.toSolrDoc(block2))
-    solr.solrConnection.commit().getStatus should (be(200) or be(0))
+    itSolr.solrConnection.add(mapper.toSolrDoc(block1))
+    itSolr.solrConnection.add(mapper.toSolrDoc(block2))
+    itSolr.solrConnection.commit().getStatus should (be(200) or be(0))
   }
 
-  override def afterAll(): Unit = solr.close()
+  override def afterAll(): Unit = itSolr.close()
 
   test("Check all present") {
-    solr.solrConnection.query(new SolrQuery("*:*")).getResults.size() should be(4)
+    itSolr.solrConnection.query(new SolrQuery("*:*")).getResults.size() should be(4)
   }
 
   test("Filter query") {

@@ -9,8 +9,7 @@ import de.qaware.findfacts.common.solr
 import de.qaware.findfacts.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
-import de.qaware.findfacts.webapp.utils.JsonMappings
-import org.apache.solr.client.solrj.SolrClient
+import de.qaware.findfacts.webapp.utils.{ActionBuilderUtils, JsonMappings}
 import play.api.ApplicationLoader.Context
 import play.api.mvc.EssentialFilter
 import play.api.routing.Router
@@ -43,18 +42,18 @@ class WebappModule(context: Context)
   }
 
   // Connect to remote solr.
-  override lazy val solrClient: SolrClient =
-    configuration.get[SolrRepository]("solr")(WebappModule.repositoryLoader).solrConnection
+  override lazy val solr: SolrRepository = configuration.get[SolrRepository]("solr")(WebappModule.repositoryLoader)
 
   lazy val jsonMappings: JsonMappings = wire[JsonMappings]
 
   // Wire up controllers for the router
+  lazy val actionBuilderUtils: ActionBuilderUtils = wire[ActionBuilderUtils]
   lazy val homeController: HomeController = wire[HomeController]
   lazy val queryController: QueryController = wire[QueryController]
   lazy val docsController: ApiHelpController = wire[ApiHelpController]
 
   // Swagger plugin creates api doc. Cannot be lazy as it needs to be initialized first for api discovery.
-  lazy val swaggerPlugin: SwaggerPlugin = wire[SwaggerPluginImpl]
+  val swaggerPlugin: SwaggerPlugin = wire[SwaggerPluginImpl]
 
   // Wire up router, which provides the main entry point for play
   protected lazy val routesPrefix = "/"

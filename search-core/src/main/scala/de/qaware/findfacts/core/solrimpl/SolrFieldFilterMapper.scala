@@ -20,21 +20,27 @@ case class Filters(fqs: Seq[String], childFqs: Seq[String])
   */
 class SolrFieldFilterMapper(filterMapper: SolrFilterMapper) {
 
-  private def mapChildFilter(field: EtField, filter: Filter)(implicit queryService: SolrQueryService): Try[String] = {
+  private def mapChildFilter(field: EtField, filter: Filter)(
+      implicit index: String,
+      queryService: SolrQueryService): Try[String] = {
     filterMapper.mapFilter(filter).map(f => s"{!$TagParam=${field.name}}${field.name}:$f")
   }
 
-  private def mapParentFilter(field: EtField, filter: Filter)(implicit queryService: SolrQueryService): Try[String] = {
+  private def mapParentFilter(field: EtField, filter: Filter)(
+      implicit index: String,
+      queryService: SolrQueryService): Try[String] = {
     filterMapper.mapFilter(filter).map(f => s"{!$TagParam=$ParentTag,${field.name}}${field.name}:$f")
   }
 
   /** Map a list of filters to tagged parent and child solr query strings.
     *
     * @param filters all filters to filter for
+    * @param index for recursive queries
     * @param queryService for recursive queries
-    * @return query strings seperated into 'fq's and 'child.fq's, or error if recursive query failed.
+    * @return query strings separated into 'fq's and 'child.fq's, or error if recursive query failed.
     */
-  def mapFieldFilters(filters: List[FieldFilter])(implicit queryService: SolrQueryService): Try[Filters] = {
+  def mapFieldFilters(
+      filters: List[FieldFilter])(implicit index: String, queryService: SolrQueryService): Try[Filters] = {
     val (childFilters, parentFilters) = filters.partition(!_.field.isParent)
 
     val fqs: Try[Seq[String]] = parentFilters.map(f => mapParentFilter(f.field, f.filter))

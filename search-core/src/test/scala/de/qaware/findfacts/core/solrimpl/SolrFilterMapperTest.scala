@@ -13,6 +13,7 @@ import scala.util.Success
 
 class SolrFilterMapperTest extends FunSuite with Matchers with MockFactory {
   implicit val queryService: SolrQueryService = mock[SolrQueryService]
+  implicit val index: String = "default"
 
   val sut = new SolrFilterMapper()
 
@@ -33,8 +34,8 @@ class SolrFilterMapperTest extends FunSuite with Matchers with MockFactory {
     val subQ = List(FieldFilter(EtField.Kind, Term("sub")))
     val res = Success(ResultList(Vector(Uses(List("id1", "id2")), Uses(List("id3"))), 2, ""))
     (queryService
-      .getResults(_: FilterQuery)(_: FromSolrDoc[Uses.T]))
-      .expects(FilterQuery(subQ, sut.MaxInnerResult, None), *)
+      .getResults(_: FilterQuery)(_: String, _: FromSolrDoc[Uses.T]))
+      .expects(FilterQuery(subQ, sut.MaxInnerResult, None), *, *)
       .returning(res)
 
     sut.mapFilter(InResult(Uses, subQ)).get should equal("(id1 id2 id3)")

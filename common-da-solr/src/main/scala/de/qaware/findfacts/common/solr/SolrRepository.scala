@@ -27,6 +27,12 @@ sealed trait SolrRepository extends AutoCloseable with Closeable {
     */
   def createIndex(name: String): Boolean
 
+  /** List available indexes.
+    *
+    * @return list of available indexes
+    */
+  def listIndexes: List[String]
+
   /** Initialized client to the repositories' solr instance. */
   val solrConnection: SolrClient
 }
@@ -60,6 +66,7 @@ final class LocalSolr private (
   override def createIndex(name: String): Boolean = {
     val coreConfDir = home / name / LocalSolr.SolrConfDir
     if (coreConfDir.exists) {
+      server.getCoreContainer.reload(name)
       false
     } else {
       // Prepare core
@@ -84,6 +91,8 @@ final class LocalSolr private (
       true
     }
   }
+
+  override def listIndexes: List[String] = home.children.filter(_.isDirectory).map(_.name).toList
 
   override def close(): Unit = server.close()
 }
@@ -135,12 +144,7 @@ object LocalSolr {
   */
 final class RemoteSolr private (private val client: SolrClient, private val configSet: String) extends SolrRepository {
   override def createIndex(name: String): Boolean = {
-    val request = new CoreAdminRequest()
-    request.setAction(CoreAdminAction.STATUS)
-
-    val resp = request.process(client)
-
-    if (!resp.getCoreStatus.asScala.exists(_.getKey == name)) {
+    if (!listIndexes.contains(name)) {
       val req = new CoreAdminRequest.Create()
       req.setConfigSet(configSet)
       req.setCoreName(name)
@@ -150,7 +154,18 @@ final class RemoteSolr private (private val client: SolrClient, private val conf
       false
     }
   }
+
+  override def listIndexes: List[String] = {
+    val request = new CoreAdminRequest()
+    request.setAction(CoreAdminAction.STATUS)
+
+    val resp = request.process(client)
+
+    resp.getCoreStatus.asScala.map(_.getKey).toList
+  }
+
   override val solrConnection: SolrClient = client
+
   override def close(): Unit = client.close()
 }
 
@@ -189,8 +204,7 @@ final class CloudSolr private (
     private val numReplicas: Int)
     extends SolrRepository {
   override def createIndex(name: String): Boolean = {
-    val collections = CollectionAdminRequest.listCollections(client)
-    if (!collections.contains(name)) {
+    if (!listIndexes.contains(name)) {
       CollectionAdminRequest.createCollection(name, configSet, numShards, numReplicas)
       true
     } else {
@@ -198,7 +212,10 @@ final class CloudSolr private (
     }
   }
 
+  override def listIndexes: List[String] = CollectionAdminRequest.listCollections(client).asScala.toList
+
   override val solrConnection: SolrClient = client
+
   override def close(): Unit = client.close()
 }
 
