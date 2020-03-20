@@ -1,4 +1,4 @@
-module Components.Obfuscated exposing
+module Material.Extra.Obfuscated exposing
     ( Config, State
     , config, withDisplay, withObfuscate
     , init, view

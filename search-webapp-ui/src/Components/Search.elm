@@ -1,7 +1,7 @@
 module Components.Search exposing
     ( Config, State, ResultFor(..), MergeResult(..)
     , config, empty, encode, decoder, update, merge, subscriptions, view
-    , sameQuery, buildFacetQueries, initUsedBy, initUses
+    , sameQuery, buildFacetQueries, initUsedBy, initUses, getFilters
     )
 
 {-| This components controls the search form.
@@ -19,7 +19,7 @@ module Components.Search exposing
 
 # Helpers
 
-@docs sameQuery, buildFacetQueries, addUsing, initUsedBy, initUses
+@docs sameQuery, buildFacetQueries, addUsing, initUsedBy, initUses, getFilters
 
 -}
 
@@ -63,8 +63,8 @@ type alias NamedField =
     }
 
 
-facetableFields : AnyDict String Field NamedField
-facetableFields =
+facetFields : AnyDict String Field NamedField
+facetFields =
     AnyDict.fromList fieldToString
         [ ( Command, "Command" )
         , ( SrcFileFacet, "Source Theory" )
@@ -425,8 +425,13 @@ buildFacetQueries (State state) =
         fsFields =
             fsFacetFields state.fieldSearchers
     in
-    ( FacetQuery state.filters (facetableFields |> AnyDict.map (always .field) |> AnyDict.values) 10, Facets )
+    ( FacetQuery state.filters (facetFields |> AnyDict.map (always .field) |> AnyDict.values) 10, Facets )
         :: ite (List.isEmpty fsFields) [] [ ( FacetQuery state.filters fsFields 100, FieldSearchers ) ]
+
+
+getFilters : State -> List FieldFilter
+getFilters (State state) =
+    state.filters
 
 
 initUsedBy : String -> List String -> State
@@ -530,7 +535,7 @@ facetingDecoder : Decoder Faceting
 facetingDecoder =
     anyDictDecoder
         (fieldFromString
-            >> Result.andThen (\f -> AnyDict.get f facetableFields |> Result.fromMaybe "Not a facet field")
+            >> Result.andThen (\f -> AnyDict.get f facetFields |> Result.fromMaybe "Not a facet field")
         )
         facetDecoder
         (.field >> fieldToString)
@@ -556,7 +561,7 @@ updateFaceting result faceting =
         resultFacets =
             result
                 |> AnyDict.toList
-                |> List.filterMap (\( k, v ) -> AnyDict.get k facetableFields |> Maybe.map (pairWith v))
+                |> List.filterMap (\( k, v ) -> AnyDict.get k facetFields |> Maybe.map (pairWith v))
                 |> AnyDict.fromList (.field >> fieldToString)
                 |> AnyDict.map
                     (\field res ->
@@ -653,8 +658,8 @@ setTerm state term =
 
 
 setFieldSearcher : StateInternal -> Int -> Maybe FieldSearcher -> State
-setFieldSearcher state idx fieldSarcherMaybe =
-    case fieldSarcherMaybe of
+setFieldSearcher state idx fieldSearcherMaybe =
+    case fieldSearcherMaybe of
         Nothing ->
             State { state | fieldSearchers = Array.Extra.removeAt idx state.fieldSearchers }
 
