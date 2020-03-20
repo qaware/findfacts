@@ -1,8 +1,15 @@
 package de.qaware.findfacts.theoryimporter
 
 import com.softwaremill.macwire.wire
-import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.theoryimporter.TheoryView.Theory
+import de.qaware.findfacts.theoryimporter.steps.impl.{
+  ExtractBlocksStep,
+  ExtractConstantsStep,
+  ExtractFactsStep,
+  ExtractTypesStep,
+  JoinBlockEntitiesStep,
+  SanityCheckStep
+}
 import de.qaware.findfacts.theoryimporter.steps.impl.thy.{
   NameExtractor,
   ProofExtractor,
@@ -12,16 +19,10 @@ import de.qaware.findfacts.theoryimporter.steps.impl.thy.{
 }
 import de.qaware.findfacts.theoryimporter.steps.impl.util.IdBuilder
 
-import scala.language.postfixOps
-// scalastyle:off
-import de.qaware.findfacts.theoryimporter.steps.impl._
-// scalastyle:on
-import de.qaware.findfacts.theoryimporter.steps.{ImportStep, StepContext}
+import de.qaware.findfacts.theoryimporter.steps.ImportStep
 
 /** DI module for the importer. */
 trait ImporterModule {
-  private val logger = Logger[ImporterModule]
-
   // internals
   lazy val nameExtractor: NameExtractor = wire[NameExtractor]
   lazy val typeExtractor: TypExtractor = wire[TypExtractor]
@@ -38,31 +39,13 @@ trait ImporterModule {
     wire[ExtractBlocksStep],
     wire[JoinBlockEntitiesStep],
     wire[SanityCheckStep],
-    indexWriterStep
   )
-
-  /** Configured index writer has to be provided. */
-  def indexWriterStep: ImportStep
 
   /** Runs the importer for a session.
     *
+    * @param index to import into
     * @param theories to import in a session
     * @return import errors, if any
     */
-  def importSession(theories: Seq[Theory]): List[ImportError] = {
-    logger.info("Starting import...")
-
-    theories flatMap { theory =>
-      logger.info(s"Processing theory ${theory.name}")
-
-      implicit val ctx: StepContext = StepContext()
-      val errors = steps.flatMap(_(theory))
-
-      errors foreach { error =>
-        logger.warn(s"Error during import: $error")
-        logger.debug(s"Details: ${error.getDebugInfo}")
-      }
-      errors
-    } toList
-  }
+  def importSession(index: String, theories: Seq[Theory]): List[ImportError]
 }

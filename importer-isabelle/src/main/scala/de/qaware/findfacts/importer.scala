@@ -20,22 +20,21 @@ object Importer
   /* import a session to solr */
 
   def solr_import(
-     collection_name: String,
+     index_name: String,
      provider: Export.Provider,
      session_name: String,
      theory_names: List[String],
      solr_repository: SolrRepository,
      progress: Progress = No_Progress)
   {
-    val importer = new SolrImporterModule(collection_name) {
-      override def solr: SolrRepository = solr_repository
-    }
-    import_session(provider, session_name, theory_names, importer, progress)
+    val importer = new SolrImporterModule(solr_repository)
+    import_session(index_name, provider, session_name, theory_names, importer, progress)
   }
 
   /* import a session with a generic importer */
 
   def import_session(
+    index_name: String,
     provider: Export.Provider,
     session_name: String,
     theory_names: List[String],
@@ -57,7 +56,7 @@ object Importer
       map_theory(session_name, isabelle_theory, markup_blocks)
     }
 
-    val errors = importer.importSession(theories)
+    val errors = importer.importSession(index_name, theories)
 
     errors foreach { error =>
       val message = session_name + ": " + error.step.getClass + ": " + error.causeEntity + ": " + error.errorMsg
@@ -77,7 +76,7 @@ object Importer
   {
     /* arguments */
 
-    var solr_collection = "theorydata"
+    var index_name = "theorydata"
     var sessions: List[String] = Nil
 
     val getopts = Getopts("""
@@ -91,7 +90,7 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR HOST PORT
   Only one solr connection may be specified.
 """,
       "B:" -> (arg => sessions = sessions ::: List(arg)),
-      "C:" -> (arg => solr_collection = arg))
+      "C:" -> (arg => index_name = arg))
 
     val more_args = getopts(args)
 
@@ -103,9 +102,7 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR HOST PORT
     }
 
     using(solr_repository) { solr_repository =>
-      val importer_module = new SolrImporterModule(solr_collection) {
-        override def solr: SolrRepository = solr_repository
-      }
+      val importer_module = new SolrImporterModule(solr_repository)
 
       val progress = new Console_Progress()
 
@@ -127,7 +124,7 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR HOST PORT
           }
           val provider = Export.Provider.directory(dump_dir, session, "dummy")
 
-          import_session(provider, session, theory_names, importer_module, progress)
+          import_session(index_name, provider, session, theory_names, importer_module, progress)
         }
       } foreach (_.join)
     }

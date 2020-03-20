@@ -3,9 +3,13 @@ import Profiles._
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
+
+val projectVersion = "0.3.0-SNAPSHOT"
+val schemaVersion = "0.2.1-SNAPSHOT"
+
 // Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
-ThisBuild / version := "0.2.1-SNAPSHOT"
+ThisBuild / version := projectVersion
 ThisBuild / scalaVersion := "2.12.10"
 ThisBuild / resolvers ++= Resolvers.all
 // Use java 11
@@ -119,7 +123,7 @@ lazy val `importer-isabelle` = project
     publish / skip := true,
     isabelleTool := "dump_importer",
     isabelleExecutable := (baseDirectory in isabelle).value / "bin" / "isabelle",
-    isabelleSettings := Seq("SOLR_CONFIGSET=theorydata-" + version.value),
+    isabelleSettings := Seq("SOLR_CONFIGSET=theorydata-" + schemaVersion),
     libraryDependencies ++= loggingBackend
   )
   .dependsOn(`importer-base`, `isabelle`)
@@ -140,6 +144,7 @@ lazy val `search-webapp` = project
   .settings(
     // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
     javaOptions in Runtime += "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
+    envVars in Runtime += "SOLR_CONFIGSET" -> ("theorydata-" + schemaVersion),
     libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
       playGuice, playCirce, playSwagger, swaggerUi, playTestPlus % "test"
     )),

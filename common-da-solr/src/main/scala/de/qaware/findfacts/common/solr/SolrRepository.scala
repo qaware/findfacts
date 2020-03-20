@@ -63,7 +63,7 @@ final class LocalSolr private (
     override def close(): Unit = server.close()
   }
 
-  override def createIndex(name: String): Boolean = {
+  override def createIndex(name: String): Boolean = this.synchronized {
     val coreConfDir = home / name / LocalSolr.SolrConfDir
     if (coreConfDir.exists) {
       server.getCoreContainer.reload(name)
@@ -143,7 +143,7 @@ object LocalSolr {
   * @param configSet name of the config set (that must be available on the instance)
   */
 final class RemoteSolr private (private val client: SolrClient, private val configSet: String) extends SolrRepository {
-  override def createIndex(name: String): Boolean = {
+  override def createIndex(name: String): Boolean = this.synchronized {
     if (!listIndexes.contains(name)) {
       val req = new CoreAdminRequest.Create()
       req.setConfigSet(configSet)
@@ -161,7 +161,9 @@ final class RemoteSolr private (private val client: SolrClient, private val conf
 
     val resp = request.process(client)
 
-    resp.getCoreStatus.asScala.map(_.getKey).toList
+    resp.getCoreStatus.asScala
+      .map(_.getKey)
+      .toList
   }
 
   override val solrConnection: SolrClient = client
@@ -203,7 +205,7 @@ final class CloudSolr private (
     private val numShards: Int,
     private val numReplicas: Int)
     extends SolrRepository {
-  override def createIndex(name: String): Boolean = {
+  override def createIndex(name: String): Boolean = this.synchronized {
     if (!listIndexes.contains(name)) {
       CollectionAdminRequest.createCollection(name, configSet, numShards, numReplicas)
       true
@@ -212,7 +214,12 @@ final class CloudSolr private (
     }
   }
 
-  override def listIndexes: List[String] = CollectionAdminRequest.listCollections(client).asScala.toList
+  override def listIndexes: List[String] = {
+    CollectionAdminRequest
+      .listCollections(client)
+      .asScala
+      .toList
+  }
 
   override val solrConnection: SolrClient = client
 

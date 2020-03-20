@@ -10,6 +10,8 @@ import de.qaware.findfacts.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRe
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
 import de.qaware.findfacts.webapp.utils.{ActionBuilderUtils, JsonMappings}
+import org.apache.logging.log4j.core
+import org.apache.logging.log4j.core.Core
 import play.api.ApplicationLoader.Context
 import play.api.mvc.EssentialFilter
 import play.api.routing.Router
@@ -70,6 +72,7 @@ object WebappModule {
   final val ZKHosts = "zkhosts"
   final val NumShards = "numShards"
   final val NumReplicas = "numReplicas"
+  final val Configset = "configset"
   final val Core = "core"
 
   /** Configuration loader for zk hosts. */
@@ -84,11 +87,11 @@ object WebappModule {
     if (config.hasPath(SolrHome)) {
       LocalSolr(new File(config.getString(SolrHome)), config.getString(Core))
     } else if (config.hasPath(Host) && config.hasPath(Host)) {
-      RemoteSolr(config.getString(Host), config.getInt(Port), config.getString(Core))
+      RemoteSolr(config.getString(Host), config.getInt(Port), config.getString(Configset))
     } else {
       CloudSolr(
         config.getObjectList(ZKHosts).asScala.map(c => zkHostLoader.load(c.toConfig, ZKHost)),
-        config.getString(Core),
+        config.getString(Configset),
         config.getInt(NumShards),
         config.getInt(NumReplicas)
       )
