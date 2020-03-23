@@ -9,23 +9,21 @@ Requirements: `java` 11
 
 ### Importer isabelle tool
 
-Steps to run:
+#### From source
 1. Check out and `cd` into repo
-2. Check out and initialize **isabelle** submodule (or have a local isabelle installation)
-
+2. Check out, initialize and build **isabelle** submodule
    ```shell
    git submodule init
    git submodule update
+   ci-scripts/install-isabelle
    ```
    
 3. Register `importer-isabelle` external component (for local installation, use your own `settings` file)
-
    ```shell
    echo 'init_component "path/to/isabelle-afp-search/importer-isabelle/target/scala-2.12"' >> isabelle/etc/settings
    ```
    
-4. Run using sbt
-
+4. Run
     ```shell
     ./sbt "project importer-isabelle" "run <OPTIONS>"
    ```
@@ -33,6 +31,17 @@ Steps to run:
     ```shell
    ./sbt "project importer-isabelle" "run ../dump localhost 8983" 
    ``` 
+
+#### Using local isabelle installation
+1. Download published artifact (TODO publish)
+2. Add Isabelle component (to Isabelle `etc/settings` file):
+   ```shell
+   init_component /path/to/download/folder
+   ```
+3. Run
+   ```env
+   isabelle dump_importer -?
+   ```
 
 ### Search webapp
 Run:
