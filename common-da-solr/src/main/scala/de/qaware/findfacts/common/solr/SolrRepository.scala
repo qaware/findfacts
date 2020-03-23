@@ -1,6 +1,6 @@
 package de.qaware.findfacts.common.solr
 
-import java.io.{Closeable, File => JFile}
+import java.io.{File => JFile}
 import java.net.URL
 import java.nio.file.{Files, StandardCopyOption}
 
@@ -18,7 +18,7 @@ import org.apache.solr.common.util.NamedList
 import scala.collection.JavaConverters._
 
 /** Repository to provide connections to different types of solr instances. */
-sealed trait SolrRepository extends AutoCloseable with Closeable {
+sealed trait SolrRepository extends SolrClient with AutoCloseable {
 
   /** Creates a solr index for the repository, if not present.
     *
@@ -32,9 +32,6 @@ sealed trait SolrRepository extends AutoCloseable with Closeable {
     * @return list of available indexes
     */
   def listIndexes: List[String]
-
-  /** Initialized client to the repositories' solr instance. */
-  val solrConnection: SolrClient
 }
 
 /** Local, embedded solr client.
@@ -51,16 +48,13 @@ final class LocalSolr private (
 
   private val logger = Logger[LocalSolr]
 
-  override val solrConnection: SolrClient = new SolrClient {
+  override def request(request: SolrRequest[_ <: SolrResponse], collection: String): NamedList[AnyRef] = {
     // Workaround for https://issues.apache.org/jira/browse/SOLR-12858
-    override def request(request: SolrRequest[_ <: SolrResponse], collection: String): NamedList[AnyRef] = {
-      val isContentStreamQuery = request.getParams == null || !request.getParams.getParameterNamesIterator.hasNext
-      if (request.getMethod == METHOD.POST && !isContentStreamQuery) {
-        request.setMethod(METHOD.GET)
-      }
-      server.request(request, collection)
+    val isContentStreamQuery = request.getParams == null || !request.getParams.getParameterNamesIterator.hasNext
+    if (request.getMethod == METHOD.POST && !isContentStreamQuery) {
+      request.setMethod(METHOD.GET)
     }
-    override def close(): Unit = server.close()
+    server.request(request, collection)
   }
 
   override def createIndex(name: String): Boolean = this.synchronized {
@@ -147,7 +141,7 @@ final class RemoteSolr private (private val client: SolrClient, private val conf
     if (!listIndexes.contains(name)) {
       val req = new CoreAdminRequest.Create()
       req.setConfigSet(configSet)
-      req.setCoreName(name)
+      req.setCoreName(s"${configSet}_$name")
       req.process(client)
       true
     } else {
@@ -156,6 +150,7 @@ final class RemoteSolr private (private val client: SolrClient, private val conf
   }
 
   override def listIndexes: List[String] = {
+    val prefix = configSet + "_"
     val request = new CoreAdminRequest()
     request.setAction(CoreAdminAction.STATUS)
 
@@ -164,9 +159,12 @@ final class RemoteSolr private (private val client: SolrClient, private val conf
     resp.getCoreStatus.asScala
       .map(_.getKey)
       .toList
+      .filter(_.startsWith(prefix))
+      .map(_.stripPrefix(prefix))
   }
 
-  override val solrConnection: SolrClient = client
+  override def request(request: SolrRequest[_ <: SolrResponse], collection: String): NamedList[AnyRef] =
+    client.request(request, s"${configSet}_$collection")
 
   override def close(): Unit = client.close()
 }
@@ -207,7 +205,7 @@ final class CloudSolr private (
     extends SolrRepository {
   override def createIndex(name: String): Boolean = this.synchronized {
     if (!listIndexes.contains(name)) {
-      CollectionAdminRequest.createCollection(name, configSet, numShards, numReplicas)
+      CollectionAdminRequest.createCollection(s"${configSet}_$name", configSet, numShards, numReplicas)
       true
     } else {
       false
@@ -215,13 +213,17 @@ final class CloudSolr private (
   }
 
   override def listIndexes: List[String] = {
+    val prefix = configSet + "_"
     CollectionAdminRequest
       .listCollections(client)
       .asScala
       .toList
+      .filter(_.startsWith(prefix))
+      .map(_.stripPrefix(prefix))
   }
 
-  override val solrConnection: SolrClient = client
+  override def request(request: SolrRequest[_ <: SolrResponse], collection: String): NamedList[AnyRef] =
+    client.request(request, s"${configSet}_$collection")
 
   override def close(): Unit = client.close()
 }

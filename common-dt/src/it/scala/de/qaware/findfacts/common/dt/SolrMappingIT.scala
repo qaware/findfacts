@@ -15,8 +15,8 @@ class SolrMappingIT extends FunSuite with Matchers with BeforeAndAfterEach with 
   }
 
   override def beforeEach(): Unit = {
-    solr.solrConnection.deleteByQuery("*:*")
-    val status = solr.solrConnection.commit()
+    solr.deleteByQuery("*:*")
+    val status = solr.commit()
     status.getStatus should (be(200) or be(0))
   }
 
@@ -39,11 +39,11 @@ class SolrMappingIT extends FunSuite with Matchers with BeforeAndAfterEach with 
     val docs = List(block, block1, doc).map(toMapper.toSolrDoc)
 
     // Add docs
-    solr.solrConnection.add(docs.asJava)
-    solr.solrConnection.commit()
+    solr.add(docs.asJava)
+    solr.commit()
 
     // Read docs from solrClient
-    val resp = solr.solrConnection.query(new SolrQuery("*:*"))
+    val resp = solr.query(new SolrQuery("*:*"))
     val resultDocs = resp.getResults.asScala.toList
     val result = resultDocs.map(fromMapper.fromSolrDoc).map(_.get)
 

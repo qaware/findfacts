@@ -78,23 +78,29 @@ object Importer
 
     var index_name = "theorydata"
     var sessions: List[String] = Nil
+    var configset = Isabelle_System.getenv("SOLR_CONFIGSET")
 
     val getopts = Getopts("""
 Usage: isabelle dump_importer [OPTIONS] DUMPDIR HOST PORT
 
   Options are:
     -B NAME       import session NAME
-    -C NAME       sorl collection NAME
+    -I NAME       solr index NAME
+    -C NAME       solr configset NAME
 
   Import isabelle dump from DUMPDIR into solr db.
   Only one solr connection may be specified.
+  Configset must be specified via env var 'SOLR_CONFIGSET' or argument.
 """,
       "B:" -> (arg => sessions = sessions ::: List(arg)),
-      "C:" -> (arg => index_name = arg))
+      "I:" -> (arg => index_name = arg),
+      "C:" -> (arg => configset = arg))
+
+    if (configset.isBlank) {
+      getopts.usage
+    }
 
     val more_args = getopts(args)
-
-    val configset = Isabelle_System.getenv("SOLR_CONFIGSET")
 
     val (dump_dir, solr_repository) = more_args match {
       case dump :: host :: port :: Nil => (Path.explode(dump), RemoteSolr(host,  Value.Int.parse(port), configset))

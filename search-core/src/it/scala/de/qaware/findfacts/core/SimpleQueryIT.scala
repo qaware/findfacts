@@ -24,15 +24,15 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
     val block2 = new CodeblockEt(12, 14, "ExampleThy", 3, "lemma", "\n...", "lemma ...", "(* stuff *)", List(fact1))
 
     val mapper = ToSolrDoc[BaseEt]
-    itSolr.solrConnection.add(mapper.toSolrDoc(block1))
-    itSolr.solrConnection.add(mapper.toSolrDoc(block2))
-    itSolr.solrConnection.commit().getStatus should (be(200) or be(0))
+    itSolr.add(mapper.toSolrDoc(block1))
+    itSolr.add(mapper.toSolrDoc(block2))
+    itSolr.commit().getStatus should (be(200) or be(0))
   }
 
   override def afterAll(): Unit = itSolr.close()
 
   test("Check all present") {
-    itSolr.solrConnection.query(new SolrQuery("*:*")).getResults.size() should be(4)
+    itSolr.query(new SolrQuery("*:*")).getResults.size() should be(4)
   }
 
   test("Filter query") {

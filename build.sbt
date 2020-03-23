@@ -142,9 +142,11 @@ lazy val `search-core` = project
 // Play web application backend
 lazy val `search-webapp` = project
   .settings(
-    // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
-    javaOptions in Runtime += "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
-    envVars in Runtime += "SOLR_CONFIGSET" -> ("theorydata-" + schemaVersion),
+    javaOptions in Runtime ++= Seq(
+      // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
+      "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
+      "-Dsolr.configset=theorydata-" + schemaVersion
+    ),
     libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
       playGuice, playCirce, playSwagger, swaggerUi, playTestPlus % "test"
     )),

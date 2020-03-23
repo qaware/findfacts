@@ -34,10 +34,10 @@ class WriteSolrStep(index: String, solr: SolrRepository) extends ImportStep {
       // Add all entities
       val mapper = ToSolrDoc[BaseEt]
 
-      solr.solrConnection.add(index, entities.map(mapper.toSolrDoc).asJava)
+      solr.add(index, entities.map(mapper.toSolrDoc).asJava)
 
       // Commit, wait for response and check if it is ok
-      val res = solr.solrConnection.commit(index)
+      val res = solr.commit(index)
       if (res.getStatus != 0 && res.getStatus != StatusOk) {
         logger.error(s"Error occurred while writing to solr: $res")
         throw new IllegalStateException(s"Error ${res.getStatus} while writing to solr")

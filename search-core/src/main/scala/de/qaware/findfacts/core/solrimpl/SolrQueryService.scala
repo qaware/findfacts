@@ -33,8 +33,8 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
       logger.info(s"Executing query $query")
 
       val resp = query match {
-        case Left(query) => solr.solrConnection.query(index, query, METHOD.POST)
-        case Right(query) => query.process(solr.solrConnection, index)
+        case Left(query) => solr.query(index, query, METHOD.POST)
+        case Right(query) => query.process(solr, index)
       }
 
       if (resp.getStatus != 0 && resp.getStatus != 200) {
