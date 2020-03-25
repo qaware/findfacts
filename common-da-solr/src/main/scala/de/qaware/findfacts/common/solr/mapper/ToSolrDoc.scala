@@ -23,7 +23,7 @@ import shapeless.{:+:, ::, CNil, Coproduct, HList, HNil, LabelledGeneric, Lazy, 
   */
 trait ToSolrDoc[A] {
 
-  /** Maps an object of conrete type to solr document.
+  /** Maps an object of concrete type to solr document.
     *
     * @param elem to map
     * @return mapped solr input document
@@ -43,7 +43,7 @@ object ToSolrDoc {
   /** HList impls. */
   def hlistToSolrDoc[F <: Field, K, H, T <: HList](witness: Witness.Aux[F], tMapper: ToSolrDoc[T])(
       mapFn: (F, H, SolrInputDocument) => SolrInputDocument): ToSolrDoc[FieldType[K, H @@ F] :: T] = instance {
-    elem: (H :: T) =>
+    elem: H :: T =>
       val field = witness.value
       val doc = tMapper.toSolrDoc(elem.tail)
       mapFn(field, elem.head, doc)

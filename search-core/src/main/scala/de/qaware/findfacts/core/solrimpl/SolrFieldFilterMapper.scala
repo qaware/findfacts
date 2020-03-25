@@ -1,11 +1,13 @@
 package de.qaware.findfacts.core.solrimpl
 
-import scala.util.Try
-
+import cats.instances.list._
+import cats.instances.try_._
+import cats.syntax.traverse._
 import de.qaware.findfacts.common.dt.EtField
-import de.qaware.findfacts.common.utils.TryUtils._
 import de.qaware.findfacts.core.solrimpl.SolrQueryLiterals.{ParentTag, TagParam}
 import de.qaware.findfacts.core.{FieldFilter, Filter}
+
+import scala.util.Try
 
 /** Case class for filters and child filters.
   *
@@ -43,8 +45,8 @@ class SolrFieldFilterMapper(filterMapper: SolrFilterMapper) {
       filters: List[FieldFilter])(implicit index: String, queryService: SolrQueryService): Try[Filters] = {
     val (childFilters, parentFilters) = filters.partition(!_.field.isParent)
 
-    val fqs: Try[Seq[String]] = parentFilters.map(f => mapParentFilter(f.field, f.filter))
-    val childFqs: Try[Seq[String]] = childFilters.map(f => mapChildFilter(f.field, f.filter))
+    val fqs = parentFilters.map(f => mapParentFilter(f.field, f.filter)).sequence
+    val childFqs = childFilters.map(f => mapChildFilter(f.field, f.filter)).sequence
 
     for {
       fqParams <- fqs

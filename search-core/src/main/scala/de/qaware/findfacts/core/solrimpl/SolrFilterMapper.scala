@@ -2,9 +2,11 @@ package de.qaware.findfacts.core.solrimpl
 
 import java.util.regex.Matcher
 
+import cats.instances.list._
+import cats.instances.try_._
+import cats.syntax.traverse._
 import de.qaware.findfacts.common.da.api.{MultiValuedField, OptionalField, SingleValuedField}
 import de.qaware.findfacts.common.dt.EtField
-import de.qaware.findfacts.common.utils.TryUtils._
 import de.qaware.findfacts.core.solrimpl.SolrQueryLiterals.All
 import de.qaware.findfacts.core.{And, Exact, FieldFilter, Filter, FilterQuery, InRange, InResult, Not, Or, Term}
 
@@ -79,11 +81,9 @@ class SolrFilterMapper {
   def mapFilter(filter: Filter)(implicit index: String, queryService: SolrQueryService): Try[String] = filter match {
     case Not(filter) => mapFilter(filter).map(f => s"(${SolrQueryLiterals.Not}$f)")
     case Or(f1, f2, fn @ _*) =>
-      val filters: Try[Seq[String]] = (f1 +: f2 +: fn).map(mapFilter)
-      filters.map(fs => s"(${fs.mkString(SolrQueryLiterals.Or)})")
+      (f1 +: f2 +: fn).map(mapFilter).toList.sequence.map(fs => s"(${fs.mkString(SolrQueryLiterals.Or)})")
     case And(f1, f2, fn @ _*) =>
-      val filters: Try[Seq[String]] = (f1 +: f2 +: fn).map(mapFilter)
-      filters.map(fs => s"(${fs.mkString(SolrQueryLiterals.And)})")
+      (f1 +: f2 +: fn).map(mapFilter).toList.sequence.map(fs => s"(${fs.mkString(SolrQueryLiterals.And)})")
     case Term(inner) => Success(escape(inner, exact = false))
     case Exact(inner) => Success(escape(inner, exact = true))
     case InRange(from, to) => Success(s"[$from TO $to]")

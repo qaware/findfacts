@@ -35,11 +35,12 @@ object TheoryEt {
     *
     * @param kind of the entity
     * @param name of the entity. Must be unique within the kind of entities.
-    * @return imoqie od
+    * @return unique id
     */
   def makeId(kind: Kind, name: Name.T): Id.T = s"$kind.$name"
 }
 
+// scalastyle:off scaladoc
 /** Any code block.
   *
   * @param theory source in which entity was defined
@@ -87,8 +88,7 @@ object CodeblockEt {
   def makeId(theory: SourceTheory.T, startPos: Int, endPos: Int): Id.T = s"$theory.$startPos.$endPos"
 }
 
-// scalastyle:off scaladoc
-/** Constants.
+/** Constant entity.
   *
   * @param constantType type of the constant
   */
@@ -104,7 +104,7 @@ final case class ConstantEt private (
     this(TheoryEt.makeId(Kind.Constant, name), name, uses, constantType)
 }
 
-/** Any fact. */
+/** Fact entity. */
 final case class FactEt private (
     override val id: Id.T,
     override val name: Name.T,

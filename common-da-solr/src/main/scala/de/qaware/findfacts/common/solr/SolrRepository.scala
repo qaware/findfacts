@@ -182,7 +182,7 @@ object RemoteSolr {
   def apply(host: String, port: Int, configSet: String): RemoteSolr =
     new RemoteSolr(
       new HttpSolrClient.Builder()
-        .withBaseSolrUrl(new URL("http", host, port, s"/solr").toString)
+        .withBaseSolrUrl(new URL("http", host, port, "/solr").toString)
         .withConnectionTimeout(5 * 60 * 1000)
         .withSocketTimeout(5 * 60 * 1000)
         .build,
@@ -237,7 +237,7 @@ object CloudSolr {
     * @param configSet name of the config set (that must be available in the cluster)
     * @param numShards number of shards for new collections
     * @param numReplicas number of replicas for new collections
-    * @return
+    * @return configured cloud solr connection
     */
   def apply(zkhosts: Seq[ZKHost], configSet: String, numShards: Int, numReplicas: Int): CloudSolr = {
     require(zkhosts.nonEmpty, "must have at least one zookeeper")

@@ -19,6 +19,6 @@ object Kind extends DefaultEnum[Kind] {
   /** Pure constants. */
   case object Constant extends Value
 
-  /** Pure axioms and thms. */
+  /** Pure axioms and theorems. */
   case object Fact extends Value
 }

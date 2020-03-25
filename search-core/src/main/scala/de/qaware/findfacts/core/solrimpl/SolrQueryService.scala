@@ -1,12 +1,14 @@
 package de.qaware.findfacts.core.solrimpl
 
+import cats.instances.list._
+import cats.instances.try_._
+import cats.syntax.traverse._
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, TypeEt}
 import de.qaware.findfacts.common.solr.SolrRepository
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
-import de.qaware.findfacts.common.utils.TryUtils._
 import de.qaware.findfacts.core.QueryService.{FacetResult, ResultList}
-import de.qaware.findfacts.core.dt.{ResolvedConstant, ResolvedFact, ResolvedThyEt, ResolvedType, ShortBlock, ShortThyEt}
+import de.qaware.findfacts.core.dt.{ResolvedThyEt, ShortBlock, ShortThyEt}
 import de.qaware.findfacts.core.{Exact, FacetQuery, FieldFilter, FilterQuery, Or, QueryService, dt}
 import org.apache.solr.client.solrj.SolrRequest.METHOD
 import org.apache.solr.client.solrj.request.json.JsonQueryRequest
@@ -79,7 +81,7 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
       query <- qBuilder(query)
       () = docMapper.getSolrFields.foreach(f => query.addField(f.name))
       res <- getSolrResult(Left(query))
-      typedRes <- tryFailFirst(res.getResults.asScala.map(docMapper.fromSolrDoc))
+      typedRes <- res.getResults.asScala.map(docMapper.fromSolrDoc).toList.sequence
     } yield rMapper(res, typedRes)
   }
 
@@ -183,7 +185,7 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
                 idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
                 mapper.buildFilterQuery,
                 mapResults)
-            } yield ResolvedType(id, resolved.toList)
+            } yield dt.ResolvedType(id, resolved.toList)
           case _ => return Success(None)
         }
     res.map(_.map(_.toEither.left.map(t => return Failure(t)).merge))

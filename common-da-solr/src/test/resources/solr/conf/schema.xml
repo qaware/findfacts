@@ -4,7 +4,7 @@
         <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
         <field name="_nest_parent_" type="string" indexed="true" stored="true"/>
         <field name="id" type="string" required="true"/>
-        <field name="multi" type="plong" multivalued="true"/>
+        <field name="multi" type="plong" multiValued="true"/>
         <field name="opt" type="string" required="false"/>
         <field name="kind" type="kind" required="true"/>
         <field name="_version_" type="plong" indexed="false" stored="false"/>

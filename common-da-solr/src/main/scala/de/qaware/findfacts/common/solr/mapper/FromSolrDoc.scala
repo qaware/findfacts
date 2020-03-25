@@ -85,7 +85,7 @@ object FromSolrDoc {
         val actualVariantValue = doc.getFieldValue(variantField.name)
         val expectedVariant: B = variantWitness.value
 
-        // For complex coproducts, the variant type of the document might be null for the expected variant enum.
+        // For complex co-products, the variant type of the document might be null for the expected variant enum.
         // This is because the other types in the coproduct might define other variant enums in nested types.
         if (actualVariantValue != null && variantField.fromJsonString(actualVariantValue.toString) == expectedVariant) {
           // Right type of entity found (it is L)

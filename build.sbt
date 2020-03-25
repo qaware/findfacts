@@ -36,7 +36,8 @@ lazy val root = (project in file("."))
     `common-dt`,
     `importer-base`,
     `search-core`,
-    `search-webapp`
+    `search-webapp`,
+    `symbol-synonyms-tool`
   ))
   // Aggregate all modules
   .aggregate(
@@ -48,7 +49,8 @@ lazy val root = (project in file("."))
     loaders,
     `search-core`,
     `search-webapp`,
-    ui
+    ui,
+    `symbol-synonyms-tool`
   )
   .enablePlugins(SonarConfiguration)
 
