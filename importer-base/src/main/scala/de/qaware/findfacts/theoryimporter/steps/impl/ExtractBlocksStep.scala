@@ -17,20 +17,23 @@ class ExtractBlocksStep extends ImportStep {
   override def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Importing ${theory.source.blocks.size} blocks.")
 
-    theory.source.blocks
-      .filterNot(_.text.isBlank)
-      .foreach { src =>
+    val errors = theory.source.blocks.flatMap { src =>
+      if (src.text.isBlank) {
+        Some(ImportError(this, src.toString, "Empty block", ""))
+      } else {
         val (before, inner, after) = getContext(theory.source, src)
 
         val cmdKind = getCommandKind(src.text)
 
         val block = new CodeblockEt(src.startPos, src.endPos, theory.name, src.startLine, cmdKind, before, inner, after)
         ctx.blocks.add(block)
+        None
       }
+    }
 
     logger.debug(s"Finished importing blocks.")
 
-    List.empty
+    errors
   }
 
   private def getCommandKind(src: String): String = {
@@ -62,13 +65,8 @@ class ExtractBlocksStep extends ImportStep {
       .getOrElse("")
 
     val before = blockBefore.linesWithSeparators.toList.takeRight(MaxContextLines).mkString
-    // Strip trailing whitespace from block
-    val inner = block.text.stripTrailing
-    // Add trailing whitespace from block to context, then next block
-    val after =
-      (block.text.linesWithSeparators.toList.reverse.takeWhile(_.isBlank).reverse ++ blockAfter.linesWithSeparators)
-        .take(MaxContextLines)
-        .mkString
+    val inner = block.text
+    val after = blockAfter.linesWithSeparators.take(MaxContextLines).mkString
 
     (before, inner, after)
   }

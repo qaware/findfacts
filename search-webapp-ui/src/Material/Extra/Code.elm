@@ -143,6 +143,8 @@ renderLineNumbers src font start =
                     , style "min-width" "5ch"
                     , style "float" "left"
                     , style "margin-right" "16px"
+                    , style "margin-bottom" "0"
+                    , style "margin-top" "0"
                     ]
     in
     div [ style "display" "inline-flex" ] [ linesBlock, renderCode src font ]
@@ -150,7 +152,7 @@ renderLineNumbers src font start =
 
 renderCode : String -> Html.Attribute msg -> Html msg
 renderCode src font =
-    code [ style "float" "left" ] [ pre [ font ] [ Html.map never <| renderHtml src ] ]
+    code [ style "float" "left" ] [ pre [ font, style "margin-top" "0", style "margin-bottom" "0" ] [ Html.map never <| renderHtml src ] ]
 
 
 maxDiv : Int -> List (Html.Attribute msg)

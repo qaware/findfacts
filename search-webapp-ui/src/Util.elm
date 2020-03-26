@@ -1,5 +1,6 @@
 module Util exposing
     ( ite, toMaybe
+    , trailingBlanklines, stripTrailingBlankline, stripTrailingBlanklines
     , singletonIf, consIf, appIf
     , pairWith
     , anyDictDecoder, resultStringDecoder
@@ -12,6 +13,11 @@ module Util exposing
 # Common language helpers
 
 @docs ite, toMaybe
+
+
+# String utils
+
+@docs trailingBlanklines, stripTrailingBlankline, stripTrailingBlanklines
 
 
 # List conditional helpers
@@ -42,7 +48,9 @@ import Html.Parser
 import Html.Parser.Util
 import Json.Decode as Decode exposing (Decoder, Error)
 import Json.Decode.Extra as DecodeExtra
+import List.Extra
 import Result.Extra
+import String.Extra
 
 
 {-| Ternary operator. Unfortunately no infix notation since that's not allowed in user code any more.
@@ -123,6 +131,49 @@ pairWith b a =
     Tuple.pair a b
 
 
+{-| Gives the trailing blank lines of a string.
+
+    trailingNewline "foo\n bar\n\n" == "\n\n"
+
+-}
+trailingBlanklines : String -> String
+trailingBlanklines str =
+    String.lines str |> List.Extra.takeWhileRight String.Extra.isBlank |> List.intersperse "\n" |> String.concat
+
+
+{-| Strips the trailing newline(s) from a string, if it has some.
+
+    stripTrailingNewline "foo\n bar\n\n " == "foo\n bar"
+
+-}
+stripTrailingBlanklines : String -> String
+stripTrailingBlanklines str =
+    String.lines str |> List.Extra.dropWhileRight String.Extra.isBlank |> List.intersperse "\n" |> String.concat
+
+
+{-| Strips a single trailing newline from a string, if there is one.
+
+    stripTrailingBlankline "foo\n bar\n\n " == "foo\n bar\n"
+
+-}
+stripTrailingBlankline : String -> String
+stripTrailingBlankline str =
+    let
+        lines =
+            String.lines str
+    in
+    List.Extra.last lines
+        |> Maybe.map
+            (\l ->
+                if String.Extra.isBlank l then
+                    lines |> List.take (List.length lines - 1) |> List.intersperse "\n" |> String.concat
+
+                else
+                    str
+            )
+        |> Maybe.withDefault str
+
+
 listKeyFold : (String -> Result String k) -> ( String, v ) -> Result String (List ( k, v )) -> Result String (List ( k, v ))
 listKeyFold kDecoder ( kStr, v ) lRes =
     Result.andThen
@@ -194,4 +245,4 @@ renderHtml html =
             div [ style "display" "inline-block" ] <| Html.Parser.Util.toVirtualDom nodes
 
         _ ->
-            text html
+            text (String.Extra.stripTags html)

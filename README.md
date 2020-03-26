@@ -1,17 +1,17 @@
 # isabelle-afp-search
-Project to make isabelle and the AFP easily searchable. Structured in:
+Project to make Isabelle and the AFP easily searchable. Structured in:
 - **common**: common modules
 - **search**: search application, with core module (**search-core**), web application (**search-webapp**), and frontend ui (**search-webapp-ui**).
-- **importer**: importer pipeline to import isabelle `dump` into search index
+- **importer**: importer pipeline to import Isabelle `dump` into search index
 
 ## Usage
 Requirements: `java` 11
 
-### Importer isabelle tool
+### Importer Isabelle tool
 
 #### From source
 1. Check out and `cd` into repo
-2. Check out, initialize and build **isabelle** submodule
+2. Check out, initialize and build **Isabelle** submodule
    ```shell
    git submodule init
    git submodule update
@@ -32,7 +32,7 @@ Requirements: `java` 11
    ./sbt "project importer-isabelle" "run ../dump localhost 8983" 
    ``` 
 
-#### Using local isabelle installation
+#### Using local Isabelle installation
 1. Download published artifact (TODO publish)
 2. Add Isabelle component (to Isabelle `etc/settings` file):
    ```shell

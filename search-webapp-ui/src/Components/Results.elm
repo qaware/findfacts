@@ -179,7 +179,7 @@ renderBlockContent : ShortBlock -> Html msg
 renderBlockContent block =
     Grid.layoutGrid [ Grid.alignLeft, style "width" "100%" ]
         [ div [ Typography.caption, style "margin-bottom" "10pt" ] [ text block.file ]
-        , Code.block block.src
+        , Code.block (String.trimRight block.src)
             |> Code.withLineNumbersFrom block.startLine
             |> lazy Code.view
         , lazy renderEntitySummary block.entities

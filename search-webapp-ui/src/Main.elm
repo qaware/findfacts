@@ -10,6 +10,7 @@ import Components.Index as Index
 import Components.Paging as Paging
 import Components.Results as Results
 import Components.Search as Search
+import Components.Theory as Theory
 import DataTypes exposing (..)
 import Html exposing (Html, a, b, br, div, h1, h2, h3, p, span, text)
 import Html.Attributes exposing (attribute, href, style)
@@ -102,6 +103,7 @@ type Page
     | Error String
     | Home PageHome
     | Details PageDetails
+    | Theory PageTheory
     | Help
     | Feedback Obfuscated.State
     | About
@@ -119,6 +121,12 @@ type alias PageHome =
 type alias PageDetails =
     { index : String
     , state : Details.State
+    }
+
+
+type alias PageTheory =
+    { index : String
+    , state : Theory.State
     }
 
 
@@ -201,6 +209,11 @@ update msg model =
             ( ToDetail id, Details details ) ->
                 ( { model | locked = True }
                 , Navigation.pushUrl model.navKey <| urlEncodeDetail details.index id
+                )
+
+            ( ToDetail id, Theory theory ) ->
+                ( { model | locked = True }
+                , Navigation.pushUrl model.navKey <| urlEncodeDetail theory.index id
                 )
 
             ( FindUsedByMsg block ids, Home home ) ->
@@ -294,6 +307,11 @@ updatePage apiBaseUrl msg page =
             , Cmd.none
             )
 
+        ( FilterResult result, Theory theory ) ->
+            ( Theory { theory | state = Theory.update (Result.mapError explainHttpError result) theory.state }
+            , Cmd.none
+            )
+
         ( SearchInternalMsg state, Home home ) ->
             ( Home { home | search = state }, Cmd.none )
 
@@ -367,6 +385,7 @@ routeParser model =
                         (UrlQueryParser.string "page")
             )
         , UrlParser.map (parseDetails model) (UrlParser.s "details" </> UrlParser.string </> UrlParser.string)
+        , UrlParser.map (parseTheory model) (UrlParser.s "theory" </> UrlParser.string </> UrlParser.string)
         , UrlParser.map ( Feedback <| Obfuscated.init email, Cmd.none ) (UrlParser.s "feedback")
         , UrlParser.map ( Help, Cmd.none ) (UrlParser.s "help")
         , UrlParser.map ( About, Cmd.none ) (UrlParser.s "about")
@@ -473,6 +492,15 @@ buildHome apiBaseUrl index search paging =
 parseDetails : Model -> String -> String -> ( Page, Cmd Msg )
 parseDetails model index id =
     ( Details { index = index, state = Details.empty }, executeBlockQuery model.apiBaseUrl index id )
+
+
+{-| Parses the url for the 'theory' page, and executes query.
+-}
+parseTheory : Model -> String -> String -> ( Page, Cmd Msg )
+parseTheory model index name =
+    ( Theory { index = index, state = Theory.empty name }
+    , executeFilterQuery model.apiBaseUrl index <| FilterQuery [ FieldFilter SrcFile <| Exact name ] 10000 Nothing
+    )
 
 
 {-| Encodes search state as url.
@@ -671,7 +699,11 @@ renderPage width page =
             renderPageHome width home |> renderInPage [ style "min-width" "360px" ]
 
         Details details ->
-            [ lazy2 Details.view details.state (Details.config DetailsMsg ToDetail FindUsedByMsg FindUsesMsg) ]
+            [ lazy2 Details.view details.state (Details.config details.index DetailsMsg ToDetail FindUsedByMsg FindUsesMsg) ]
+                |> lazy (renderInPage [])
+
+        Theory theory ->
+            [ lazy2 Theory.view theory.state (Theory.config ToDetail) ]
                 |> lazy (renderInPage [])
 
         Help ->
@@ -694,11 +726,10 @@ renderPage width page =
 -}
 renderInPage : List (Html.Attribute Msg) -> List (Html Msg) -> Html Msg
 renderInPage additionalAttrs content =
-    div ([ style "background-color" "rgb(248,248,248)", style "min-height" "100%" ] ++ additionalAttrs)
+    div ([ style "min-height" "100%" ] ++ additionalAttrs)
         [ content
             |> Grid.layoutGrid
-                [ style "background-color" "rgb(248,248,248)"
-                , style "max-width" "1200px"
+                [ style "max-width" "1200px"
                 , style "margin" "0 auto"
                 , style "min-height" "100%"
                 , TopAppBar.denseFixedAdjust
@@ -847,15 +878,6 @@ renderPageAbout =
     , p [ Typography.body1 ]
         [ text "If you encounter any bugs, unexpected behaviour, unclear UI, or have any suggestions, please leave some "
         , a [ href "#feedback" ] [ text "feedback" ]
-        , text "."
-        ]
-    , h2 [ Typography.headline5 ] [ text "Versions" ]
-    , p [ Typography.body1 ]
-        [ text "Currently indexed: Isabelle/"
-        , a [ href "https://isabelle.in.tum.de/repos/isabelle/rev/3548d54ce3ee" ] [ text "3548d54ce3ee" ]
-        , text " and AFP/"
-        , a [ href "https://bitbucket.org/isa-afp/afp-devel/src/5c040dde3c398a84fc0b1a5184dada5d2a137ab3/" ]
-            [ text "5c040dde3c39" ]
         , text "."
         ]
     ]

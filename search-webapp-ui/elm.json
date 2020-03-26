@@ -21,6 +21,7 @@
             "elm-community/list-extra": "8.2.3",
             "elm-community/maybe-extra": "5.1.0",
             "elm-community/result-extra": "2.3.0",
+            "elm-community/string-extra": "4.0.1",
             "hecrj/html-parser": "2.3.4",
             "ivadzy/bbase64": "1.1.1",
             "turboMaCk/any-dict": "2.2.0"

@@ -19,8 +19,8 @@ module Components.Details exposing
 
 import DataTypes exposing (..)
 import Dict exposing (Dict)
-import Html exposing (Html, div, h4, span, text)
-import Html.Attributes exposing (style)
+import Html exposing (Html, a, div, h4, span, text)
+import Html.Attributes exposing (href, style)
 import Html.Events exposing (onClick)
 import Html.Lazy exposing (lazy, lazy2)
 import Material.Button exposing (buttonConfig)
@@ -35,7 +35,8 @@ import Material.LinearProgress as Progress
 import Material.Theme as Theme
 import Material.Typography as Typography
 import Maybe.Extra
-import Util exposing (ite, pairWith)
+import Url.Builder as UrlBuilder
+import Util exposing (ite, pairWith, stripTrailingBlankline, trailingBlanklines)
 
 
 {-| Opaque config type for detail result component.
@@ -45,7 +46,8 @@ type Config msg
 
 
 type alias ConfigInternal msg =
-    { toMsg : Maybe String -> State -> msg
+    { index : String
+    , toMsg : Maybe String -> State -> msg
     , toDetailMsg : String -> msg
     , toUsedByMsg : String -> List String -> msg
     , toUsesMsg : String -> List String -> msg
@@ -81,13 +83,14 @@ type ResultState
 {-| Creates a config for a detail result component.
 -}
 config :
-    (Maybe String -> State -> msg)
+    String
+    -> (Maybe String -> State -> msg)
     -> (String -> msg)
     -> (String -> List String -> msg)
     -> (String -> List String -> msg)
     -> Config msg
-config toMsg toDetailMsg toUsedByMsg toUsesMsg =
-    Config (ConfigInternal toMsg toDetailMsg toUsedByMsg toUsesMsg)
+config index toMsg toDetailMsg toUsedByMsg toUsesMsg =
+    Config (ConfigInternal index toMsg toDetailMsg toUsedByMsg toUsesMsg)
 
 
 {-| Create an initially empty state.
@@ -153,10 +156,21 @@ view state (Config conf) =
         Value stateInternal ->
             div []
                 ([ Html.h1 [ Typography.headline3 ] [ text "Details" ]
-                 , Html.h3 [ Typography.headline6 ] [ text <| "Theory: " ++ stateInternal.block.file ]
-                 , div [ Elevation.z2, style "overflow" "auto", style "max-width" "100%", Theme.background ]
-                    [ Code.block stateInternal.block.src
-                        |> Code.withContext stateInternal.block.srcBefore stateInternal.block.srcAfter
+                 , Html.h3 [ Typography.headline6 ]
+                    [ text "Theory: "
+                    , a [ href <| UrlBuilder.relative [ "#theory", conf.index, stateInternal.block.file ] [] ]
+                        [ text stateInternal.block.file ]
+                    ]
+                 , div
+                    [ Elevation.z2
+                    , style "overflow" "auto"
+                    , style "max-width" "100%"
+                    , style "padding" "16px 0"
+                    , Theme.background
+                    ]
+                    [ Code.block (String.trimRight stateInternal.block.src)
+                        |> Code.withContext (stripTrailingBlankline stateInternal.block.srcBefore)
+                            (trailingBlanklines stateInternal.block.src ++ stateInternal.block.srcAfter)
                         |> Code.withLineNumbersFrom stateInternal.block.startLine
                         |> Code.withAdditionalAttrs [ style "display" "inline-block", style "min-width" "100%" ]
                         |> lazy Code.view

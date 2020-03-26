@@ -44,7 +44,7 @@
                 <filter class="solr.WordDelimiterGraphFilterFactory"
                         generateWordParts="1" catenateWords="0"
                         generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
-                        catenateAll="0" splitOnCaseChange="1"
+                        catenateAll="0" splitOnCaseChange="0"
                         stemEnglishPossessive="0" preserveOriginal="1"/>
                 <filter class="solr.FlattenGraphFilterFactory"/>
                 <!-- lower-case everything -->
@@ -73,7 +73,7 @@
                 <filter class="solr.WordDelimiterGraphFilterFactory"
                         generateWordParts="1" catenateWords="0"
                         generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
-                        catenateAll="0" splitOnCaseChange="1"
+                        catenateAll="0" splitOnCaseChange="0"
                         stemEnglishPossessive="0" preserveOriginal="1"/>
                 <filter class="solr.FlattenGraphFilterFactory"/>
                 <!-- Finally lower-case everything -->
@@ -118,7 +118,7 @@
                 <filter class="solr.WordDelimiterGraphFilterFactory"
                         generateWordParts="1" catenateWords="0"
                         generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
-                        catenateAll="0" splitOnCaseChange="1"
+                        catenateAll="0" splitOnCaseChange="0"
                         stemEnglishPossessive="0" preserveOriginal="1"/>
                 <filter class="solr.FlattenGraphFilterFactory"/>
                 <filter class="solr.LowerCaseFilterFactory"/>
