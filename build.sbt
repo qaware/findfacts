@@ -3,7 +3,6 @@ import Profiles._
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
-
 val projectVersion = "0.3.0-SNAPSHOT"
 val schemaVersion = "0.2.1-SNAPSHOT"
 
@@ -29,16 +28,17 @@ ThisBuild / assembly / test := {}
 lazy val root = (project in file("."))
   .settings(
     publish / skip := true,
-  sonarProjects := Seq(
-    `common-utils`,
-    `common-da-api`,
-    `common-da-solr`,
-    `common-dt`,
-    `importer-base`,
-    `search-core`,
-    `search-webapp`,
-    `symbol-synonyms-tool`
-  ))
+    sonarProjects := Seq(
+      `common-utils`,
+      `common-da-api`,
+      `common-da-solr`,
+      `common-dt`,
+      `importer-base`,
+      `search-core`,
+      `search-webapp`,
+      `symbol-synonyms-tool`
+    )
+  )
   // Aggregate all modules
   .aggregate(
     `common-utils`,
@@ -62,13 +62,13 @@ lazy val ui = project
   )
   .aggregate(`search-webapp`)
 
-// Controls aggregation of sub-projects that need isabelle (depending if loaders profile is active)
+// Controls aggregation of sub-projects that need Isabelle (depending if loaders profile is active)
 lazy val loaders = project
   .settings(
     publish / skip := true,
     aggregate := active(LoaderProfile)
   )
-  .aggregate(`isabelle`, `importer-isabelle`)
+  .aggregate(`isabelle`, `importer-isabelle`, `importer-isabelle-it`)
 
 // Real sub-projects
 
@@ -86,7 +86,7 @@ lazy val `common-da-api` = project
 // Common solr data access/bindings
 lazy val `common-da-solr` = project
   .settings(
-    libraryDependencies ++= Seq(circeCore, solr, circeGeneric % "test") ++ loggingBackend.map(_ % "test")
+    libraryDependencies ++= Seq(circeCore, solr, classgraph, circeGeneric % "test") ++ loggingBackend.map(_ % "test")
   )
   .dependsOn(`common-da-api`, `common-utils`)
 
@@ -116,14 +116,17 @@ lazy val isabelle = project
   .settings(
     publish / skip := true,
     unmanagedJars in Compile ++= (baseDirectory.value / "lib" / "classes" ** "*.jar").get(),
-    libraryDependencies ++= isabelleDependencies
+    libraryDependencies ++= isabelleDependencies,
+    isabelleExecutable := baseDirectory.value / "bin" / "isabelle",
+    isabelleCommand := "dump"
   )
+  .enablePlugins(IsabellePlugin)
 
-// Importer isabelle projects. Follows isabelle conventions.
+// Importer Isabelle projects. Follows Isabelle conventions.
 lazy val `importer-isabelle` = project
   .settings(
     publish / skip := true,
-    isabelleTool := "dump_importer",
+    isabelleCommand := "dump_importer",
     isabelleExecutable := (baseDirectory in isabelle).value / "bin" / "isabelle",
     isabelleSettings := Seq("SOLR_CONFIGSET=theorydata-" + schemaVersion),
     libraryDependencies ++= loggingBackend
@@ -131,13 +134,41 @@ lazy val `importer-isabelle` = project
   .dependsOn(`importer-base`, `isabelle`)
   .enablePlugins(IsabelleToolPlugin)
 
+// Integration test to check integration between Isabelle dump and dump_importer
+lazy val `importer-isabelle-it` = project
+  .configs(IntegrationTest)
+  .settings(
+    publish / skip := true,
+    Defaults.itSettings,
+    test in IntegrationTest := Def.taskDyn {
+      val thyDir = (resourceDirectory in IntegrationTest).value.getPath
+
+      // Use temporary task directory for dump
+      val dumpDir = (taskTemporaryDirectory.value / "dump").getPath
+
+      // Mount solr as resource
+      val solrDir = (resourceDirectory in IntegrationTest).value / "solrdir"
+      solrDir.mkdir()
+
+      // Run dump and dump_importer in Isabelle
+      (run in isabelle)
+        .toTask(" -A markup,theory -D " + thyDir + " -O " + dumpDir)
+        .zip((run in `importer-isabelle`).toTask(" -L " + solrDir + " " + dumpDir))
+        .flatMap { case (t1, t2) => t1 && t2 } &&
+      (test in IntegrationTest).taskValue
+    }.value,
+    libraryDependencies += scalaTest % "it"
+  )
+  .dependsOn(`importer-isabelle` % "it", `isabelle` % "it")
+
 // Search application
 // Core search module
 lazy val `search-core` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
-    libraryDependencies ++= loggingBackend.map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it", scalaMock % "it")
+    libraryDependencies ++= loggingBackend
+      .map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it", scalaMock % "it")
   )
   .dependsOn(`common-dt`, `common-da-solr`, `common-utils`, `common-dt` % "it->it")
 
@@ -150,7 +181,11 @@ lazy val `search-webapp` = project
       "-Dsolr.configset=theorydata-" + schemaVersion
     ),
     libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
-      playGuice, playCirce, playSwagger, swaggerUi, playTestPlus % "test"
+      playGuice,
+      playCirce,
+      playSwagger,
+      swaggerUi,
+      playTestPlus % "test"
     )),
     packageName in Docker := "findfacts",
     dockerBaseImage := "openjdk:11-jre-slim",

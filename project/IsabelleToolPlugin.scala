@@ -1,18 +1,18 @@
-import scala.sys.process._
-
+import IsabellePlugin.autoImport.{isabelleCommand, isabelleExecutable}
 import sbt.Keys._
 import sbt._
 import sbt.complete.DefaultParsers._
 import sbt.io.IO
 import sbtassembly.AssemblyPlugin
-import sbtassembly.AssemblyPlugin.autoImport.assembly
+import sbtassembly.AssemblyPlugin.autoImport._
 
+import scala.sys.process.Process
+
+/** Plugin for sbt projects defining a tool as Isabelle component. */
 object IsabelleToolPlugin extends AutoPlugin {
-  override def requires: Plugins = AssemblyPlugin
+  override def requires: Plugins = IsabellePlugin && AssemblyPlugin
 
   object autoImport {
-    lazy val isabelleExecutable = settingKey[File]("Compile isabelle jars")
-    lazy val isabelleTool = settingKey[String]("isabelle tool defined by project")
     lazy val isabelleSettings = settingKey[Seq[String]]("isabelle tool additional settings")
     lazy val isabelleComponentAssembly = taskKey[File]("isabelle component assembly task")
   }
@@ -20,6 +20,10 @@ object IsabelleToolPlugin extends AutoPlugin {
   import autoImport._
 
   override def projectSettings: Seq[Def.Setting[_]] = Seq(
+    assemblyMergeStrategy in assembly := {
+      case PathList("META-INF", "versions", "9", "module-info.class") => MergeStrategy.first
+      case x => (assemblyMergeStrategy in assembly).value.apply(x)
+    },
     isabelleComponentAssembly := {
       // Assemble fat jar for isabelle tool
       val fatJarName = assembly.value.getName
@@ -36,14 +40,13 @@ object IsabelleToolPlugin extends AutoPlugin {
       file
     },
     run := {
-      // Make sure task is assembled
       isabelleComponentAssembly.value
 
       // Parse tool args
       val args = spaceDelimited("<arg>").parsed
 
       // Run isabelle process
-      val resultCode = Process(isabelleExecutable.value.getAbsolutePath, isabelleTool.value +: args).!
+      val resultCode = Process(isabelleExecutable.value.getAbsolutePath, isabelleCommand.value +: args).!
 
       if (resultCode != 0) {
         throw new IllegalStateException("Running isabelle tool failed")

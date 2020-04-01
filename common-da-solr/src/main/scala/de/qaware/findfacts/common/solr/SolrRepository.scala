@@ -1,12 +1,13 @@
 package de.qaware.findfacts.common.solr
 
-import java.io.{File => JFile}
+import java.io.{IOException, File => JFile}
 import java.net.URL
 import java.nio.file.{Files, StandardCopyOption}
 
 import better.files.{File, Resource}
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.scala.Using
+import io.github.classgraph.ClassGraph
 import org.apache.solr.client.solrj.SolrRequest.METHOD
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
 import org.apache.solr.client.solrj.impl.{CloudSolrClient, HttpSolrClient}
@@ -67,15 +68,26 @@ final class LocalSolr private (
       coreConfDir.createDirectories
 
       val confResourceDir = s"$solrResourceDir/${LocalSolr.SolrConfDir}"
-      val confFiles = Resource.getAsString(confResourceDir).linesIterator
+      // List solr config files
+      val confFiles = Using.resource(new ClassGraph().whitelistPathsNonRecursive(confResourceDir).scan) { scan =>
+        scan.getAllResources.getPaths.asScala.toList
+      }
 
-      logger.info(s"Populating $coreConfDir with configuration from $confResourceDir...")
-      confFiles.foreach { file =>
-        Using.resource(Resource.getAsStream(s"$confResourceDir/$file")) { stream =>
+      if (confFiles.isEmpty) {
+        throw new IllegalStateException(s"No solr configuration resources found")
+      }
+
+      // Copy solr config files
+      logger.info(s"Populating $coreConfDir with configuration from $confResourceDir (${confFiles.size} files)...")
+      confFiles.foreach { resource =>
+        val target = coreConfDir / resource.stripPrefix(s"$confResourceDir/")
+        logger.debug(s"Copying $resource to ${target.path.toAbsolutePath.toString}")
+
+        Using.resource(Resource.getAsStream(resource)) { stream =>
           if (stream == null) {
-            throw new IllegalStateException(s"Could not find resource $solrResourceDir/${LocalSolr.SolrConfDir}")
+            throw new IOException(s"Error opening stream for resource $resource")
           }
-          Files.copy(stream, (coreConfDir / file).path)
+          Files.copy(stream, target.path)
         }
       }
 

@@ -27,6 +27,7 @@ object Dependencies {
   val parserCombinatorsVersion = "1.1.2"
   val fastparseVersion = "2.1.3"
   val tukaaniVersion = "1.8"
+  val classgraphVersion = "4.8.66"
 
   val logging = "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
   val loggingBackend = Seq(
@@ -66,5 +67,6 @@ object Dependencies {
   val playSwagger = ("io.swagger" %% "swagger-play2" % playSwaggerVersion
     excludeAll ("com.google.guava" %% "guava")
     excludeAll ("com.typesafe.play" %% "play-logback"))
+  val classgraph = "io.github.classgraph" % "classgraph" % classgraphVersion
   val isabelleDependencies = Seq("org.tukaani" % "xz" % tukaaniVersion)
 }

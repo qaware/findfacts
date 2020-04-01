@@ -8,7 +8,7 @@ package de.qaware.findfacts
 
 
 import de.qaware.findfacts.Theory._
-import de.qaware.findfacts.common.solr.{RemoteSolr, SolrRepository}
+import de.qaware.findfacts.common.solr.{LocalSolr, RemoteSolr, SolrRepository}
 import de.qaware.findfacts.theoryimporter.ImporterModule
 import de.qaware.findfacts.theoryimporter.solrimpl.SolrImporterModule
 import isabelle._
@@ -79,32 +79,42 @@ object Importer
     var index_name = "theorydata"
     var sessions: List[String] = Nil
     var configset = Isabelle_System.getenv("SOLR_CONFIGSET")
+    var local_solr = ""
+    var remote_solr = ("", "")
 
     val getopts = Getopts("""
-Usage: isabelle dump_importer [OPTIONS] DUMPDIR HOST PORT
+Usage: isabelle dump_importer [OPTIONS] DUMPDIR
 
   Options are:
-    -B NAME       import session NAME
-    -I NAME       solr index NAME
-    -C NAME       solr configset NAME
+    -B NAME         import session NAME
+    -I NAME         solr index NAME
+    -L SOLRDIR      local solr repository at SOLRDIR
+    -R HOST:PORT    remote solr connection at HOST:PORT
+    -C NAME         solr configset NAME
 
   Import isabelle dump from DUMPDIR into solr db.
   Only one solr connection may be specified.
-  Configset must be specified via env var 'SOLR_CONFIGSET' or argument.
+  For remote connections, a configset must be specified
+  (either via argument or env var 'SOLR_CONFIGSET').
 """,
       "B:" -> (arg => sessions = sessions ::: List(arg)),
       "I:" -> (arg => index_name = arg),
-      "C:" -> (arg => configset = arg))
-
-    if (configset.isBlank) {
-      getopts.usage
-    }
+      "C:" -> (arg => configset = arg),
+      "L:" -> (arg => local_solr = arg),
+      "R:" -> (arg => remote_solr = arg.splitAt(arg.indexOf(':'))))
 
     val more_args = getopts(args)
 
-    val (dump_dir, solr_repository) = more_args match {
-      case dump :: host :: port :: Nil => (Path.explode(dump), RemoteSolr(host,  Value.Int.parse(port), configset))
+    val dump_dir = more_args match {
+      case dump :: Nil => Path.explode(dump)
       case _ => getopts.usage
+    }
+
+    val solr_repository = (local_solr, remote_solr) match {
+      case (dir, _) if !dir.isBlank => LocalSolr(Path.explode(dir).absolute_file)
+      case (_, (host, port)) if !host.isBlank && !configset.isBlank =>
+        RemoteSolr(host, Value.Int.parse(port), configset)
+      case _ => getopts.usage()
     }
 
     using(solr_repository) { solr_repository =>

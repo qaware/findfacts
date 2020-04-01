@@ -1,0 +1,30 @@
+import sbt.Keys._
+import sbt._
+import sbt.complete.DefaultParsers._
+
+import scala.sys.process.Process
+
+/** Isabelle plugin wrapper. Preparation of the Isabelle instance isn't done here
+  * as that lifecycle is different from the lifecycle of the SBT session. */
+object IsabellePlugin extends AutoPlugin {
+  object autoImport {
+    lazy val isabelleExecutable = settingKey[File]("Compile isabelle jars")
+    lazy val isabelleCommand = settingKey[String]("isabelle command for run task")
+  }
+
+  import autoImport._
+
+  override def projectSettings: Seq[Def.Setting[_]] = Seq(
+    run := {
+      // Parse tool args
+      val args = spaceDelimited("<arg>").parsed
+
+      // Run isabelle process
+      val resultCode = Process(isabelleExecutable.value.getAbsolutePath, isabelleCommand.value +: args).!
+
+      if (resultCode != 0) {
+        throw new IllegalStateException("Running isabelle command failed")
+      }
+    },
+  )
+}

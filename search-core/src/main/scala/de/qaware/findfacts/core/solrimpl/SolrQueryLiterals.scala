@@ -1,5 +1,8 @@
 package de.qaware.findfacts.core.solrimpl
 
+import de.qaware.findfacts.common.dt.Kind
+import de.qaware.findfacts.common.dt.solr.SolrSchema
+
 /** Commonly used solr literals. */
 object SolrQueryLiterals {
 
@@ -16,7 +19,7 @@ object SolrQueryLiterals {
   final val All = "*"
 
   /** Query to filter parent values. */
-  final val QueryParent = "command:*"
+  final val QueryParent = s"${SolrSchema.DocKind}:${Kind.Block}"
 
   /** Query to get all values. */
   final val QueryAll = "*:*"
