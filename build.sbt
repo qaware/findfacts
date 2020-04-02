@@ -147,8 +147,8 @@ lazy val `importer-isabelle-it` = project
       val dumpDir = (taskTemporaryDirectory.value / "dump").getPath
 
       // Mount solr as resource
-      val solrDir = (resourceDirectory in IntegrationTest).value / "solrdir"
-      solrDir.mkdir()
+      val solrDir = (classDirectory in IntegrationTest).value / "solrdir"
+      solrDir.mkdirs()
 
       // Run dump and dump_importer in Isabelle
       (run in isabelle)

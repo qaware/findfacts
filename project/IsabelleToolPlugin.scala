@@ -46,10 +46,13 @@ object IsabelleToolPlugin extends AutoPlugin {
       val args = spaceDelimited("<arg>").parsed
 
       // Run isabelle process
-      val resultCode = Process(isabelleExecutable.value.getAbsolutePath, isabelleCommand.value +: args).!
+      val logger = streams.value.log
+      logger.info("Running isabelle " + isabelleCommand.value + " " + args.mkString(" "))
+
+      val resultCode = Process(isabelleExecutable.value.getAbsolutePath, isabelleCommand.value +: args).!(logger)
 
       if (resultCode != 0) {
-        throw new IllegalStateException("Running isabelle tool failed")
+        throw new IllegalStateException("Running isabelle tool failed with exit code " + resultCode)
       }
     }
   )

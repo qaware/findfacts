@@ -1,3 +1,9 @@
+<p align="center">
+  <img title="FindFacts" src="search-webapp/public/images/android-chrome-384x384.png" width="200px" />
+</p>
+
+[![CircleCI](https://circleci.com/gh/qaware/isabelle-afp-search/tree/master.svg?style=svg)](https://circleci.com/gh/qaware/isabelle-afp-search/tree/master)
+
 # isabelle-afp-search
 Project to make Isabelle and the AFP easily searchable. Structured in:
 - **common**: common modules
