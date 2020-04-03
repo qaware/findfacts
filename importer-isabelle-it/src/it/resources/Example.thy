@@ -1,17 +1,15 @@
 theory Example imports Main
 begin
 
-(*SPEC:BEGIN:1*)
+(*SPEC:BEGIN:Test fun*)
 fun fun_const :: "nat \<Rightarrow> 'a" where
   "fun_const 0 = undefined"
 | "fun_const (Suc n) = fun_const n"
-(*SPEC:1:VERIFY
-entity("1").sourceFile should be ("Example.Example")
-entity("1").startPos should be (begin("1"))
-entity("1").endPos should be (end("1"))
-entity("1").name should be ("fun_const")
-entity("1").constType should be ("\"nat \\<Rightarrow> 'a\"")
-SPEC:1:END*)
+(*SPEC:VERIFY
+ctx.block.sourceFile should be ("Example.Example")
+ctx.block.startLine should be (ctx.startLine)
+ctx.block.entities.map(_.name) should contain ("fun_const")
+SPEC:END *)
 
 lemma "fun_const 0 = fun_const 1"
   apply (rule sym)

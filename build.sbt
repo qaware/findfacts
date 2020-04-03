@@ -157,9 +157,9 @@ lazy val `importer-isabelle-it` = project
         .flatMap { case (t1, t2) => t1 && t2 } &&
       (test in IntegrationTest).taskValue
     }.value,
-    libraryDependencies += scalaTest % "it"
+    libraryDependencies ++= Seq(scalaTest % "it", classgraph % "it", scalaCompiler % "it", fastParse % "it")
   )
-  .dependsOn(`importer-isabelle` % "it", `isabelle` % "it")
+  .dependsOn(`common-utils` % "it", `common-dt` % "it", `importer-isabelle` % "it", `isabelle` % "it")
 
 // Search application
 // Core search module
