@@ -46,9 +46,8 @@ lazy val root = (project in file("."))
     `common-da-solr`,
     `common-dt`,
     `importer-base`,
-    loaders,
     `search-core`,
-    `search-webapp`,
+    loaders,
     ui,
     `symbol-synonyms-tool`
   )
@@ -68,7 +67,15 @@ lazy val loaders = project
     publish / skip := true,
     aggregate := active(LoaderProfile)
   )
-  .aggregate(`isabelle`, `importer-isabelle`, `importer-isabelle-it`)
+  .aggregate(`isabelle`, `importer-isabelle`, memoryIntensiveTests)
+
+// Controls aggregation of sub-projects with memory intensive tests (depending if memory profile is active)
+lazy val memoryIntensiveTests = project
+  .settings(
+    publish / skip := true,
+    aggregate := active(MemoryIntensiveTests)
+  )
+  .aggregate(`importer-isabelle-it`)
 
 // Real sub-projects
 
@@ -103,8 +110,6 @@ lazy val `common-dt` = project
 lazy val `importer-base` = project
   .configs(IntegrationTest)
   .settings(
-    fork in run := true,
-    javaOptions ++= Seq("-Xmx24G", "-Xss512m"),
     libraryDependencies ++= Seq(cmdOpts, cats)
   )
   .dependsOn(`common-dt`, `common-da-solr`, `common-utils`)
@@ -156,7 +161,7 @@ lazy val `importer-isabelle-it` = project
         .zip((run in `importer-isabelle`).toTask(" -L " + solrDir + " " + dumpDir))
         .flatMap { case (t1, t2) => t1 && t2 } &&
       (test in IntegrationTest).taskValue
-    }.value,
+    }.tag(Tags.Test).value,
     libraryDependencies ++= Seq(scalaTest % "it", classgraph % "it", scalaCompiler % "it", fastParse % "it")
   )
   .dependsOn(`common-utils` % "it", `common-dt` % "it", `importer-isabelle` % "it", `isabelle` % "it")

@@ -1,6 +1,33 @@
 theory Example imports Main
 begin
 
+(*SPEC:BEGIN:Check test built by framework*)
+value "1 :: nat"
+(*SPEC:VERIFY
+    ctx.name should equal("Check test built by framework")
+    ctx.src should equal("value \"1 :: nat\"\n")
+    ctx.startLine should be(ctx.block.startLine)
+    ctx.block.theory should equal("IAS-Example.Example")
+    ctx.block.command should equal("value")
+    ctx.block.src should equal("value \"1 :: nat\"\n")
+    ctx.block.entities should be (empty)
+SPEC:END*)
+
+(*SPEC:BEGIN:Check comment*)
+(* This is a comment *)
+(*SPEC:VERIFY
+    ctx.block.command should equal("(" + "*")
+    ctx.block.entities should be (empty)
+SPEC:END*)
+
+(*SPEC:BEGIN:Check datatype*)
+datatype 'a List = Nil ("[]") | Cons 'a "'a List"
+(*SPEC:VERIFY
+    
+SPEC:END*)
+
+
+
 (*SPEC:BEGIN:Test fun*)
 fun fun_const :: "nat \<Rightarrow> 'a" where
   "fun_const 0 = undefined"

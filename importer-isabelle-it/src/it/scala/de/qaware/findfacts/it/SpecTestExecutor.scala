@@ -47,7 +47,9 @@ class SpecTestExecutor extends FunSuite with Matchers {
     val toolbox = currentMirror.mkToolBox()
 
     // Get imported entities
-    val query = new SolrQuery("{!parent which=kind:Block}").setFields("*", "[child parentFilter=kind:Block]")
+    val query = new SolrQuery("{!parent which=kind:Block}")
+      .setFields("*", "[child parentFilter=kind:Block]")
+      .setRows(Int.MaxValue)
     val mapper = FromSolrDoc[CodeblockEt]
     val blocks = Using.resource(LocalSolr(File(Resource.getUrl("solrdir/")).toJava)) { solr =>
       solr.query(query).getResults.asScala.map(mapper.fromSolrDoc(_).get).toList
@@ -92,7 +94,7 @@ class SpecTestExecutor extends FunSuite with Matchers {
           testCaseAsts += buildTest(contexts.size, spec, toolbox)
           contexts += it.SpecTestContext(spec.name, block, spec.thyCode, spec.specStartLine + 1)
         case None =>
-          testCaseAsts += q"""test("Find block for spec")(fail("Could not find block for \"" + ${spec.name} + "\""))"""
+          testCaseAsts += q"""test("Find block for spec \"" + ${spec.name} + "\"")(fail("Could not find block"))"""
     })
 
     // Build test suite creator (function that takes all the contexts and makes them available in the testsuite)

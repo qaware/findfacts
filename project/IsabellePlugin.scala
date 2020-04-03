@@ -26,7 +26,7 @@ object IsabellePlugin extends AutoPlugin {
       val resultCode = Process(isabelleExecutable.value.getAbsolutePath, isabelleCommand.value +: args).!(logger)
 
       if (resultCode != 0) {
-        throw new IllegalStateException("Running isabelle command failed")
+        throw new IllegalStateException(s"Running isabelle command failed with exit code $resultCode")
       }
     },
   )

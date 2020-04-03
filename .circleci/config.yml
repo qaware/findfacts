@@ -1,20 +1,15 @@
 version: 2
 jobs:
   build:
-    environment:
-      profiles: ui,loader
     docker:
       - image: circleci/openjdk:11
     steps:
       - checkout
       - run: ./ci-scripts/install-isabelle.sh
-      - run: echo 'ISABELLE_TOOL_JAVA_OPTIONS="-Xmx1200m"' >> ~/.isabelle/etc/settings
-      - run: echo 'ML_OPTIONS="--maxheap 2G"' >> ~/.isabelle/etc/settings
-      - run: echo 'init_component "'$PWD'/importer-isabelle/target/scala-2.12"' >> ~/.isabelle/etc/settings
       - run: ./ci-scripts/install-elm.sh
       - restore_cache:
           key: sbt-cache
-      - run: ./sbt clean compile test it:test
+      - run: ./sbt -Dprofiles=ui,loader clean compile test it:test
       - save_cache:
           key: sbt-cache
           paths:
