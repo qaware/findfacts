@@ -6,10 +6,10 @@ fun fun_const :: "nat \<Rightarrow> 'a" where
   "fun_const 0 = undefined"
 | "fun_const (Suc n) = fun_const n"
 (*SPEC:VERIFY
-ctx.block.sourceFile should be ("Example.Example")
+ctx.block.theory should be ("IAS-Example.Example")
 ctx.block.startLine should be (ctx.startLine)
-ctx.block.entities.map(_.name) should contain ("fun_const")
-SPEC:END *)
+ctx.block.entities.map(_.name) should contain ("Example.fun_const")
+SPEC:END*)
 
 lemma "fun_const 0 = fun_const 1"
   apply (rule sym)

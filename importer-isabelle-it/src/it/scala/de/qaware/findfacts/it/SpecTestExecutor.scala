@@ -6,7 +6,6 @@ import de.qaware.findfacts.common.solr.LocalSolr
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.it
 import de.qaware.findfacts.scala.Using
-import fastparse.Parsed
 import io.github.classgraph.ClassGraph
 import org.apache.solr.client.solrj.SolrQuery
 import org.scalatest.{FunSuite, Matchers, Suite}
@@ -56,7 +55,7 @@ class SpecTestExecutor extends FunSuite with Matchers {
 
     // Build test suite for each file
     thyFiles.map { file =>
-      buildTestsuite(file, blocks.filter(_.theory == s"$Session.${File(file).name}"), toolbox)
+      buildTestsuite(file, blocks.filter(_.theory == s"$Session.${File(file).nameWithoutExtension}"), toolbox)
     }
   }
 
@@ -68,14 +67,19 @@ class SpecTestExecutor extends FunSuite with Matchers {
     * @return Compiled test suite
     */
   private def buildTestsuite(thyFile: String, blocks: List[CodeblockEt], toolbox: ToolBox[universe.type]): Suite = {
+    val specSuiteName = s"SpecTest $thyFile"
+
     // Read spec tests from theory file
     val file = Resource.getAsString(thyFile)
 
     // Try to parse 'SPEC' format
-    val testSpecs = fastparse.parse(file, SpecTestParser.file(_), verboseFailures = true) match {
-      case Parsed.Success(value, _) => value
-      case Parsed.Failure(label, index, _) =>
-        return new FunSuite() { test(s"Spec test $thyFile")(fail(s"Could not parse spec file at $index: $label")) }
+    val testSpecs = SpecTestParser.parse(file) match {
+      case Left(error) =>
+        return new FunSuite() {
+          override val suiteName: String = specSuiteName
+          test(s"Check spec file")(fail(error))
+        }
+      case Right(value) => value
     }
 
     // Try to join spec and block
@@ -83,22 +87,34 @@ class SpecTestExecutor extends FunSuite with Matchers {
     val contexts = ListBuffer.empty[SpecTestContext]
     val testCaseAsts = ListBuffer.empty[Tree]
     testSpecs.foreach(spec =>
-      blockByLine.get(spec.specLine + 1) match {
+      blockByLine.get(spec.specStartLine + 1) match {
         case Some(block) =>
           testCaseAsts += buildTest(contexts.size, spec, toolbox)
-          contexts += it.SpecTestContext(spec.name, block, spec.thyCode, spec.specLine + 1)
+          contexts += it.SpecTestContext(spec.name, block, spec.thyCode, spec.specStartLine + 1)
         case None =>
-          val specNameAst = toolbox.parse(s""" "${spec.name}" """).asInstanceOf[Literal]
-          testCaseAsts += q"""test("Find block for spec")(fail("Could not find block for " + $specNameAst))"""
+          testCaseAsts += q"""test("Find block for spec")(fail("Could not find block for \"" + ${spec.name} + "\""))"""
     })
 
     // Build test suite creator (function that takes all the contexts and makes them available in the testsuite)
     val buildTestSuiteAst =
       q"""(contexts: List[de.qaware.findfacts.it.SpecTestContext]) =>
-          new org.scalatest.FunSuite with org.scalatest.Matchers { ..${testCaseAsts.toList} }"""
+          new org.scalatest.FunSuite with org.scalatest.Matchers {
+            override val suiteName = $specSuiteName
+             ..${testCaseAsts.toList}
+          }
+       """
 
-    val buildTestSuite = toolbox.eval(buildTestSuiteAst).asInstanceOf[List[SpecTestContext] => FunSuite]
-    buildTestSuite(contexts.toList)
+    // Compile and run
+    try {
+      val buildTestSuite = toolbox.eval(buildTestSuiteAst).asInstanceOf[List[SpecTestContext] => FunSuite]
+      buildTestSuite(contexts.toList)
+    } catch {
+      case e: Throwable =>
+        new FunSuite() {
+          override val suiteName: String = specSuiteName
+          test("Compile tests")(fail(e.getMessage))
+        }
+    }
   }
 
   /** Build a single test abstract syntax tree for a given theory spec.
@@ -109,19 +125,25 @@ class SpecTestExecutor extends FunSuite with Matchers {
     * @return AST of test method call
     */
   private def buildTest(idx: Int, spec: Spec, toolbox: ToolBox[universe.type]): Tree = {
-    val ctxIndexAst = toolbox.parse(idx.toString).asInstanceOf[Literal]
-    val testNameAst = toolbox.parse(s""" "${spec.name}" """).asInstanceOf[Literal]
+    val testName = "SPEC test \"" + spec.name + "\""
 
-    val testCodeAst = try {
-      toolbox.parse(s"{${spec.testCode}}")
+    // Try to parse test function, including test code
+    try {
+      val tests = toolbox.parse(s"{${spec.testCode}}")
+      q"""test($testName) {
+            val ctx = contexts($idx)
+            $tests
+          }
+       """
     } catch {
-      case _: Exception => q"""fail("Could not compile test spec")"""
-    }
-
-    q"""test("SPEC test " + $testNameAst) {
-          val ctx = contexts($ctxIndexAst)
-          $testCodeAst
+      case e: Throwable =>
+        try {
+          q"""test($testName){fail("Could not parse test spec: " + ${e.getMessage})}"""
+        } catch {
+          case e: Throwable =>
+            println(e.toString)
+            throw e
         }
-     """
+    }
   }
 }
