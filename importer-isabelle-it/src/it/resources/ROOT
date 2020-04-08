@@ -1,6 +1,0 @@
-session "IAS-Example" = HOL +
-  description "
-    Example theory for integration tests.
-  "
-  theories
-    Example

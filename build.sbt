@@ -67,15 +67,15 @@ lazy val loaders = project
     publish / skip := true,
     aggregate := active(LoaderProfile)
   )
-  .aggregate(`isabelle`, `importer-isabelle`, memoryIntensiveTests)
+  .aggregate(`isabelle`, `importer-isabelle`, memory)
 
 // Controls aggregation of sub-projects with memory intensive tests (depending if memory profile is active)
-lazy val memoryIntensiveTests = project
+lazy val memory = project
   .settings(
     publish / skip := true,
-    aggregate := active(MemoryIntensiveTests)
+    aggregate := active(MemoryProfile)
   )
-  .aggregate(`importer-isabelle-it`)
+  .aggregate(`importer-it`)
 
 // Real sub-projects
 
@@ -140,27 +140,35 @@ lazy val `importer-isabelle` = project
   .enablePlugins(IsabelleToolPlugin)
 
 // Integration test to check integration between Isabelle dump and dump_importer
-lazy val `importer-isabelle-it` = project
+val runImport = settingKey[Boolean]("Flag to set if import should be run before tests")
+lazy val `importer-it` = project
   .configs(IntegrationTest)
   .settings(
     publish / skip := true,
     Defaults.itSettings,
+    runImport := true,
     test in IntegrationTest := Def.taskDyn {
-      val thyDir = (resourceDirectory in IntegrationTest).value.getPath
+      val testTask = (test in IntegrationTest).taskValue
 
-      // Use temporary task directory for dump
-      val dumpDir = (taskTemporaryDirectory.value / "dump").getPath
+      if (runImport.value) {
+        val thyDir = (resourceDirectory in IntegrationTest).value.getPath
 
-      // Mount solr as resource
-      val solrDir = (classDirectory in IntegrationTest).value / "solrdir"
-      solrDir.mkdirs()
+        // Use temporary task directory for dump
+        val dumpDir = (taskTemporaryDirectory.value / "dump").getPath
 
-      // Run dump and dump_importer in Isabelle
-      (run in isabelle)
-        .toTask(" -A markup,theory -D " + thyDir + " -O " + dumpDir)
-        .zip((run in `importer-isabelle`).toTask(" -L " + solrDir + " " + dumpDir))
-        .flatMap { case (t1, t2) => t1 && t2 } &&
-      (test in IntegrationTest).taskValue
+        // Mount solr as resource - clean first
+        val solrDir = (classDirectory in IntegrationTest).value / "solrdir"
+        solrDir.delete()
+        solrDir.mkdirs()
+
+        // Run dump and dump_importer in Isabelle
+        (run in isabelle)
+          .toTask(" -A markup,theory -D " + thyDir + " -O " + dumpDir)
+          .zip((run in `importer-isabelle`).toTask(" -L " + solrDir + " " + dumpDir))
+          .flatMap { case (t1, t2) => t1 && t2 } && testTask
+      } else {
+        Def.task(testTask.value)
+      }
     }.tag(Tags.Test).value,
     libraryDependencies ++= Seq(scalaTest % "it", classgraph % "it", scalaCompiler % "it", fastParse % "it")
   )

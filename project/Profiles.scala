@@ -1,7 +1,7 @@
 object Profiles extends Enumeration {
   final val UiProfile = Value("ui")
   final val LoaderProfile = Value("loader")
-  final val MemoryIntensiveTests = Value("memory")
+  final val MemoryProfile = Value("memory")
 
   private def fromString(s: String): Profiles.Value = {
     values.find(_.toString == s).getOrElse(throw new IllegalArgumentException(s"Profile $s does not exist!"))

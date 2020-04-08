@@ -1,0 +1,7 @@
+session "Spec-Tests" = HOL +
+  description "
+    Example theory for integration tests.
+  "
+  theories
+    Executor_Test_Spec
+    IT_Spec
