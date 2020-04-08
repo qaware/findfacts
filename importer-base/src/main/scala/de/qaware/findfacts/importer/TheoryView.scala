@@ -235,18 +235,21 @@ object TheoryView {
   trait Type extends Any {
     def entity: Entity
     def args: List[String]
+    def abbrev: Option[Typ]
   }
   object Type {
-    def unapply(arg: Type): Option[(Entity, List[String])] = Some(arg.entity, arg.args)
+    def unapply(arg: Type): Option[(Entity, List[String], Option[Typ])] = Some(arg.entity, arg.args, arg.abbrev)
   }
 
   trait Const extends Any {
     def entity: Entity
     def typargs: List[String]
     def typ: Typ
+    def abbrev: Option[Term]
   }
   object Const {
-    def unapply(arg: Const): Option[(Entity, List[String], Typ)] = Some(arg.entity, arg.typargs, arg.typ)
+    def unapply(arg: Const): Option[(Entity, List[String], Typ, Option[Term])] =
+      Some(arg.entity, arg.typargs, arg.typ, arg.abbrev)
   }
 
   trait Axiom extends Any {

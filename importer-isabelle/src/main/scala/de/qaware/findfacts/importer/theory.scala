@@ -201,6 +201,7 @@ object Theory
   {
     override def entity: TheoryView.Entity = inner.entity
     override def args: List[String] = inner.args
+    override def abbrev: Option[TheoryView.Typ] = inner.abbrev.map(map_typ)
   }
 
   implicit class Const_Wrapper(val inner: Export_Theory.Const) extends AnyVal with TheoryView.Const
@@ -208,6 +209,7 @@ object Theory
     override def entity: TheoryView.Entity = inner.entity
     override def typargs: List[String] = inner.typargs
     override def typ: TheoryView.Typ = inner.typ
+    override def abbrev: Option[TheoryView.Term] = inner.abbrev.map(map_term)
   }
 
   implicit class Axiom_Wrapper(val inner: Export_Theory.Axiom) extends AnyVal with TheoryView.Axiom

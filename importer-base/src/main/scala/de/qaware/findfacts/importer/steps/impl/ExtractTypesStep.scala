@@ -1,11 +1,10 @@
 package de.qaware.findfacts.importer.steps.impl
 
 import scala.collection.mutable.ListBuffer
-
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.{Kind, TypeEt}
 import de.qaware.findfacts.importer.TheoryView.Type
-import de.qaware.findfacts.importer.steps.impl.thy.PropExtractor
+import de.qaware.findfacts.importer.steps.impl.thy.{PropExtractor, TypExtractor}
 import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
 import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 import de.qaware.findfacts.importer.{ImportError, TheoryView}
@@ -13,9 +12,11 @@ import de.qaware.findfacts.importer.{ImportError, TheoryView}
 /** Step to extract types from a theory view.
   *
   * @param idBuilder to build entity ids
+  * @param typExtractor to extract references form abbreviations
   * @param propExtractor to extract references from propositions
   */
-class ExtractTypesStep(idBuilder: IdBuilder, propExtractor: PropExtractor) extends ImportStep {
+class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, propExtractor: PropExtractor)
+    extends ImportStep {
   private val logger = Logger[ExtractTypesStep]
 
   override def apply(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
@@ -55,8 +56,11 @@ class ExtractTypesStep(idBuilder: IdBuilder, propExtractor: PropExtractor) exten
 
       val props = axioms.map(_.prop)
 
+      val usedTypes = props.flatMap(propExtractor.referencedTypes).filterNot(name.equals) ++
+        typ.abbrev.toList.flatMap(typExtractor.referencedTypes)
+
       // Usage in axioms
-      val uses = idBuilder.getIds(Kind.Type, props.flatMap(propExtractor.referencedTypes).filterNot(name.equals)) ++
+      val uses = idBuilder.getIds(Kind.Type, usedTypes) ++
         idBuilder.getIds(Kind.Constant, props.flatMap(propExtractor.referencedConsts))
 
       ctx.types.addBinding(typ.entity.pos, new TypeEt(name, uses))
