@@ -1,10 +1,11 @@
 import Dependencies._
 import Profiles._
+import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
 val projectVersion = "0.3.0-SNAPSHOT"
-val schemaVersion = "0.2.1-SNAPSHOT"
+val schemaVersion = "0.3.0-SNAPSHOT"
 
 // Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
@@ -200,6 +201,7 @@ lazy val `search-webapp` = project
       swaggerUi,
       playTestPlus % "test"
     )),
+    dockerPermissionStrategy := DockerPermissionStrategy.Run,
     packageName in Docker := "findfacts",
     dockerBaseImage := "openjdk:11-jre-slim",
     dockerExposedPorts := Seq(9000),
