@@ -363,7 +363,8 @@ view (State state) (Config conf) =
             [ TextField.textField
                 { textFieldConfig
                     | placeholder = Just "Fuzzy search term with * wildcards"
-                    , fullwidth = True
+                    , fullwidth = False
+                    , additionalAttributes = [ style "width" "100%" ]
                     , value = state.term
                     , onInput = Just <| setTerm state >> conf.toInternal
                     , onChange = Just <| always <| conf.toMsg (State state)

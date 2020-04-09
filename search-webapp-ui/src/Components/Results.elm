@@ -178,9 +178,10 @@ renderFindUsesButton conf block ids =
 renderBlockContent : ShortBlock -> Html msg
 renderBlockContent block =
     Grid.layoutGrid [ Grid.alignLeft, style "width" "100%" ]
-        [ div [ Typography.caption, style "margin-bottom" "10pt" ] [ text block.file ]
+        [ div [ Typography.caption, style "margin-bottom" "8px" ] [ text block.file ]
         , Code.block (String.trimRight block.src)
             |> Code.withLineNumbersFrom block.startLine
+            |> Code.withAdditionalAttrs [ style "margin-bottom" "16px" ]
             |> lazy Code.view
         , lazy renderEntitySummary block.entities
         ]

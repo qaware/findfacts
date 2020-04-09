@@ -110,23 +110,31 @@ renderBlock conf block =
         src =
             stripTrailingBlanklines block.src
 
-        trailingLines =
-            String.lines <| trailingBlanklines block.src
-
         trailing =
-            List.take (List.length trailingLines - 1) trailingLines
-                |> List.intersperse "\n"
-                |> String.concat
+            trailingBlanklines block.src
+
+        trailingBlanks =
+            -- last blank line is from block splitting
+            List.take (List.length trailing - 1) <| trailing
     in
-    [ MList.listItem
+    MList.listItem
         { listItemConfig
             | additionalAttributes = [ style "height" "100%" ]
             , onClick = Just <| conf.toDetailMsg block.id
         }
         [ Code.block src |> Code.withLineNumbersFrom block.startLine |> Code.view ]
-    , MList.listItem { listItemConfig | disabled = True, additionalAttributes = [ style "height" "100%" ] }
-        [ Code.block trailing
-            |> Code.withLineNumbersFrom (block.startLine + (List.length <| String.lines src))
-            |> Code.view
-        ]
-    ]
+        :: (if List.isEmpty trailingBlanks then
+                []
+
+            else
+                [ MList.listItem { listItemConfig | disabled = True, additionalAttributes = [ style "height" "100%" ] }
+                    [ Code.block
+                        (List.take (List.length trailingBlanks - 1) trailingBlanks
+                            |> List.intersperse "\n"
+                            |> String.concat
+                        )
+                        |> Code.withLineNumbersFrom (block.startLine + (List.length <| String.lines src))
+                        |> Code.view
+                    ]
+                ]
+           )

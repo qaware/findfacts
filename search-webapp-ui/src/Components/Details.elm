@@ -74,6 +74,8 @@ type alias EntityState =
     }
 
 
+{-| State of dynamically loaded data for an entity.
+-}
 type ResultState
     = None
     | Fetching
@@ -144,6 +146,8 @@ update result state =
             Error e
 
 
+{-| Renders the detail component
+-}
 view : State -> Config msg -> Html msg
 view state (Config conf) =
     case state of
@@ -170,7 +174,9 @@ view state (Config conf) =
                     ]
                     [ Code.block (String.trimRight stateInternal.block.src)
                         |> Code.withContext (stripTrailingBlankline stateInternal.block.srcBefore)
-                            (trailingBlanklines stateInternal.block.src ++ stateInternal.block.srcAfter)
+                            ((trailingBlanklines stateInternal.block.src |> List.intersperse "\n" |> String.concat)
+                                ++ stateInternal.block.srcAfter
+                            )
                         |> Code.withLineNumbersFrom stateInternal.block.startLine
                         |> Code.withAdditionalAttrs [ style "display" "inline-block", style "min-width" "100%" ]
                         |> lazy Code.view

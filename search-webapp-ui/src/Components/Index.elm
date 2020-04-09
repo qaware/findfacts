@@ -109,15 +109,15 @@ select index (State state) =
     State <| { state | selected = fromString index }
 
 
-{-| Index name schema: ${ISABELLE\_COMMIT\_HASH}_${AFP_COMMIT\_HASH}\_${NAME}
+{-| Index name schema: ${NAME}\_${ISABELLE\_COMMIT\_HASH}_${AFP_COMMIT\_HASH}
 -}
 fromString : String -> Index
 fromString s =
     let
         parsed =
             case String.split separator s of
-                isabelle :: afp :: nameParts ->
-                    Just <| NamedIndex isabelle afp <| String.join separator nameParts
+                [ name, isabelle, afp ] ->
+                    Just <| NamedIndex isabelle afp name
 
                 _ ->
                     Nothing
@@ -140,35 +140,35 @@ view (State state) (Config conf) =
         Fetching ->
             Select.filledSelect
                 { selectConfig
-                    | label = "Index"
+                    | label = "Fetching..."
                     , disabled = True
-                    , value = Just <| toString state.selected
+                    , value = Just <| state.selected.string
                     , additionalAttributes = conf.additionalAttrs
                 }
-                -- This option must be here, otherwise there is a visual bug
-                [ Select.selectOption { selectOptionConfig | value = toString state.selected }
-                    [ text <| toString state.selected ]
+                -- This option must be here, otherwise a visual bug can occur
+                [ Select.selectOption { selectOptionConfig | value = state.selected.string }
+                    [ text <| display state.selected ]
                 ]
 
         Elems elems ->
             Select.filledSelect
                 { selectConfig
                     | label = "Index"
-                    , value = Just <| toString state.selected
+                    , value = Just <| state.selected.string
                     , onChange = Just <| \s -> conf.toMsg <| State <| { state | selected = fromString s }
                     , additionalAttributes = conf.additionalAttrs
                 }
                 (List.map
                     (\index ->
                         Select.selectOption { selectOptionConfig | value = index.string }
-                            [ text <| toString index ]
+                            [ text <| display index ]
                     )
                     elems
                 )
 
 
-toString : Index -> String
-toString index =
+display : Index -> String
+display index =
     index.parsed
-        |> Maybe.map (\named -> named.name ++ " (isa:" ++ named.isabelleVersion ++ " / afp:" ++ named.afpVersion ++ ")")
+        |> Maybe.map (\named -> named.name ++ " (" ++ named.isabelleVersion ++ " / " ++ named.afpVersion ++ ")")
         |> Maybe.withDefault index.string

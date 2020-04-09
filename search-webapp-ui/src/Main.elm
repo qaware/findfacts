@@ -66,7 +66,7 @@ init _ url navKey =
 
         ( model, urlCmd ) =
             -- Immediately update state with url
-            urlUpdate url (Model baseUrl navKey True 0 False Waiting)
+            updateFromUrl url (Model baseUrl navKey True 0 False <| Waiting initSearch)
 
         windowSizeCmd =
             Task.perform (\v -> WidthMsg <| floor v.viewport.width) Browser.Dom.getViewport
@@ -78,6 +78,13 @@ init _ url navKey =
 -}
 topBarMinWidth =
     540
+
+
+{-| Email address, encoded so it is not visible in the source code.
+-}
+email : String
+email =
+    Base64Decode.decode Base64Decode.string "aHVjaEBpbi50dW0uZGU" |> Result.withDefault ""
 
 
 
@@ -99,7 +106,7 @@ type alias Model =
 {-| Page to use in model, stores state.
 -}
 type Page
-    = Waiting
+    = Waiting (( String, List String ) -> ( Page, Cmd Msg ))
     | Error String
     | Home PageHome
     | Details PageDetails
@@ -172,7 +179,7 @@ update msg model =
     if model.locked then
         case msg of
             UrlChanged url ->
-                urlUpdate url model
+                updateFromUrl url model
 
             WidthMsg width ->
                 ( { model | width = width }, Cmd.none )
@@ -184,7 +191,7 @@ update msg model =
     else
         case ( msg, model.page ) of
             ( UrlChanged url, _ ) ->
-                urlUpdate url model
+                updateFromUrl url model
 
             ( DrawerMsg, _ ) ->
                 ( { model | drawerOpen = not model.drawerOpen }, Cmd.none )
@@ -240,10 +247,10 @@ update msg model =
                     urlEncodeHome details.index (Search.initUses block ids) Paging.empty
                 )
 
-            ( IndexMsg state, Home _ ) ->
+            ( IndexMsg state, Home home ) ->
                 ( { model | locked = True }
                 , Navigation.pushUrl model.navKey <|
-                    urlEncodeHome (Index.selected state) Search.empty Paging.empty
+                    urlEncodeHome (Index.selected state) home.search Paging.empty
                 )
 
             ( SearchMsg state, Home home ) ->
@@ -281,18 +288,11 @@ updatePage apiBaseUrl msg page =
         ( IndexesResult (Ok []), _ ) ->
             ( Error "No index to search in", Cmd.none )
 
-        ( IndexesResult (Ok (default :: rest)), Waiting ) ->
-            ( Home
-                { index = Index.update (default :: rest) (Index.init default)
-                , search = Search.empty
-                , paging = Paging.empty
-                , results = Results.empty
-                }
-            , Cmd.none
-            )
-
         ( IndexesResult (Ok (default :: rest)), Home home ) ->
             ( Home { home | index = Index.update (default :: rest) home.index }, Cmd.none )
+
+        ( IndexesResult (Ok (default :: rest)), Waiting onResult ) ->
+            onResult ( default, rest )
 
         ( DetailsResult result, Details details ) ->
             ( Details { details | state = Details.init <| Result.mapError explainHttpError result }, Cmd.none )
@@ -345,8 +345,8 @@ updatePage apiBaseUrl msg page =
 
 {-| Parses url and updates model accordingly.
 -}
-urlUpdate : Url -> Model -> ( Model, Cmd Msg )
-urlUpdate url model =
+updateFromUrl : Url -> Model -> ( Model, Cmd Msg )
+updateFromUrl url model =
     -- For the SPA, all path is stored in the fragment.
     let
         -- Retrieve part before first "?" (the path) and after (the query/fragment)
@@ -368,15 +368,14 @@ urlUpdate url model =
 
 
 {-| Parser for the route. May not use fragment as that is already used for SPA routing.
+Creates a page and a command, as information for both may be encoded in the url.
 -}
 routeParser : Model -> UrlParser.Parser (( Page, Cmd Msg ) -> a) a
 routeParser model =
     UrlParser.oneOf
-        [ UrlParser.map
-            ( Waiting
-            , executeIndexesQuery model.apiBaseUrl
-            )
-            UrlParser.top
+        [ UrlParser.map ( Waiting initSearch, executeIndexesQuery model.apiBaseUrl ) UrlParser.top
+        , UrlParser.map (\q -> ( Waiting <| defaultSearch model q, executeIndexesQuery model.apiBaseUrl ))
+            (UrlParser.s "search" <?> UrlQueryParser.string "q")
         , UrlParser.map (\index ( q, p ) -> parseHome model index q p)
             (UrlParser.s "search"
                 </> UrlParser.string
@@ -392,9 +391,24 @@ routeParser model =
         ]
 
 
-email : String
-email =
-    Base64Decode.decode Base64Decode.string "aHVjaEBpbi50dW0uZGU" |> Result.withDefault ""
+{-| Creates an initial search page given available indexes.
+As the search page is initial, no queries need to be executed yet.
+There should be no redirect as that would be a strange user experience.
+-}
+initSearch : ( String, List String ) -> ( Page, Cmd Msg )
+initSearch ( default, rest ) =
+    ( Home <| PageHome (Index.init default |> Index.update (default :: rest)) Search.empty Paging.empty Results.empty
+    , Cmd.none
+    )
+
+
+{-| Creates an search page for the default index - the index is not url-encoded.
+The rest of the indexes are ignored; parsing the home will trigger a fresh index query.
+Simply redirecting has the problem that 'back' won't work for the user.
+-}
+defaultSearch : Model -> Maybe String -> ( String, List String ) -> ( Page, Cmd Msg )
+defaultSearch model q ( idx, _ ) =
+    parseHome model idx q Nothing
 
 
 {-| Parses the 'home' page, and executes queries if necessary.
@@ -511,6 +525,12 @@ urlEncodeHome index search paging =
         ([ UrlBuilder.string "q" (search |> Search.encode |> Encode.encode 0) ]
             |> consIf (not (Paging.isEmpty paging)) (UrlBuilder.string "page" (paging |> Paging.encode |> Encode.encode 0))
         )
+
+
+urlEncodeDefaultQuery : String -> Maybe String -> String
+urlEncodeDefaultQuery index search =
+    UrlBuilder.absolute [ "#search", index ]
+        (search |> Maybe.map (UrlBuilder.string "q" >> List.singleton) |> Maybe.withDefault [])
 
 
 urlEncodeDetail : String -> String -> String
@@ -667,7 +687,7 @@ renderTopBar width =
                         }
                         "menu"
                     ]
-                    ++ [ span [ TopAppBar.title ] [ text "FindFacts" ] ]
+                    ++ [ a [ href "#", TopAppBar.title, Theme.onPrimary ] [ text "FindFacts" ] ]
                 )
             , TopAppBar.section [ TopAppBar.alignEnd ]
                 (ite (width <= topBarMinWidth)
@@ -692,7 +712,7 @@ renderLink name target =
 renderPage : Int -> Page -> Html Msg
 renderPage width page =
     case page of
-        Waiting ->
+        Waiting _ ->
             [ LinearProgress.indeterminateLinearProgress LinearProgress.linearProgressConfig ] |> renderInPage []
 
         Home home ->
@@ -787,9 +807,9 @@ renderPageHelp =
         [ text "To search for isabelle characters, use the abbreviation (if unique): "
         , a [ href "#search?q={\"term\"%3A\"%3D%3D>\"}" ] [ text "==>" ]
         , text ", the isabelle markup : "
-        , a [ href "#search?page=[]&q={\"term\"%3A\"\\\\<Longrightarrow>\"}" ] [ text "\\<Longrightarrow>" ]
+        , a [ href "#search?q={\"term\"%3A\"\\\\<Longrightarrow>\"}" ] [ text "\\<Longrightarrow>" ]
         , text ", or the unicode representation: "
-        , a [ href "#search?page=[]&q={\"term\"%3A\"⟹\"}" ] [ text "⟹" ]
+        , a [ href "#search?q={\"term\"%3A\"⟹\"}" ] [ text "⟹" ]
         , text "."
         ]
     , h2 [ Typography.headline4 ] [ text "Main Search Bar" ]
@@ -799,7 +819,7 @@ renderPageHelp =
         , text "'*' Wildcards are allowed so you don't need to be too specific."
         ]
     , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?page=[]&q={\"term\"%3A\"inv*\"}" ]
+    , a [ Typography.typography, href "#search?q={\"term\"%3A\"inv*\"}" ]
         [ text "Searching for inverse, which might be abbreviated by 'inv'" ]
     , h2 [ Typography.headline4 ] [ text "Filters" ]
     , p [ Typography.body1 ]
@@ -808,7 +828,7 @@ renderPageHelp =
         , text "Filters always target a specific field, and they will restrict results to match either of your inputs. However, for an input to match, all its terms must match."
         ]
     , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?page=[]&q={\"fields\"%3A[{\"field\"%3A\"Name\"%2C\"terms\"%3A[\"equal nat\"%2C\"equal integer\"]}]}" ]
+    , a [ Typography.typography, href "#search?&q={\"fields\"%3A[{\"field\"%3A\"Name\"%2C\"terms\"%3A[\"equal nat\"%2C\"equal integer\"]}]}" ]
         [ text "Filtering for semantic entities with that are (from their name) about equality in integers or nats." ]
     , h2 [ Typography.headline4 ] [ text "Facets" ]
     , p [ Typography.body1 ]
@@ -817,7 +837,7 @@ renderPageHelp =
         , text "Selecting multiple values will give you results that match either."
         ]
     , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?page=[]&q={\"term\"%3A\"*\"%2C\"facets\"%3A{\"Kind\"%3A[\"Constant\"]}}" ]
+    , a [ Typography.typography, href "#search?q={\"term\"%3A\"*\"%2C\"facets\"%3A{\"Kind\"%3A[\"Constant\"]}}" ]
         [ text "Restricting search to constants" ]
     ]
 

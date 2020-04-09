@@ -133,17 +133,17 @@ pairWith b a =
 
 {-| Gives the trailing blank lines of a string.
 
-    trailingNewline "foo\n bar\n\n" == "\n\n"
+    trailingBlanklines "foo\n bar\n\n " == [ "", " " ]
 
 -}
-trailingBlanklines : String -> String
+trailingBlanklines : String -> List String
 trailingBlanklines str =
-    String.lines str |> List.Extra.takeWhileRight String.Extra.isBlank |> List.intersperse "\n" |> String.concat
+    String.lines str |> List.Extra.takeWhileRight String.Extra.isBlank
 
 
-{-| Strips the trailing newline(s) from a string, if it has some.
+{-| Strips the trailing blank line(s) from a string, if it has some.
 
-    stripTrailingNewline "foo\n bar\n\n " == "foo\n bar"
+    stripTrailingBlanklines "foo\n bar\n\n " == "foo\n bar"
 
 -}
 stripTrailingBlanklines : String -> String
