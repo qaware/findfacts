@@ -28,7 +28,6 @@ object Markup_Blocks
     val DONE = Value("done")
     val DOT = Value(".")
     val DOTDOT = Value("..")
-    val END = Value("end")
     val FINALLY = Value("finally")
     val FIX = Value("fix")
     val FOCUS = Value("focus")

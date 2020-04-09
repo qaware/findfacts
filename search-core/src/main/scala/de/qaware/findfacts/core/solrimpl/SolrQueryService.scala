@@ -26,6 +26,8 @@ import scala.util.{Failure, Success, Try}
 class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends QueryService {
   private val logger = Logger[SolrQueryService]
 
+  private final val Default = "default"
+
   /** Make this implicitly available. */
   private implicit val queryService: SolrQueryService = this
 
@@ -222,5 +224,14 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
     getRes[ShortBlock, ResultList[ShortBlock]](filterQuery, mapper.buildBlockFilterQuery, mapResultList)
   }
 
-  override def listIndexes: Try[List[String]] = Try(solr.listIndexes)
+  override def listIndexes: Try[List[String]] = Try {
+    val elems = solr.listIndexes
+    val defaultIdx = elems.indexWhere(_.contains(Default))
+    if (defaultIdx >= 0) {
+      // If there is an index with name "default", put it first in the results.
+      elems(defaultIdx) :: elems.take(defaultIdx) ++ elems.drop(defaultIdx + 1)
+    } else {
+      elems
+    }
+  }
 }

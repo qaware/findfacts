@@ -78,7 +78,7 @@ object Importer
     var sessions: List[String] = Nil
     var configset = Isabelle_System.getenv("SOLR_CONFIGSET")
     var local_solr = ""
-    var remote_solr = ("", "")
+    var remote_solr: List[String] = Nil
 
     val getopts = Getopts("""
 Usage: isabelle dump_importer [OPTIONS] DUMPDIR
@@ -99,7 +99,7 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR
       "I:" -> (arg => index_name = arg),
       "C:" -> (arg => configset = arg),
       "L:" -> (arg => local_solr = arg),
-      "R:" -> (arg => remote_solr = arg.splitAt(arg.indexOf(':'))))
+      "R:" -> (arg => remote_solr = Library.distinct(space_explode(':', arg))))
 
     val more_args = getopts(args)
 
@@ -110,7 +110,7 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR
 
     val solr_repository = (local_solr, remote_solr) match {
       case (dir, _) if !dir.isBlank => LocalSolr(Path.explode(dir).absolute_file)
-      case (_, (host, port)) if !host.isBlank && !configset.isBlank =>
+      case (_, host :: port :: Nil) if !host.isBlank && !configset.isBlank =>
         RemoteSolr(host, Value.Int.parse(port), configset)
       case _ => getopts.usage()
     }
