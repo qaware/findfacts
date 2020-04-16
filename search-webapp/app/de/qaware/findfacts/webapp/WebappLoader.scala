@@ -9,6 +9,7 @@ import de.qaware.findfacts.common.solr
 import de.qaware.findfacts.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
+import de.qaware.findfacts.webapp.filters.StatsLoggingFilter
 import de.qaware.findfacts.webapp.utils.{ActionBuilderUtils, JsonMappings}
 import play.api.ApplicationLoader.Context
 import play.api.mvc.EssentialFilter
@@ -38,9 +39,11 @@ class WebappModule(context: Context)
     with HttpFiltersComponents
     with GzipFilterComponents {
 
+  lazy val statsLoggingFilter: StatsLoggingFilter = wire[StatsLoggingFilter]
+
   // Disable CSRF, as it is not needed in this application, and add gzip filter
   override def httpFilters: Seq[EssentialFilter] = {
-    super.httpFilters.filterNot(_.getClass == classOf[CSRFFilter]) :+ gzipFilter
+    super.httpFilters.filterNot(_.getClass == classOf[CSRFFilter]) :+ gzipFilter :+ statsLoggingFilter
   }
 
   // Connect to remote solr.

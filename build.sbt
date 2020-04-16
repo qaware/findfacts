@@ -5,7 +5,7 @@ import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 Global / onChangedBuildSource := IgnoreSourceChanges
 
 val projectVersion = "0.3.2-SNAPSHOT"
-val schemaVersion = "0.3.0-SNAPSHOT"
+val schemaVersion = "0.3.0"
 
 // Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
