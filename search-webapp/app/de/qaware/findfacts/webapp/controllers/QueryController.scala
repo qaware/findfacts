@@ -41,14 +41,13 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, acti
   // Import all json mapping implicits
   import jsonMappings._
 
-  private final val ExampleFilterQuery =
-    """
+  private final val ExampleFilterQuery = """
 {
   "filters" : [
     {
       "field" : "Name",
       "filter" : {
-        "Exact" : {
+        "Term" : {
           "inner" : "*gauss*"
         }
       }
@@ -63,7 +62,7 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, acti
     {
       "field" : "Name",
       "filter" : {
-        "Exact" : {
+        "Term" : {
           "inner" : "*gauss*"
         }
       }

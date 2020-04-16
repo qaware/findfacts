@@ -10,14 +10,13 @@ import de.qaware.findfacts.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRe
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
 import de.qaware.findfacts.webapp.utils.{ActionBuilderUtils, JsonMappings}
-import org.apache.logging.log4j.core
-import org.apache.logging.log4j.core.Core
 import play.api.ApplicationLoader.Context
 import play.api.mvc.EssentialFilter
 import play.api.routing.Router
 import play.api.{Application, ApplicationLoader, BuiltInComponentsFromContext, ConfigLoader}
 import play.filters.HttpFiltersComponents
 import play.filters.csrf.CSRFFilter
+import play.filters.gzip.GzipFilterComponents
 import play.modules.swagger.{SwaggerPlugin, SwaggerPluginImpl}
 import router.Routes
 
@@ -36,11 +35,12 @@ class WebappModule(context: Context)
     extends BuiltInComponentsFromContext(context)
     with SolrQueryModule
     with AssetsComponents
-    with HttpFiltersComponents {
+    with HttpFiltersComponents
+    with GzipFilterComponents {
 
-  // Disable CSRF, as it is not needed in this application
+  // Disable CSRF, as it is not needed in this application, and add gzip filter
   override def httpFilters: Seq[EssentialFilter] = {
-    super.httpFilters.filterNot(_.getClass == classOf[CSRFFilter])
+    super.httpFilters.filterNot(_.getClass == classOf[CSRFFilter]) :+ gzipFilter
   }
 
   // Connect to remote solr.
@@ -57,7 +57,7 @@ class WebappModule(context: Context)
   // Swagger plugin creates api doc. Cannot be lazy as it needs to be initialized first for api discovery.
   val swaggerPlugin: SwaggerPlugin = wire[SwaggerPluginImpl]
 
-  // Wire up router, which provides the main entry point for play
+  // Wire up router (with prefix), which provides the main entry point for play
   protected lazy val routesPrefix = "/"
   override lazy val router: Router = wire[Routes]
 }

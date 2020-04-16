@@ -1,5 +1,6 @@
 package de.qaware.findfacts.webapp.controllers
 
+import controllers.AssetsFinder
 import de.qaware.findfacts.webapp.views
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, Request}
 
@@ -7,14 +8,14 @@ import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponent
   *
   * @param cc components of this controller
   */
-final class HomeController(cc: ControllerComponents) extends AbstractController(cc) {
+final class HomeController(cc: ControllerComponents, assetsFinder: AssetsFinder) extends AbstractController(cc) {
 
   /** Deliver application.
     *
     * @return index action
     */
   def index(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
-    Ok(views.html.index())
+    Ok(views.html.index(assetsFinder))
   }
 
   /** Redirects to swagger webjar index.

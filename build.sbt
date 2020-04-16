@@ -4,7 +4,7 @@ import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
-val projectVersion = "0.3.1-SNAPSHOT"
+val projectVersion = "0.3.2-SNAPSHOT"
 val schemaVersion = "0.3.0-SNAPSHOT"
 
 // Project-wide settings
@@ -189,6 +189,7 @@ lazy val `search-core` = project
 // Play web application backend
 lazy val `search-webapp` = project
   .settings(
+    pipelineStages in Assets := Seq(digest, gzip),
     javaOptions in Runtime ++= Seq(
       // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
       "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
@@ -197,7 +198,7 @@ lazy val `search-webapp` = project
     libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
       playGuice,
       playCirce,
-      playSwagger,
+      playSwaggerGen,
       swaggerUi,
       playTestPlus % "test"
     )),
