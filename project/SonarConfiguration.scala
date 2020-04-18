@@ -48,8 +48,7 @@ object SonarConfiguration extends AutoPlugin {
           s"$projectName.sonar.scala.coverage.reportPaths" ->
             (targetDir / "scala-2.12" / "scoverage-report" / "scoverage.xml").getPath,
           s"$projectName.sonar.scala.scapegoat.reportPaths" ->
-            (targetDir / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath,
-          s"$projectName.sonar.scala.scalastyle.reportPaths" -> (targetDir / "scalastyle-result.xml").getPath
+            (targetDir / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath
         )
       }
     }

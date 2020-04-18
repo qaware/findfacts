@@ -1,8 +1,6 @@
 package de.qaware.findfacts.core.dt
-// scalastyle:off
 import de.qaware.findfacts.common.dt.EtField._
 import io.circe.generic.auto._
-// scalastyle:on
 
 /** Children field for short theory entities. */
 case object ShortChildren extends Children[ShortThyEt] {

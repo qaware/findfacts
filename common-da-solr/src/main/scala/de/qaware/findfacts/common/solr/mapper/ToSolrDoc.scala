@@ -33,7 +33,6 @@ trait ToSolrDoc[A] {
 
 /** Typeclass object providing idiomatic typeclass members and implicits. */
 object ToSolrDoc {
-  // scalastyle:off scaladoc Justification: idiomatic typeclass
   def apply[A](implicit mapper: ToSolrDoc[A]): ToSolrDoc[A] = mapper
   def instance[A](mapFn: A => SolrInputDocument): ToSolrDoc[A] = (elem: A) => mapFn(elem)
 

@@ -1,10 +1,8 @@
 package de.qaware.findfacts.common.dt
 
 import de.qaware.findfacts.common.da.api.Variant.Discriminator
-// scalastyle:off
 import de.qaware.findfacts.common.dt.EtField._
 import io.circe.generic.auto._
-// scalastyle:on
 
 /** Children for base theory blocks. */
 case object TheoryChildren extends Children[TheoryEt] {
@@ -43,7 +41,6 @@ object TheoryEt {
   def makeId(kind: Kind, name: Name.T): Id.T = s"$kind.$name"
 }
 
-// scalastyle:off scaladoc
 /** Any code block.
   *
   * @param theory source in which entity was defined

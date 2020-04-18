@@ -42,7 +42,6 @@ trait FromSolrDoc[A] {
 
 /** Typeclass object providing idiomatic typeclass members and implicits. */
 object FromSolrDoc {
-  // scalastyle:off scaladoc Justification: idiomatic typeclass
   def apply[A](implicit mapper: FromSolrDoc[A]): FromSolrDoc[A] = mapper
   def instance[A](fields: Set[Field], mapFn: SolrDocument => Try[A]): FromSolrDoc[A] = new FromSolrDoc[A] {
     override def fromSolrDoc(doc: SolrDocument): Try[A] = mapFn(doc)
@@ -110,7 +109,6 @@ object FromSolrDoc {
       mapFn: (SolrDocument, F) => A): FromSolrDoc[A @@ F] =
     instance(moreFields + field, doc => Try(mapFn(doc, field).asInstanceOf[A @@ F]))
 
-  // scalastyle:off null
   /** Single-valued field impl. */
   @SuppressWarnings(Array("AsInstanceOf"))
   implicit def singleValuedFromSolrDoc[F <: SingleValuedField[_], A](

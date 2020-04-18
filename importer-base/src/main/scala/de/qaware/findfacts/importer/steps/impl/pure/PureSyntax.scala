@@ -14,7 +14,6 @@ case object PureSyntax extends Enum[SyntaxElement] {
   /** Set of all values. */
   final val values = findValues
 
-  // scalastyle:off scaladoc Justification: Explained in isabelle_implementation manual
   /** Pure keywords */
   case object Prop extends SyntaxElement("prop")
   case object Fun extends SyntaxElement("fun")
@@ -29,7 +28,6 @@ case object PureSyntax extends Enum[SyntaxElement] {
   case object Conj extends SyntaxElement("Pure.conjunction")
   case object Term extends SyntaxElement("Pure.term")
   case object Type extends SyntaxElement("Pure.type")
-  // scalastyle:on scaladoc
 
   /** Filter to check if name is part of the pure syntax.
     *

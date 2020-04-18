@@ -61,3 +61,14 @@ Build and publish docker image:
 ```
 
 For deployment, see the [deployment repo](https://github.com/qaware/findfacts-deployment).
+
+## Code style
+This project uses the [databricks style guide](https://github.com/databricks/scala-style-guide) with some changes:
+
+- __column width__: use 120 for better readability, as most monitors are 16:9 nowadays.
+- __implicits__: the original guide is very lacking here.
+  Typeclasses, and important patterns, such as the implicit context pattern and the pimp my library pattern are not even mentioned.
+  Hence, we don't adhere to the recommendation of avoiding implicits altogether.
+  However, avoid using implicits outside of well-known patterns.
+- __monadic chaining__: this section is nonsense, Scalas for-comprehensions are completely missing.
+  Use for-comprehensions as they solve the problem in an easy, understandeable and readable way.

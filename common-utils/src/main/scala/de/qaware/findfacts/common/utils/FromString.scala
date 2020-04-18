@@ -35,11 +35,9 @@ object FromString {
     */
   def instance[A](f: String => Try[A]): FromString[A] = (s: String) => f(s)
 
-  // scalastyle:off
   /** FromString for integers. */
   implicit def intFromString: FromString[Int] = instance(s => Try(s.toInt))
 
   /** FromString for Strings. */
   implicit def stringFromString: FromString[String] = instance(Try(_))
-  // scalastyle:on
 }

@@ -9,9 +9,7 @@ import play.api.Logging
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-// scalastyle:off
 import io.circe.syntax._
-// scalastyle:on
 import io.circe.Printer
 import io.swagger.annotations.{
   Api,
@@ -77,9 +75,6 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, acti
   implicit val jsonPrinter: Printer = Printer.noSpacesSortKeys.copy(dropNullValues = true)
 
   // Api Operations.
-  // scalastyle:scaladoc off
-  // scalastyle:magic.number off
-
   @ApiOperation(
     value = "SearchComponent query",
     notes = "Accepts a search query and returns list of all results.",
