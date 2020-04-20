@@ -13,7 +13,7 @@ import com.typesafe.sbt.web.{CompileProblems, GeneralProblem, SbtWeb}
 import sbt.Keys._
 import sbt._
 
-/** Plugin for the elm ui subproject */
+/** Plugin for the elm ui sub-project */
 object ElmPlugin extends AutoPlugin {
 
   /** SbtWeb for incremental compilation. */
@@ -80,14 +80,18 @@ object ElmPlugin extends AutoPlugin {
     pipelineStages in Assets := Seq(elmUglifyCompress, elmUglifyMangle),
     unmanagedSourceDirectories in Assets += (sourceDirectory in elmMake).value,
     unmanagedSources in Assets := ((sourceDirectory in elmMake).value ** ("*.elm" -- (excludeFilter in elmMake).value)).get,
-    resourceGenerators in Assets += elmMake.taskValue,
+    resourceGenerators in Assets += elmMake.taskValue
   )
 
   /** Logger to buffer output, so compiler errors can be retrieved. */
-  def bufferingLogger = new ProcessLogger {
-    val buffer = new ArrayBuffer[String]
-    override def out(s: => String): Unit = buffer += s
-    override def err(s: => String): Unit = buffer += s
-    override def buffer[T](f: => T): T = f
-  }
+  private def bufferingLogger =
+    new ProcessLogger {
+      val buffer = new ArrayBuffer[String]
+
+      override def out(s: => String): Unit = buffer += s
+
+      override def err(s: => String): Unit = buffer += s
+
+      override def buffer[T](f: => T): T = f
+    }
 }

@@ -1,20 +1,22 @@
 package de.qaware.findfacts.importer.steps.impl
 
 import com.typesafe.scalalogging.Logger
+
 import de.qaware.findfacts.common.dt.{FactEt, Kind}
 import de.qaware.findfacts.importer.steps.impl.thy.{ProofExtractor, PropExtractor}
 import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
 import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 import de.qaware.findfacts.importer.{ImportError, TheoryView}
 
-/** Extracts the facts from a theory view.
-  *
-  * @param idBuilder to build entity ids
-  * @param propExtractor to extract proposition data
-  * @param proofExtractor to extract proof data
-  */
-class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor, proofExtractor: ProofExtractor)
-    extends ImportStep {
+/**
+ * Extracts the facts from a theory view.
+ *
+ * @param idBuilder to build entity ids
+ * @param propExtractor to extract proposition data
+ * @param proofExtractor to extract proof data
+ */
+final class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor, proofExtractor: ProofExtractor)
+  extends ImportStep {
   private val logger = Logger[ExtractFactsStep]
 
   override def apply(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {

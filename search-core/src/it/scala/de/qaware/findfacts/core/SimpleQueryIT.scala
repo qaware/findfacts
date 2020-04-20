@@ -1,21 +1,24 @@
 package de.qaware.findfacts.core
 
-import de.qaware.findfacts.common.dt.EtField.{StartLine, Uses}
-import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, ITSolr, Kind}
-import de.qaware.findfacts.common.solr.{LocalSolr, SolrRepository}
-import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
-import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import org.apache.solr.client.solrj.SolrQuery
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Inside, Matchers}
+
+import de.qaware.findfacts.common.dt.EtField.{StartLine, Uses}
+import de.qaware.findfacts.common.dt._
+import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
+import de.qaware.findfacts.common.solr.{LocalSolr, SolrRepository}
+import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 
 /** Test base functionality of query module with a setup that's as simple as possible.  */
 class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with Inside {
   final val itSolr = ITSolr()
-  final val queryModule: QueryModule = new SolrQueryModule { override lazy val solr: SolrRepository = itSolr }
-  implicit val index: String = LocalSolr.DefaultCoreName
+  final val queryModule: QueryModule = new SolrQueryModule {
+    override lazy val solr: SolrRepository = itSolr
+  }
+  implicit val index: String = LocalSolr.DEFAULT_CORE_NAME
 
   override def beforeAll(): Unit = {
-    itSolr.createIndex(LocalSolr.DefaultCoreName)
+    itSolr.createIndex(LocalSolr.DEFAULT_CORE_NAME)
 
     // Add integration test data set
     val const1 = new ConstantEt("Const1", List("someId"), "'a => 'b")

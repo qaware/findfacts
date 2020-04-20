@@ -1,10 +1,12 @@
 package de.qaware.findfacts.importer.steps
 
-import de.qaware.findfacts.common.dt.{CodeblockEt, ConstantEt, FactEt, TypeEt}
-import de.qaware.findfacts.importer.TheoryView.Position
 import org.scalatest.{BeforeAndAfterEach, Matchers, OptionValues}
 
+import de.qaware.findfacts.common.dt.{CodeblockEt, ConstantEt, FactEt, TypeEt}
+import de.qaware.findfacts.importer.TheoryView.Position
+
 class StepContextTest extends org.scalatest.FunSuite with Matchers with BeforeAndAfterEach with OptionValues {
+
   val block = new CodeblockEt(0, 10, "thy1", 1, "lemma", "...", "src", "other stuff")
   val const = new ConstantEt("Const", List.empty, "'a -> 'a")
   val fact = new FactEt("Fact", List.empty)

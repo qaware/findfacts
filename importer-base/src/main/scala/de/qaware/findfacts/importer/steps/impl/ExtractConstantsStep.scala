@@ -1,7 +1,9 @@
 package de.qaware.findfacts.importer.steps.impl
 
 import scala.collection.mutable.ListBuffer
+
 import com.typesafe.scalalogging.Logger
+
 import de.qaware.findfacts.common.dt.{ConstantEt, Kind}
 import de.qaware.findfacts.importer.TheoryView.Const
 import de.qaware.findfacts.importer.steps.impl.thy.{PropExtractor, TermExtractor, TypExtractor}
@@ -9,19 +11,20 @@ import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
 import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 import de.qaware.findfacts.importer.{ImportError, TheoryView}
 
-/** Step to extract constants from theory view.
-  *
-  * @param idBuilder to build entity ids
-  * @param typExtractor to extract types
-  * @param termExtractor to extract types from abbreviation terms
-  * @param propExtractor to extract references from propositions
-  */
-class ExtractConstantsStep(
+/**
+ * Step to extract constants from theory view.
+ *
+ * @param idBuilder to build entity ids
+ * @param typExtractor to extract types
+ * @param termExtractor to extract types from abbreviation terms
+ * @param propExtractor to extract references from propositions
+ */
+final class ExtractConstantsStep(
     idBuilder: IdBuilder,
     typExtractor: TypExtractor,
     termExtractor: TermExtractor,
     propExtractor: PropExtractor)
-    extends ImportStep {
+  extends ImportStep {
   private val logger = Logger[ExtractConstantsStep]
 
   override def apply(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
@@ -63,7 +66,7 @@ class ExtractConstantsStep(
 
       // Collect uses
       val usedTypes = (typExtractor.referencedTypes(const.typ) ++ props.flatMap(propExtractor.referencedTypes) ++
-          const.abbrev.toList.flatMap(termExtractor.referencedTypes)).toList
+        const.abbrev.toList.flatMap(termExtractor.referencedTypes)).toList
       val usedConsts = props.flatMap(propExtractor.referencedConsts).filterNot(name.equals) ++
         const.abbrev.toList.flatMap(termExtractor.referencedConsts)
 

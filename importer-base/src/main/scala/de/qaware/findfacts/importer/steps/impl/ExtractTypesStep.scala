@@ -1,7 +1,9 @@
 package de.qaware.findfacts.importer.steps.impl
 
 import scala.collection.mutable.ListBuffer
+
 import com.typesafe.scalalogging.Logger
+
 import de.qaware.findfacts.common.dt.{Kind, TypeEt}
 import de.qaware.findfacts.importer.TheoryView.Type
 import de.qaware.findfacts.importer.steps.impl.thy.{PropExtractor, TypExtractor}
@@ -9,14 +11,15 @@ import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
 import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 import de.qaware.findfacts.importer.{ImportError, TheoryView}
 
-/** Step to extract types from a theory view.
-  *
-  * @param idBuilder to build entity ids
-  * @param typExtractor to extract references form abbreviations
-  * @param propExtractor to extract references from propositions
-  */
-class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, propExtractor: PropExtractor)
-    extends ImportStep {
+/**
+ * Step to extract types from a theory view.
+ *
+ * @param idBuilder to build entity ids
+ * @param typExtractor to extract references form abbreviations
+ * @param propExtractor to extract references from propositions
+ */
+final class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, propExtractor: PropExtractor)
+  extends ImportStep {
   private val logger = Logger[ExtractTypesStep]
 
   override def apply(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {

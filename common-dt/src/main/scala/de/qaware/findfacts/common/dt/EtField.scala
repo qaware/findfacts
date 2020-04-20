@@ -1,9 +1,10 @@
 package de.qaware.findfacts.common.dt
 
+import enumeratum.EnumEntry
+
 import de.qaware.findfacts.common.da.api.{ChildrenField, Field, MultiValuedField, SingleValuedField}
 import de.qaware.findfacts.common.dt.solr.SolrSchema
 import de.qaware.findfacts.common.utils.DefaultEnum
-import enumeratum.EnumEntry
 
 /** Seal field types so only existing fields can be used. */
 sealed trait EtField extends EnumEntry with Field {
@@ -89,10 +90,11 @@ object EtField extends DefaultEnum[EtField] {
     override val implicits: FieldImplicits[Int] = FieldImplicits()
   }
 
-  /** Field for child entities.
-    *
-    * @tparam A Children type
-    */
+  /**
+   * Field for child entities.
+   *
+   * @tparam A Children type
+   */
   abstract class Children[A] extends ChildrenField[A] with ParentField {
     override val name: String = SolrSchema.Children
   }

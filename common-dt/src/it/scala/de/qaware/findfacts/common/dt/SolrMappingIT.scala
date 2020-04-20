@@ -1,17 +1,19 @@
 package de.qaware.findfacts.common.dt
 
-import de.qaware.findfacts.common.solr.LocalSolr
-
 import scala.collection.JavaConverters._
-import de.qaware.findfacts.common.solr.mapper.{FromSolrDoc, ToSolrDoc}
+
 import org.apache.solr.client.solrj.SolrQuery
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite, Matchers}
 
+import de.qaware.findfacts.common.solr.LocalSolr
+import de.qaware.findfacts.common.solr.mapper.{FromSolrDoc, ToSolrDoc}
+
 class SolrMappingIT extends FunSuite with Matchers with BeforeAndAfterEach with BeforeAndAfterAll {
+
   final val solr = ITSolr()
 
   override def beforeAll(): Unit = {
-    solr.createIndex(LocalSolr.DefaultCoreName)
+    solr.createIndex(LocalSolr.DEFAULT_CORE_NAME)
   }
 
   override def beforeEach(): Unit = {

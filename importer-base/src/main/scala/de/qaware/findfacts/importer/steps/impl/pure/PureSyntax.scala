@@ -2,10 +2,11 @@ package de.qaware.findfacts.importer.steps.impl.pure
 
 import enumeratum.{Enum, EnumEntry}
 
-/** PureSyntax enum element class.
-  *
-  * @param name of the element
-  */
+/**
+ * PureSyntax enum element class.
+ *
+ * @param name of the element
+ */
 sealed abstract class SyntaxElement(val name: String) extends EnumEntry
 
 /** Elements of the isabelle pure language  */
@@ -21,18 +22,23 @@ case object PureSyntax extends Enum[SyntaxElement] {
 
   /** Pure connectives. */
   case object Eq extends SyntaxElement("Pure.eq")
+
   case object Imp extends SyntaxElement("Pure.imp")
+
   case object All extends SyntaxElement("Pure.all")
 
   /** Auxiliary connectives */
   case object Conj extends SyntaxElement("Pure.conjunction")
+
   case object Term extends SyntaxElement("Pure.term")
+
   case object Type extends SyntaxElement("Pure.type")
 
-  /** Filter to check if name is part of the pure syntax.
-    *
-    * @param name to check
-    * @return true if it is element of the pure syntax
-    */
+  /**
+   * Filter to check if name is part of the pure syntax.
+   *
+   * @param name to check
+   * @return true if it is element of the pure syntax
+   */
   def isPure(name: String): Boolean = values.exists(_.name == name)
 }

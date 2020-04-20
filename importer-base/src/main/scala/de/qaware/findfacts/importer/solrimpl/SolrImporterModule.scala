@@ -1,16 +1,19 @@
 package de.qaware.findfacts.importer.solrimpl
 
 import com.typesafe.scalalogging.Logger
+
 import de.qaware.findfacts.common.solr.SolrRepository
 import de.qaware.findfacts.importer.steps.StepContext
 import de.qaware.findfacts.importer.steps.solrimpl.WriteSolrStep
 import de.qaware.findfacts.importer.{ImportError, ImporterModule, TheoryView}
 
-/** Solr impl of the importer module.
-  *
-  * @param solr repository has to be provided
-  */
+/**
+ * Solr impl of the importer module.
+ *
+ * @param solr repository has to be provided
+ */
 class SolrImporterModule(solr: SolrRepository) extends ImporterModule {
+
   private val logger = Logger[SolrImporterModule]
 
   override def importSession(index: String, theories: Seq[TheoryView.Theory]): List[ImportError] = {

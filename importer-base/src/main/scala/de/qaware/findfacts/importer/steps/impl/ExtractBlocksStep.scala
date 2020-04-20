@@ -1,18 +1,16 @@
 package de.qaware.findfacts.importer.steps.impl
 
 import com.typesafe.scalalogging.Logger
+
 import de.qaware.findfacts.common.dt.CodeblockEt
 import de.qaware.findfacts.importer.ImportError
 import de.qaware.findfacts.importer.TheoryView._
 import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 
 /** Step to extract code blocks from theory view. */
-class ExtractBlocksStep extends ImportStep {
+final class ExtractBlocksStep extends ImportStep {
 
   private val logger = Logger[ExtractBlocksStep]
-
-  /** Maximum number of lines before and after the block. */
-  private final val MaxContextLines = 5
 
   override def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Importing ${theory.source.blocks.size} blocks.")
@@ -64,10 +62,17 @@ class ExtractBlocksStep extends ImportStep {
       .map(_.text)
       .getOrElse("")
 
-    val before = blockBefore.linesWithSeparators.toList.takeRight(MaxContextLines).mkString
+    val before = blockBefore.linesWithSeparators.toList.takeRight(ExtractBlocksStep.MAX_CONTEXT_LINES).mkString
     val inner = block.text
-    val after = blockAfter.linesWithSeparators.take(MaxContextLines).mkString
+    val after = blockAfter.linesWithSeparators.take(ExtractBlocksStep.MAX_CONTEXT_LINES).mkString
 
     (before, inner, after)
   }
+}
+
+/** Companion object. */
+object ExtractBlocksStep {
+
+  /** Maximum number of lines before and after the block. */
+  final val MAX_CONTEXT_LINES = 5
 }

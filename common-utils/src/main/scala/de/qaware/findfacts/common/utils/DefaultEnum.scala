@@ -5,10 +5,11 @@ import scala.util.Try
 import enumeratum.{Enum, EnumEntry}
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
-/** Enum with default string/json conversions.
-  *
-  * @tparam E type of the entry, should be a sealed trait
-  */
+/**
+ * Enum with default string/json conversions.
+ *
+ * @tparam E type of the entry, should be a sealed trait
+ */
 trait DefaultEnum[E <: EnumEntry] extends Enum[E] {
 
   /** Make type visible under common name. */

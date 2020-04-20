@@ -4,7 +4,7 @@ import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
-val projectVersion = "0.3.2-SNAPSHOT"
+val projectVersion = "0.3.3-SNAPSHOT"
 val schemaVersion = "0.3.0"
 
 // Project-wide settings
@@ -181,8 +181,7 @@ lazy val `search-core` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
-    libraryDependencies ++= loggingBackend
-      .map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it", scalaMock % "it")
+    libraryDependencies ++= (loggingBackend ++ mockito).map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it")
   )
   .dependsOn(`common-dt`, `common-da-solr`, `common-utils`, `common-dt` % "it->it")
 

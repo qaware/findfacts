@@ -4,16 +4,18 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 import com.typesafe.scalalogging.Logger
+
 import de.qaware.findfacts.common.dt.CodeblockEt
 import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
 import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 import de.qaware.findfacts.importer.{ImportError, TheoryView}
 
-/** Step to join codeblocks and theory entities.
-  *
-  * @param idBuilder to build ids
-  */
-class JoinBlockEntitiesStep(idBuilder: IdBuilder) extends ImportStep {
+/**
+ * Step to join codeblocks and theory entities.
+ *
+ * @param idBuilder to build ids
+ */
+final class JoinBlockEntitiesStep(idBuilder: IdBuilder) extends ImportStep {
   private val logger = Logger[JoinBlockEntitiesStep]
 
   override def apply(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {

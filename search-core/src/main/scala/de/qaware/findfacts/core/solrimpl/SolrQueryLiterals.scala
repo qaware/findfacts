@@ -7,26 +7,20 @@ import de.qaware.findfacts.common.dt.solr.SolrSchema
 object SolrQueryLiterals {
 
   /** Intersects two sub-queries or terms. */
-  final val And = "&&"
+  final val AND = "&&"
 
   /** Unions two sub-queries or terms.  */
-  final val Or = "||"
+  final val OR = "||"
 
   /** Inverts a query or term. */
-  final val Not = "!"
+  final val NOT = "!"
 
   /** Term to get all. */
-  final val All = "*"
+  final val ALL = "*"
 
   /** Query to filter parent values. */
-  final val QueryParent = s"${SolrSchema.DocKind}:${Kind.Block}"
+  final val QUERY_PARENT = s"${SolrSchema.DocKind}:${Kind.Block}"
 
   /** Query to get all values. */
-  final val QueryAll = "*:*"
-
-  /** Tag local parameter. */
-  final val TagParam = "tag"
-
-  /** Tag for parent filters. */
-  final val ParentTag = "top"
+  final val QUERY_ALL = s"$ALL:$ALL"
 }

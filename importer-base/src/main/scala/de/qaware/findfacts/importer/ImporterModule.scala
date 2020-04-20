@@ -1,25 +1,12 @@
 package de.qaware.findfacts.importer
 
 import com.softwaremill.macwire.wire
-import de.qaware.findfacts.importer.TheoryView.Theory
-import de.qaware.findfacts.importer.steps.impl.{
-  ExtractBlocksStep,
-  ExtractConstantsStep,
-  ExtractFactsStep,
-  ExtractTypesStep,
-  JoinBlockEntitiesStep,
-  SanityCheckStep
-}
-import de.qaware.findfacts.importer.steps.impl.thy.{
-  NameExtractor,
-  ProofExtractor,
-  PropExtractor,
-  TermExtractor,
-  TypExtractor
-}
-import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
 
+import de.qaware.findfacts.importer.TheoryView.Theory
 import de.qaware.findfacts.importer.steps.ImportStep
+import de.qaware.findfacts.importer.steps.impl.thy.{NameExtractor, ProofExtractor, PropExtractor, TermExtractor, TypExtractor}
+import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
+import de.qaware.findfacts.importer.steps.impl.{ExtractBlocksStep, ExtractConstantsStep, ExtractFactsStep, ExtractTypesStep, JoinBlockEntitiesStep, SanityCheckStep}
 
 /** DI module for the importer. */
 trait ImporterModule {
@@ -38,14 +25,15 @@ trait ImporterModule {
     wire[ExtractTypesStep],
     wire[ExtractBlocksStep],
     wire[JoinBlockEntitiesStep],
-    wire[SanityCheckStep],
+    wire[SanityCheckStep]
   )
 
-  /** Runs the importer for a session.
-    *
-    * @param index to import into
-    * @param theories to import in a session
-    * @return import errors, if any
-    */
+  /**
+   * Runs the importer for a session.
+   *
+   * @param index to import into
+   * @param theories to import in a session
+   * @return import errors, if any
+   */
   def importSession(index: String, theories: Seq[Theory]): List[ImportError]
 }

@@ -1,45 +1,42 @@
 package de.qaware.findfacts.webapp.controllers
 
+import scala.concurrent.Future
+import scala.language.postfixOps
+
+import io.circe.Printer
+import io.circe.syntax._
+import io.swagger.annotations._
+import play.api.Logging
+import play.api.libs.circe.Circe
+import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, Request}
+
 import de.qaware.findfacts.common.dt.CodeblockEt
 import de.qaware.findfacts.core.dt.{ResolvedThyEt, ShortBlock}
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery, QueryService}
 import de.qaware.findfacts.webapp.utils.{ActionBuilderUtils, JsonMappings}
-import play.api.Logging
 
-import scala.concurrent.Future
-import scala.language.postfixOps
-
-import io.circe.syntax._
-import io.circe.Printer
-import io.swagger.annotations.{
-  Api,
-  ApiImplicitParam,
-  ApiImplicitParams,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiResponses,
-  Example,
-  ExampleProperty
-}
-import play.api.libs.circe.Circe
-import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, Request}
-
-/** Controller for the query api.
-  *
-  * @param cc injected components
-  * @param queryService query service component
-  * @param jsonMappings component to map queries and results to and from json
-  */
+/**
+ * Controller for the query api.
+ *
+ * @param cc injected components
+ * @param queryService query service component
+ * @param jsonMappings component to map queries and results to and from json
+ */
 @Api(value = "/")
-class QueryController(cc: ControllerComponents, queryService: QueryService, actionBuilder: ActionBuilderUtils, jsonMappings: JsonMappings)
-    extends AbstractController(cc)
-    with Circe
-    with Logging {
+class QueryController(
+    cc: ControllerComponents,
+    queryService: QueryService,
+    actionBuilder: ActionBuilderUtils,
+    jsonMappings: JsonMappings)
+  extends AbstractController(cc)
+  with Circe
+  with Logging {
   // Import all json mapping implicits
+
   import jsonMappings._
 
-  private final val ExampleFilterQuery = """
+  private final val ExampleFilterQuery =
+    """
 {
   "filters" : [
     {
@@ -117,7 +114,9 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, acti
     response = classOf[Option[CodeblockEt]],
     httpMethod = "GET")
   @ApiResponses(
-    Array(new ApiResponse(code = 400, message = "Entity not found"), new ApiResponse(code = 422, message = "Not an id")))
+    Array(
+      new ApiResponse(code = 400, message = "Entity not found"),
+      new ApiResponse(code = 422, message = "Not an id")))
   def entity(
       @ApiParam(value = "Index to search in", required = true) index: String,
       @ApiParam(value = "ID of result entity to fetch", required = true) id: String): Action[AnyContent] =
@@ -139,7 +138,9 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, acti
     response = classOf[Option[ResolvedThyEt]],
     httpMethod = "GET")
   @ApiResponses(
-    Array(new ApiResponse(code = 400, message = "Entity not found"), new ApiResponse(code = 422, message = "Not an id")))
+    Array(
+      new ApiResponse(code = 400, message = "Entity not found"),
+      new ApiResponse(code = 422, message = "Not an id")))
   def resolved(
       @ApiParam(value = "Index to search in", required = true) index: String,
       @ApiParam(value = "ID of theory entity to fetch", required = true) id: String): Action[AnyContent] =
@@ -161,7 +162,9 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, acti
     httpMethod = "GET"
   )
   @ApiResponses(
-    Array(new ApiResponse(code = 400, message = "Entity not found"), new ApiResponse(code = 422, message = "Not an id")))
+    Array(
+      new ApiResponse(code = 400, message = "Entity not found"),
+      new ApiResponse(code = 422, message = "Not an id")))
   def shortBlock(
       @ApiParam(value = "Index to search in", required = true) index: String,
       @ApiParam(value = "ID of cmd to fetch", required = true) id: String): Action[AnyContent] =
@@ -220,9 +223,10 @@ class QueryController(cc: ControllerComponents, queryService: QueryService, acti
     responseContainer = "List",
     httpMethod = "GET"
   )
-  def indexes(): Action[AnyContent] = Action.async { request: Request[AnyContent] =>
-    actionBuilder.inResult((_: Request[AnyContent]) => queryService.listIndexes) { indexes =>
-      Future.successful(Ok(indexes.asJson))
-    }(request)
-  }
+  def indexes(): Action[AnyContent] =
+    Action.async { request: Request[AnyContent] =>
+      actionBuilder.inResult((_: Request[AnyContent]) => queryService.listIndexes) { indexes =>
+        Future.successful(Ok(indexes.asJson))
+      }(request)
+    }
 }

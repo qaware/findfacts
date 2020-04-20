@@ -1,6 +1,7 @@
 package de.qaware.findfacts.common.dt
 
 import better.files.File
+
 import de.qaware.findfacts.common.solr.{LocalSolr, SolrRepository}
 
 /** Solr for integration testing. */

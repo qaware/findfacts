@@ -65,10 +65,11 @@ For deployment, see the [deployment repo](https://github.com/qaware/findfacts-de
 ## Code style
 This project uses the [databricks style guide](https://github.com/databricks/scala-style-guide) with some changes:
 
-- __column width__: use 120 for better readability, as most monitors are 16:9 nowadays.
-- __implicits__: the original guide is very lacking here.
-  Typeclasses, and important patterns, such as the implicit context pattern and the pimp my library pattern are not even mentioned.
-  Hence, we don't adhere to the recommendation of avoiding implicits altogether.
-  However, avoid using implicits outside of well-known patterns.
-- __monadic chaining__: this section is nonsense, Scalas for-comprehensions are completely missing.
-  Use for-comprehensions as they solve the problem in an easy, understandeable and readable way.
+- __column width__: use 120.
+- __implicits__: Only avoid them outside of well-known patterns, such as type-classes, implicit context, and pimp-my-library.
+- __monadic chaining__: Use for-comprehensions to easily chain monads in an understandable and readable way.
+- __multiple parameter lists__: Use multiple parameter list for partially applicable functions or to improve type inference.
+
+(Most) formatting is automated via scalafmt.
+
+The `importer-isabelle` submodule instead adheres to the Isabelle code style.

@@ -1,7 +1,8 @@
 package de.qaware.findfacts.common.dt
 
-import de.qaware.findfacts.common.utils.DefaultEnum
 import enumeratum.EnumEntry
+
+import de.qaware.findfacts.common.utils.DefaultEnum
 
 /** Union type for theory entity kinds. */
 sealed trait Kind extends EnumEntry

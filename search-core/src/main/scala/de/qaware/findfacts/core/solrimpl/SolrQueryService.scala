@@ -1,32 +1,33 @@
 package de.qaware.findfacts.core.solrimpl
 
+import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
+
 import cats.instances.list._
 import cats.instances.try_._
 import cats.syntax.traverse._
 import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, TypeEt}
-import de.qaware.findfacts.common.solr.SolrRepository
-import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
-import de.qaware.findfacts.core.QueryService.{FacetResult, ResultList}
-import de.qaware.findfacts.core.dt.{ResolvedThyEt, ShortBlock, ShortThyEt}
-import de.qaware.findfacts.core.{Exact, FacetQuery, FieldFilter, FilterQuery, Or, QueryService, dt}
 import org.apache.solr.client.solrj.SolrRequest.METHOD
 import org.apache.solr.client.solrj.request.json.JsonQueryRequest
 import org.apache.solr.client.solrj.response.QueryResponse
 import org.apache.solr.client.solrj.{SolrQuery, SolrServerException}
 
-import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
+import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, TypeEt}
+import de.qaware.findfacts.common.solr.SolrRepository
+import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
+import de.qaware.findfacts.core.QueryService.{FacetResult, ResultList}
+import de.qaware.findfacts.core._
+import de.qaware.findfacts.core.dt.{ResolvedThyEt, ShortBlock, ShortThyEt}
 
-/** Solr impl of the query service.
-  *
-  * @param solr solr instance
-  * @param mapper solr query mapper
-  */
+/**
+ * Solr impl of the query service.
+ *
+ * @param solr solr instance
+ * @param mapper solr query mapper
+ */
 class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends QueryService {
-  private val logger = Logger[SolrQueryService]
 
-  private final val Default = "default"
+  private val logger = Logger[SolrQueryService]
 
   /** Make this implicitly available. */
   private implicit val queryService: SolrQueryService = this
@@ -49,10 +50,11 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
     }
   }
 
-  private def mapSingle[A](resp: QueryResponse, typed: Seq[A]): Option[A] = typed match {
-    case Seq(elem) => Some(elem)
-    case _ => None
-  }
+  private def mapSingle[A](resp: QueryResponse, typed: Seq[A]): Option[A] =
+    typed match {
+      case Seq(elem) => Some(elem)
+      case _ => None
+    }
 
   private def mapResults[A](resp: QueryResponse, typed: Seq[A]): Vector[A] = typed.toVector
 
@@ -60,17 +62,18 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
     ResultList(typed.toVector, resp.getResults.getNumFound, resp.getNextCursorMark)
   }
 
-  /** Generic method to get results.
-    *
-    * @param query to find results for
-    * @param qBuilder to build solr query
-    * @param rMapper to map typed results to desired type
-    * @param index to query in
-    * @param docMapper to map solr docs to results
-    * @tparam A type of result entities
-    * @tparam B result type
-    * @return container with results
-    */
+  /**
+   * Generic method to get results.
+   *
+   * @param query     to find results for
+   * @param qBuilder  to build solr query
+   * @param rMapper   to map typed results to desired type
+   * @param index     to query in
+   * @param docMapper to map solr docs to results
+   * @tparam A type of result entities
+   * @tparam B result type
+   * @return container with results
+   */
   private def getRes[A, B](
       query: FilterQuery,
       qBuilder: FilterQuery => Try[SolrQuery],
@@ -87,25 +90,27 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
     } yield rMapper(res, typedRes)
   }
 
-  /** Get result elements for a query. Does not resolve parent/child relation.
-    *
-    * @param query to execute
-    * @param index to query in
-    * @param docMapper to map solr docs to results
-    * @tparam A type of result entities
-    * @return result list, or error
-    */
+  /**
+   * Get result elements for a query. Does not resolve parent/child relation.
+   *
+   * @param query to execute
+   * @param index to query in
+   * @param docMapper to map solr docs to results
+   * @tparam A type of result entities
+   * @return result list, or error
+   */
   def getResults[A](query: FilterQuery)(implicit index: String, docMapper: FromSolrDoc[A]): Try[ResultList[A]] =
     getRes[A, ResultList[A]](query, mapper.buildFilterQuery, mapResultList)
 
-  /** Get result blocks for a query.
-    *
-    * @param query to execute
-    * @param index to query in
-    * @param docMapper to map solr docs to results
-    * @tparam A type of blocks
-    * @return result list of blocks, or error
-    */
+  /**
+   * Get result blocks for a query.
+   *
+   * @param query to execute
+   * @param index to query in
+   * @param docMapper to map solr docs to results
+   * @tparam A type of blocks
+   * @return result list of blocks, or error
+   */
   def getResultBlocks[A](query: FilterQuery)(implicit index: String, docMapper: FromSolrDoc[A]): Try[ResultList[A]] =
     getRes[A, ResultList[A]](query, mapper.buildBlockFilterQuery, mapResultList)
 
@@ -162,34 +167,32 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
   override def getResultResolved(id: EtField.Id.T)(implicit index: String): Try[Option[ResolvedThyEt]] = {
     val res: Try[Option[Try[ResolvedThyEt]]] = for {
       resOpt <- getRes[BaseEt, Option[BaseEt]](idsFilterQuery(id), mapper.buildFilterQuery, mapSingle)
-    } yield
-      for {
-        elem <- resOpt
-      } yield
-        elem match {
-          case ConstantEt(id, _, uses, constantType, _) =>
-            for {
-              resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
-                idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
-                mapper.buildFilterQuery,
-                mapResults)
-            } yield dt.ResolvedConstant(id, constantType, resolved.toList)
-          case FactEt(id, _, uses, _) =>
-            for {
-              resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
-                idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
-                mapper.buildFilterQuery,
-                mapResults)
-            } yield dt.ResolvedFact(id, resolved.toList)
-          case TypeEt(id, _, uses, _) =>
-            for {
-              resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
-                idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
-                mapper.buildFilterQuery,
-                mapResults)
-            } yield dt.ResolvedType(id, resolved.toList)
-          case _ => return Success(None)
-        }
+    } yield for {
+      elem <- resOpt
+    } yield elem match {
+      case ConstantEt(id, _, uses, constantType, _) =>
+        for {
+          resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
+            idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
+            mapper.buildFilterQuery,
+            mapResults)
+        } yield dt.ResolvedConstant(id, constantType, resolved.toList)
+      case FactEt(id, _, uses, _) =>
+        for {
+          resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
+            idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
+            mapper.buildFilterQuery,
+            mapResults)
+        } yield dt.ResolvedFact(id, resolved.toList)
+      case TypeEt(id, _, uses, _) =>
+        for {
+          resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
+            idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
+            mapper.buildFilterQuery,
+            mapResults)
+        } yield dt.ResolvedType(id, resolved.toList)
+      case _ => return Success(None)
+    }
     res.map(_.map(_.toEither.left.map(t => return Failure(t)).merge))
   }
 
@@ -224,14 +227,22 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
     getRes[ShortBlock, ResultList[ShortBlock]](filterQuery, mapper.buildBlockFilterQuery, mapResultList)
   }
 
-  override def listIndexes: Try[List[String]] = Try {
-    val elems = solr.listIndexes
-    val defaultIdx = elems.indexWhere(_.contains(Default))
-    if (defaultIdx >= 0) {
-      // If there is an index with name "default", put it first in the results.
-      elems(defaultIdx) :: elems.take(defaultIdx) ++ elems.drop(defaultIdx + 1)
-    } else {
-      elems
+  override def listIndexes: Try[List[String]] =
+    Try {
+      val elems = solr.listIndexes
+      val defaultIdx = elems.indexWhere(_.contains(SolrQueryService.DEFAULT_INDEX_PREFIX))
+      if (defaultIdx >= 0) {
+        // If there is an index with name "default", put it first in the results.
+        elems(defaultIdx) :: elems.take(defaultIdx) ++ elems.drop(defaultIdx + 1)
+      } else {
+        elems
+      }
     }
-  }
+}
+
+/** Companion object. */
+object SolrQueryService {
+
+  /** Prefix for the name of the default index. */
+  final val DEFAULT_INDEX_PREFIX = "default"
 }
