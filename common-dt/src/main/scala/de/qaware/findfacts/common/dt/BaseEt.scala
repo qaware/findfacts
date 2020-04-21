@@ -30,19 +30,6 @@ sealed trait TheoryEt extends BaseEt {
   val uses: Uses.T
 }
 
-/** Companion object. */
-object TheoryEt {
-
-  /**
-   * Creates an unique id for a given theory entity.
-   *
-   * @param kind of the entity
-   * @param name of the entity. Must be unique within the kind of entities.
-   * @return unique id
-   */
-  def makeId(kind: Kind, name: Name.T): Id.T = s"$kind.$name"
-}
-
 /**
  * Any code block.
  *
@@ -53,7 +40,7 @@ object TheoryEt {
  * @param srcAfter source code after this entity
  * @param entities entities from this block
  */
-final case class CodeblockEt private (
+final case class CodeblockEt(
     override val id: Id.T,
     theory: SourceTheory.T,
     startLine: StartLine.T,
@@ -63,70 +50,36 @@ final case class CodeblockEt private (
     srcAfter: SourceTextAfter.T,
     entities: TheoryChildren.T)
   extends BaseEt
-  with Discriminator[Kind, EtField.DocKind.type, Kind.Block.type] {
-  def this(
-      startPos: Int,
-      endPos: Int,
-      theory: SourceTheory.T,
-      startLine: StartLine.T,
-      command: Command.T,
-      srcBefore: SourceTextBefore.T,
-      src: SourceText.T,
-      srcAfter: SourceTextAfter.T,
-      entities: TheoryChildren.T = List.empty) = {
-    this(CodeblockEt.makeId(theory, startPos, endPos), theory, startLine, command, srcBefore, src, srcAfter, entities)
-  }
-}
-
-/** Companion object. */
-object CodeblockEt {
-
-  /**
-   * Creates an unique id for a codeblock.
-   *
-   * @param theory the block is in
-   * @param startPos the position of the first character in the block
-   * @param endPos the position after the last character in the block
-   * @return unique id
-   */
-  def makeId(theory: SourceTheory.T, startPos: Int, endPos: Int): Id.T = s"$theory.$startPos.$endPos"
-}
+  with Discriminator[Kind, EtField.DocKind.type, Kind.Block.type]
 
 /**
  * Constant entity.
  *
  * @param constantType type of the constant
  */
-final case class ConstantEt private (
+final case class ConstantEt(
     override val id: Id.T,
     override val name: Name.T,
     override val uses: Uses.T,
     constantType: ConstantType.T,
     override val docKind: DocKind.T = Kind.Constant)
   extends TheoryEt
-  with Discriminator[Kind, EtField.Kind.type, Kind.Constant.type] {
-  def this(name: Name.T, uses: Uses.T, constantType: ConstantType.T) =
-    this(TheoryEt.makeId(Kind.Constant, name), name, uses, constantType)
-}
+  with Discriminator[Kind, EtField.Kind.type, Kind.Constant.type]
 
 /** Fact entity. */
-final case class FactEt private (
+final case class FactEt(
     override val id: Id.T,
     override val name: Name.T,
     override val uses: Uses.T,
     override val docKind: DocKind.T = Kind.Fact)
   extends TheoryEt
-  with Discriminator[Kind, EtField.Kind.type, Kind.Fact.type] {
-  def this(name: Name.T, uses: Uses.T) = this(TheoryEt.makeId(Kind.Fact, name), name, uses)
-}
+  with Discriminator[Kind, EtField.Kind.type, Kind.Fact.type]
 
 /** Type entity. */
-final case class TypeEt private (
+final case class TypeEt(
     override val id: Id.T,
     override val name: Name.T,
     override val uses: Uses.T,
     override val docKind: DocKind.T = Kind.Type)
   extends TheoryEt
-  with Discriminator[Kind, EtField.Kind.type, Kind.Type.type] {
-  def this(name: Name.T, uses: Uses.T) = this(TheoryEt.makeId(Kind.Type, name), name, uses)
-}
+  with Discriminator[Kind, EtField.Kind.type, Kind.Type.type]

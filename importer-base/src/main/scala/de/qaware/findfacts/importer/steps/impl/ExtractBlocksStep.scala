@@ -5,10 +5,14 @@ import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.CodeblockEt
 import de.qaware.findfacts.importer.ImportError
 import de.qaware.findfacts.importer.TheoryView._
+import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
 import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 
-/** Step to extract code blocks from theory view. */
-final class ExtractBlocksStep extends ImportStep {
+/** Step to extract code blocks from theory view.
+ *
+ * @param idBuilder util to create ids
+ */
+final class ExtractBlocksStep(idBuilder: IdBuilder) extends ImportStep {
 
   private val logger = Logger[ExtractBlocksStep]
 
@@ -23,7 +27,16 @@ final class ExtractBlocksStep extends ImportStep {
 
         val cmdKind = getCommandKind(src.text)
 
-        val block = new CodeblockEt(src.startPos, src.endPos, theory.name, src.startLine, cmdKind, before, inner, after)
+        val block =
+          CodeblockEt(
+            idBuilder.blockId(theory.name, src.startPos, src.endPos),
+            theory.name,
+            src.startLine,
+            cmdKind,
+            before,
+            inner,
+            after,
+            List.empty)
         ctx.blocks.add(block)
         None
       }

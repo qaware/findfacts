@@ -27,8 +27,8 @@ class MapperTest extends FunSuite {
   sealed trait TestKind extends EnumEntry
   object Kinds extends DefaultEnum[TestKind] {
     override final val values = findValues
-    case object A extends Value
-    case object B extends Value
+    case object A extends TestKind
+    case object B extends TestKind
   }
   case object VariantField extends SingleValuedField[TestKind] {
     override val name: String = "Variant"

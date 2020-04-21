@@ -55,11 +55,12 @@ final class ExtractConstantsStep(
 
     // Build entities
     theory.consts foreach { const =>
-      val name = const.entity.name
+      val fullName = const.entity.name
+      val name = fullName.split('.').drop(1).mkString(".")
 
       // Axioms may be empty for a constant BUT if a constant is in constdefs then the axiom must be present
       val axioms = axiomNamesByConst
-        .getOrElse(name, List.empty)
+        .getOrElse(fullName, List.empty)
         .flatMap(axName => axiomsByName.get(axName).orElse(logNotFound(axName, const, errors)))
 
       val props = axioms.map(_.prop)
@@ -67,13 +68,14 @@ final class ExtractConstantsStep(
       // Collect uses
       val usedTypes = (typExtractor.referencedTypes(const.typ) ++ props.flatMap(propExtractor.referencedTypes) ++
         const.abbrev.toList.flatMap(termExtractor.referencedTypes)).toList
-      val usedConsts = props.flatMap(propExtractor.referencedConsts).filterNot(name.equals) ++
+      val usedConsts = props.flatMap(propExtractor.referencedConsts).filterNot(fullName.equals) ++
         const.abbrev.toList.flatMap(termExtractor.referencedConsts)
 
       val uses = idBuilder.getIds(Kind.Type, usedTypes) ++ idBuilder.getIds(Kind.Constant, usedConsts)
 
       // Add entity to context
-      val et = new ConstantEt(name, uses, typExtractor.prettyPrint(const.typ))
+      val et =
+        ConstantEt(idBuilder.theoryEtId(Kind.Constant, fullName), name, uses, typExtractor.prettyPrint(const.typ))
       ctx.consts.addBinding(const.entity.pos, et)
     }
 

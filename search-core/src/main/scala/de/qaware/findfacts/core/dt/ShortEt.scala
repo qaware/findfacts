@@ -35,6 +35,7 @@ final case class ShortBlock(
 /**
  * Short theory entity.
  *
+ * @param id unique identifier
  * @param kind of theory entity
  * @param name of theory entity
  */

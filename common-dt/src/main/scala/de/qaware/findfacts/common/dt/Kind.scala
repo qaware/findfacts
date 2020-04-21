@@ -12,14 +12,14 @@ object Kind extends DefaultEnum[Kind] {
   override final val values = findValues
 
   /** Code blocks. */
-  case object Block extends Value
+  case object Block extends Kind
 
   /** Type definitions. */
-  case object Type extends Value
+  case object Type extends Kind
 
   /** Pure constants. */
-  case object Constant extends Value
+  case object Constant extends Kind
 
   /** Pure axioms and theorems. */
-  case object Fact extends Value
+  case object Fact extends Kind
 }

@@ -12,23 +12,20 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
  */
 trait DefaultEnum[E <: EnumEntry] extends Enum[E] {
 
-  /** Make type visible under common name. */
-  type Value = E
-
   /** Implicit to get objects from string. */
-  implicit val fromString: FromString[Value] = FromString.instance { s =>
+  implicit val fromString: FromString[E] = FromString.instance { s =>
     Try(this.values.find(_.toString == s).getOrElse(throw new IllegalArgumentException(s"No such enum value: $s")))
   }
 
   /** Implicit for json key decoding. */
-  implicit val keyDecoder: KeyDecoder[Value] = KeyDecoder.instance(fromString(_).toOption)
+  implicit val keyDecoder: KeyDecoder[E] = KeyDecoder.instance(fromString(_).toOption)
 
   /** Implicit for json key encoding. */
-  implicit val keyEncoder: KeyEncoder[Value] = KeyEncoder.encodeKeyString.contramap(_.toString)
+  implicit val keyEncoder: KeyEncoder[E] = KeyEncoder.encodeKeyString.contramap(_.toString)
 
   /** Implicit for json decoding. */
-  implicit val decoder: Decoder[Value] = Decoder.decodeString.emapTry(fromString.apply)
+  implicit val decoder: Decoder[E] = Decoder.decodeString.emapTry(fromString.apply)
 
   /** Implicit for json encoding. */
-  implicit val encoder: Encoder[Value] = Encoder.encodeString.contramap(_.toString)
+  implicit val encoder: Encoder[E] = Encoder.encodeString.contramap(_.toString)
 }

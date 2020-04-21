@@ -11,7 +11,7 @@ import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 import de.qaware.findfacts.importer.{ImportError, TheoryView}
 
 /**
- * Step to join codeblocks and theory entities.
+ * Step to join code-blocks and theory entities.
  *
  * @param idBuilder to build ids
  */
@@ -39,12 +39,12 @@ final class JoinBlockEntitiesStep(idBuilder: IdBuilder) extends ImportStep {
     // Go through entity positions
     val joinErrors = ctx.theoryEtsByPosition flatMap {
       case (pos, theoryEts) =>
-        // Find block in source and get corresponding codeblock
+        // Find block in source and get corresponding code-block
         val block = theory.source
           .get(pos)
-          .flatMap(src => blocksMap.get(CodeblockEt.makeId(theory.name, src.startPos, src.endPos)))
+          .flatMap(src => blocksMap.get(idBuilder.blockId(theory.name, src.startPos, src.endPos)))
 
-        // Update block with the new entiteis
+        // Update block with the new entities
         block match {
           case Some(block) =>
             blocksMap.update(block.id, block.copy(entities = block.entities ++ theoryEts))

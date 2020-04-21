@@ -30,12 +30,14 @@ final class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor,
       val uses = idBuilder.getIds(Kind.Type, propExtractor.referencedTypes(axiom.prop).toList) ++
         idBuilder.getIds(Kind.Constant, propExtractor.referencedConsts(axiom.prop).toList)
 
-      ctx.facts.addBinding(axiom.entity.pos, new FactEt(axiom.entity.name, uses))
+      val fullName = axiom.entity.name
+      val name = fullName.split('.').drop(1).mkString(".")
+      ctx.facts.addBinding(axiom.entity.pos, FactEt(idBuilder.theoryEtId(Kind.Fact, fullName), name, uses))
     }
 
     // Add theorems
     theory.thms map { thm =>
-      val name = thm.entity.name
+      val fullName = thm.entity.name
 
       // Find usages
       val usedTypes = idBuilder.getIds(
@@ -48,9 +50,12 @@ final class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor,
 
       val usedFacts = idBuilder.getIds(
         Kind.Fact,
-        (thm.deps ++ proofExtractor.referencedFacts(thm.proof).filterNot(name.equals)).distinct)
+        (thm.deps ++ proofExtractor.referencedFacts(thm.proof).filterNot(fullName.equals)).distinct)
 
-      ctx.facts.addBinding(thm.entity.pos, new FactEt(name, usedTypes ++ usedConsts ++ usedFacts))
+      val name = fullName.split('.').drop(1).mkString(".")
+      ctx.facts.addBinding(
+        thm.entity.pos,
+        FactEt(idBuilder.theoryEtId(Kind.Fact, fullName), name, usedTypes ++ usedConsts ++ usedFacts))
     }
 
     logger.debug("Finished importing facts")

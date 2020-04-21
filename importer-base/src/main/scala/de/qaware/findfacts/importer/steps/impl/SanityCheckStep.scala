@@ -15,17 +15,13 @@ final class SanityCheckStep extends ImportStep {
     // Check unique IDs
     val duplicateIDs = ctx.allEts.groupBy(_.id).filter(_._2.size > 1)
 
-    // Check that names of each kind are unique
-    val duplicateNames = ctx.theoryEts.groupBy(e => (e.name, e.getClass)).filter(_._2.size > 1)
-
     // Check that uses are distinct
     val duplicateUses = ctx.theoryEts.filter(e => e.uses.distinct.size != e.uses.size)
 
     logger.debug(
-      s"Finished checking sanity, found ${duplicateIDs.size + duplicateNames.size + duplicateUses.size} potential issues")
+      s"Finished checking sanity, found ${duplicateIDs.size + duplicateUses.size} potential issues")
 
-    duplicateIDs.map(e => ImportError(this, e._1, "Dumplicate id", e._2.mkString(","))).toList ++
-      duplicateNames.map(e => ImportError(this, s"${e._1._1}:${e._1._2}", "Duplicate name", e._2.mkString(","))) ++
+    duplicateIDs.map(e => ImportError(this, e._1, "Duplicate id", e._2.mkString(","))).toList ++
       duplicateUses.map(e => ImportError(this, e.name, "Duplicate uses in entity", e.toString))
   }
 }

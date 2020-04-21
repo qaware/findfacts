@@ -21,10 +21,12 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
     itSolr.createIndex(LocalSolr.DEFAULT_CORE_NAME)
 
     // Add integration test data set
-    val const1 = new ConstantEt("Const1", List("someId"), "'a => 'b")
-    val block1 = new CodeblockEt(1, 11, "ExampleThy", 1, "fun", "\n", "fun Example = ...", "\n...", List(const1))
-    val fact1 = new FactEt("ConstIsFact", List(const1.id))
-    val block2 = new CodeblockEt(12, 14, "ExampleThy", 3, "lemma", "\n...", "lemma ...", "(* stuff *)", List(fact1))
+    val const1 = ConstantEt("Const.ExampleThy.Const1", "Const1", List("someId"), "'a => 'b")
+    val block1 =
+      CodeblockEt("ExampleThy.1.11", "ExampleThy", 1, "fun", "\n", "fun Example = ...", "\n...", List(const1))
+    val fact1 = FactEt("Fact.ExampleThy.ConstIsFact", "ConstIsFact", List(const1.id))
+    val block2 =
+      CodeblockEt("ExampleThy.12.14", "ExampleThy", 3, "lemma", "\n...", "lemma ...", "(* stuff *)", List(fact1))
 
     val mapper = ToSolrDoc[BaseEt]
     itSolr.add(mapper.toSolrDoc(block1))

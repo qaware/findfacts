@@ -50,23 +50,24 @@ final class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, p
 
     theory.types foreach { typ =>
       // Build entities
-      val name = typ.entity.name
+      val fullName = typ.entity.name
 
       // Axioms may be empty for type BUT if there is a typedef then the axiom must be present
       val axioms = axiomNamesByTyp
-        .getOrElse(name, List.empty)
+        .getOrElse(fullName, List.empty)
         .flatMap(axName => axiomsByName.get(axName).orElse(logNotFound(axName, typ, errors)))
 
       val props = axioms.map(_.prop)
 
-      val usedTypes = props.flatMap(propExtractor.referencedTypes).filterNot(name.equals) ++
+      val usedTypes = props.flatMap(propExtractor.referencedTypes).filterNot(fullName.equals) ++
         typ.abbrev.toList.flatMap(typExtractor.referencedTypes)
 
       // Usage in axioms
       val uses = idBuilder.getIds(Kind.Type, usedTypes) ++
         idBuilder.getIds(Kind.Constant, props.flatMap(propExtractor.referencedConsts))
 
-      ctx.types.addBinding(typ.entity.pos, new TypeEt(name, uses))
+      val name = fullName.split('.').drop(1).mkString(".")
+      ctx.types.addBinding(typ.entity.pos, TypeEt(idBuilder.theoryEtId(Kind.Type, fullName), name, uses))
     }
     logger.debug(s"Finished importing types with ${errors.size} errors")
     errors.toList
