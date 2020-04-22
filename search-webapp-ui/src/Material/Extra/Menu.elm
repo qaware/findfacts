@@ -88,9 +88,11 @@ subscriptions state (Config conf) =
             Sub.none
 
 
+{-| Sends message if target was outside of the menu
+-}
 outsideDecoder : msg -> Decoder msg
 outsideDecoder msg =
-    Decode.field "target" isInsideDecoder
+    Decode.field "target" isMenuChildDecoder
         |> Decode.andThen
             (\inside ->
                 if inside then
@@ -101,19 +103,24 @@ outsideDecoder msg =
             )
 
 
-isInsideDecoder : Decoder Bool
-isInsideDecoder =
+{-| Determines if element is a child of the menu
+-}
+isMenuChildDecoder : Decoder Bool
+isMenuChildDecoder =
     Decode.oneOf
         [ Decode.at [ "className" ] Decode.string
             |> Decode.andThen
                 (\s ->
-                    if String.contains "mdc-menu" s then
+                    if String.contains "anchor" s then
+                        Decode.succeed False
+
+                    else if String.contains "mdc-menu" s then
                         Decode.succeed True
 
                     else
                         Decode.fail "parentElement"
                 )
-        , Decode.lazy (\_ -> Decode.field "parentElement" isInsideDecoder)
+        , Decode.lazy (\_ -> Decode.field "parentElement" isMenuChildDecoder)
         , Decode.succeed False
         ]
 

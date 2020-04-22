@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Base64.Decode as Base64Decode
 import Browser
-import Browser.Dom
+import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
 import Browser.Navigation as Navigation
 import Components.Details as Details
@@ -12,7 +12,7 @@ import Components.Results as Results
 import Components.Search as Search
 import Components.Theory as Theory
 import DataTypes exposing (..)
-import Html exposing (Html, a, b, br, div, h1, h2, h3, p, span, text)
+import Html exposing (Html, a, b, br, div, h1, h2, h3, p, text)
 import Html.Attributes exposing (attribute, href, style)
 import Html.Lazy exposing (lazy, lazy2)
 import Http
@@ -35,7 +35,7 @@ import Url exposing (Url)
 import Url.Builder as UrlBuilder
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 import Url.Parser.Query as UrlQueryParser
-import Util exposing (consIf, ite, toMaybe)
+import Util exposing (consIf, ite, singletonIf)
 
 
 
@@ -69,7 +69,7 @@ init _ url navKey =
             updateFromUrl url (Model baseUrl navKey True 0 False <| Waiting initSearch)
 
         windowSizeCmd =
-            Task.perform (\v -> WidthMsg <| floor v.viewport.width) Browser.Dom.getViewport
+            Task.perform (\v -> WidthMsg <| floor v.viewport.width) Dom.getViewport
     in
     ( model, Cmd.batch [ urlCmd, windowSizeCmd ] )
 
@@ -460,10 +460,10 @@ mergeHome model parsedIndex parsedSearch paging =
                             )
                         )
 
-                    Search.NewFacet q ->
+                    Search.NewFieldSearcherFacet q ->
                         -- Search is still good, but information for a new facet is missing
                         ( Home { old | index = index, search = search }
-                        , executeFacetQuery model.apiBaseUrl parsedIndex Search.NewFieldSearcher q
+                        , executeFacetQuery model.apiBaseUrl parsedIndex Search.ForFieldSearcher q
                         )
 
                     Search.UpToDate fqs ->
@@ -525,12 +525,6 @@ urlEncodeHome index search paging =
         ([ UrlBuilder.string "q" (search |> Search.encode |> Encode.encode 0) ]
             |> consIf (not (Paging.isEmpty paging)) (UrlBuilder.string "page" (paging |> Paging.encode |> Encode.encode 0))
         )
-
-
-urlEncodeDefaultQuery : String -> Maybe String -> String
-urlEncodeDefaultQuery index search =
-    UrlBuilder.absolute [ "#search", index ]
-        (search |> Maybe.map (UrlBuilder.string "q" >> List.singleton) |> Maybe.withDefault [])
 
 
 urlEncodeDetail : String -> String -> String
@@ -772,22 +766,19 @@ renderPageHome width home =
                 |> lazy2 Index.view home.index
             ]
     )
-        :: [ h1 [ Typography.headline3 ]
-                [ text "Search "
-                , span [ style "display" "inline-block" ]
-                    [ text
-                        (Results.hasResults home.results
-                            |> toMaybe (" (" ++ String.fromInt (Paging.numResults home.paging) ++ " Results)")
-                            |> Maybe.withDefault ""
-                        )
-                    ]
-                ]
-           , lazy2 Search.view home.search (Search.config SearchInternalMsg SearchMsg)
-           , br [] []
-           , lazy2 Results.view home.results (Results.config ResultsMsg ToDetail FindUsedByMsg FindUsesMsg)
-           , br [] []
-           , lazy2 Paging.view home.paging (Paging.config PagingMsg)
-           ]
+        :: ([ h1 [ Typography.headline3 ] [ text "Search" ]
+            , lazy2 Search.view home.search (Search.config SearchInternalMsg SearchMsg)
+            , br [] []
+            ]
+                ++ singletonIf (Results.hasResults home.results)
+                    (h2 [ Typography.headline4 ]
+                        [ text <| String.fromInt (Paging.numResults home.paging) ++ " Blocks Found" ]
+                    )
+                ++ [ lazy2 Results.view home.results (Results.config ResultsMsg ToDetail FindUsedByMsg FindUsesMsg)
+                   , br [] []
+                   , lazy2 Paging.view home.paging (Paging.config PagingMsg)
+                   ]
+           )
 
 
 {-| Renders the 'syntax' page.
@@ -828,8 +819,8 @@ renderPageHelp =
         , text "Filters always target a specific field, and they will restrict results to match either of your inputs. However, for an input to match, all its terms must match."
         ]
     , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?&q={\"fields\"%3A[{\"field\"%3A\"Name\"%2C\"terms\"%3A[\"equal nat\"%2C\"equal integer\"]}]}" ]
-        [ text "Filtering for semantic entities with that are (from their name) about equality in integers or nats." ]
+    , a [ Typography.typography, href "#search?&q={\"fields\"%3A[{\"field\"%3A\"Name\"%2C\"terms\"%3A[\"equal nat\"%2C\"equal int\"]}]}" ]
+        [ text "Filtering for semantic entities with that are (from their name) about equality in ints or nats." ]
     , h2 [ Typography.headline4 ] [ text "Facets" ]
     , p [ Typography.body1 ]
         [ text "If you have restricted your search enough so there are only a handful of alternatives for a property, you can choose between the remaining options."

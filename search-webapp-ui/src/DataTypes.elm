@@ -308,7 +308,7 @@ encodeFilter filter =
                 ]
 
         Not f ->
-            object [ ( "Not", encodeFilter f ) ]
+            object [ ( "Not", object [ ( "filter", encodeFilter f ) ] ) ]
 
         And f1 f2 fn ->
             object [ ( "And", object [ ( "f1", encodeFilter f1 ), ( "f2", encodeFilter f2 ), ( "fn", Encode.list encodeFilter fn ) ] ) ]
