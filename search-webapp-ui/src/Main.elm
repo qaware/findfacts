@@ -12,7 +12,7 @@ import Components.Results as Results
 import Components.Search as Search
 import Components.Theory as Theory
 import DataTypes exposing (..)
-import Html exposing (Html, a, b, br, div, h1, h2, h3, p, text)
+import Html exposing (Html, a, br, div, h1, h2, p, text)
 import Html.Attributes exposing (attribute, href, style)
 import Html.Lazy exposing (lazy, lazy2)
 import Http
@@ -30,6 +30,9 @@ import Material.List as MList exposing (listItemConfig)
 import Material.Theme as Theme
 import Material.TopAppBar as TopAppBar exposing (topAppBarConfig)
 import Material.Typography as Typography
+import Pages.About as About
+import Pages.Feedback as Feedback
+import Pages.Help as Help
 import Task
 import Url exposing (Url)
 import Url.Builder as UrlBuilder
@@ -721,13 +724,13 @@ renderPage width page =
                 |> lazy (renderInPage [])
 
         Help ->
-            renderPageHelp |> renderInPage []
+            Help.view |> renderInPage []
 
         Feedback emailState ->
-            renderPageFeedback emailState |> renderInPage []
+            Feedback.config EmailMsg |> lazy2 Feedback.view emailState |> (List.singleton >> renderInPage [])
 
         About ->
-            renderPageAbout |> renderInPage []
+            About.view |> renderInPage []
 
         NotFound ->
             renderPageNotFound |> renderInPage []
@@ -779,119 +782,6 @@ renderPageHome width home =
                    , lazy2 Paging.view home.paging (Paging.config PagingMsg)
                    ]
            )
-
-
-{-| Renders the 'syntax' page.
--}
-renderPageHelp : List (Html msg)
-renderPageHelp =
-    [ h1 [ Typography.headline3 ] [ text "Help" ]
-    , p [ Typography.body1 ]
-        [ text "Generally, "
-        , b [] [ text "Inputs" ]
-        , text " are split into "
-        , b [] [ text "terms" ]
-        , text " by special characters, such as whitespace, '.', '_', or '-'."
-        ]
-    , h2 [ Typography.headline4 ] [ text "Isabelle Characters" ]
-    , p [ Typography.body1 ]
-        [ text "To search for isabelle characters, use the abbreviation (if unique): "
-        , a [ href "#search?q={\"term\"%3A\"%3D%3D>\"}" ] [ text "==>" ]
-        , text ", the isabelle markup : "
-        , a [ href "#search?q={\"term\"%3A\"\\\\<Longrightarrow>\"}" ] [ text "\\<Longrightarrow>" ]
-        , text ", or the unicode representation: "
-        , a [ href "#search?q={\"term\"%3A\"⟹\"}" ] [ text "⟹" ]
-        , text "."
-        ]
-    , h2 [ Typography.headline4 ] [ text "Main Search Bar" ]
-    , p [ Typography.body1 ]
-        [ text "The main search bar will match for any of your search terms - listings results first where multiple terms match."
-        , br [] []
-        , text "'*' Wildcards are allowed so you don't need to be too specific."
-        ]
-    , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?q={\"term\"%3A\"inv*\"}" ]
-        [ text "Searching for inverse, which might be abbreviated by 'inv'" ]
-    , h2 [ Typography.headline4 ] [ text "Filters" ]
-    , p [ Typography.body1 ]
-        [ text "You can add filters that restrict your results further."
-        , br [] []
-        , text "Filters always target a specific field, and they will restrict results to match either of your inputs. However, for an input to match, all its terms must match."
-        ]
-    , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?&q={\"fields\"%3A[{\"field\"%3A\"Name\"%2C\"terms\"%3A[\"equal nat\"%2C\"equal int\"]}]}" ]
-        [ text "Filtering for semantic entities with that are (from their name) about equality in ints or nats." ]
-    , h2 [ Typography.headline4 ] [ text "Facets" ]
-    , p [ Typography.body1 ]
-        [ text "If you have restricted your search enough so there are only a handful of alternatives for a property, you can choose between the remaining options."
-        , br [] []
-        , text "Selecting multiple values will give you results that match either."
-        ]
-    , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?q={\"term\"%3A\"*\"%2C\"facets\"%3A{\"Kind\"%3A[\"Constant\"]}}" ]
-        [ text "Restricting search to constants" ]
-    ]
-
-
-{-| Renders the 'feedback' page
--}
-renderPageFeedback : Obfuscated.State -> List (Html Msg)
-renderPageFeedback obfuscated =
-    [ h1 [ Typography.headline3 ] [ text "Feedback" ]
-    , p [ Typography.body1 ]
-        [ text "All feedback is greatly appreciated! Also feel free to ask any questions." ]
-    , p [ Typography.body1 ]
-        [ text "Simply write a message to "
-        , Obfuscated.config EmailMsg
-            |> Obfuscated.withDisplay
-                (\s ->
-                    a [ href <| "mailto:" ++ s ++ "?subject=[FindFacts] Feedback..." ]
-                        [ text s ]
-                )
-            |> Obfuscated.withObfuscate (\e -> a [ href "" ] [ e ])
-            |> Obfuscated.view obfuscated
-        , text ". If you have a specific question, please include the URL!"
-        ]
-    , p [ Typography.body1 ]
-        [ text "Please also consider filling out this short "
-        , a [ href "https://forms.gle/K7Dmae9m5uVViPb57" ] [ text "survey" ]
-        , text ". It won't take more than five minutes."
-        ]
-    ]
-
-
-{-| Renders the 'about' page.
--}
-renderPageAbout : List (Html msg)
-renderPageAbout =
-    [ h1 [ Typography.headline3 ] [ text "About" ]
-    , p [ Typography.body1 ]
-        [ text "This is a search application to find formal theory content of "
-        , a [ href "https://isabelle.in.tum.de/" ] [ text "Isabelle" ]
-        , text " and the "
-        , a [ href "https://www.isa-afp.org/" ] [ text "AFP" ]
-        , text "."
-        ]
-    , p [ Typography.body1 ]
-        [ text "The development is part of my master thesis at the "
-        , a [ href "http://www21.in.tum.de/index" ] [ text "Chair for Logic and Verification" ]
-        , text " at TUM, in cooperation with "
-        , a [ href "https://www.qaware.de/" ] [ text "QAware Software Engineering" ]
-        , text "."
-        ]
-    , p [ Typography.body1 ]
-        [ text "Source code can be found in the "
-        , a [ href "https://github.com/qaware/isabelle-afp-search" ] [ text "github repository" ]
-        , text "."
-        ]
-    , h2 [ Typography.headline5 ] [ text "Status" ]
-    , p [ Typography.body1 ] [ text "The application is still ", b [] [ text "work in progress" ], text "." ]
-    , p [ Typography.body1 ]
-        [ text "If you encounter any bugs, unexpected behaviour, unclear UI, or have any suggestions, please leave some "
-        , a [ href "#feedback" ] [ text "feedback" ]
-        , text "."
-        ]
-    ]
 
 
 {-| Renders the error 404 page.
