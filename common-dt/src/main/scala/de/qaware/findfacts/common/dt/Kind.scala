@@ -11,9 +11,6 @@ sealed trait Kind extends EnumEntry
 object Kind extends DefaultEnum[Kind] {
   override final val values = findValues
 
-  /** Code blocks. */
-  case object Block extends Kind
-
   /** Type definitions. */
   case object Type extends Kind
 

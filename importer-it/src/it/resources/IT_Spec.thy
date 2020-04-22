@@ -21,18 +21,18 @@ datatype 'a li = N | C 'a "'a li"
     command should equal("datatype")
 
     // Should define the "li" type
-    types.map(_.name) should contain ("IT_Spec.li")
-    val typ = types.find(_.name == "IT_Spec.li").get
+    types.map(_.name) should contain ("li")
+    val typ = types.find(_.name == "li").get
 
     // Should define two type c-tors
-    constants.map(_.name) should contain allOf("IT_Spec.li.N", "IT_Spec.li.C")
+    constants.map(_.name) should contain allOf("li.N", "li.C")
 
     // Check c-tors
-    val cCtor = constants.find(_.name == "IT_Spec.li.C").get
+    val cCtor = constants.find(_.name == "li.C").get
     cCtor.constantType should equal ("'a ⇒ 'a IT_Spec.li ⇒ 'a IT_Spec.li")
     cCtor.uses should contain ("Type.IT_Spec.li")
 
-    val nCtor = constants.find(_.name == "IT_Spec.li.N").get
+    val nCtor = constants.find(_.name == "li.N").get
     nCtor.constantType should equal("'a IT_Spec.li")
     nCtor.uses should contain ("Type.IT_Spec.li")
 
@@ -58,7 +58,7 @@ type_synonym nLi = "nat li"
     // Entity should be a type
     types should have size 1
     val t = types.head
-    t.name should equal("IT_Spec.nLi")
+    t.name should equal("nLi")
 
     // Type should use "li" and "nat"
     t.uses should contain theSameElementsAs Seq("Type.IT_Spec.li", "Type.Nat.nat")
@@ -73,7 +73,7 @@ fun app where
 
     // "Fun" creates lots of constants, but there should at least be one with the HOL type, and one for the function
     constants.size should be > 1
-    constants.map(_.name) should contain("IT_Spec.app")
+    constants.map(_.name) should contain("app")
     constants.map(_.constantType) should contain ("'a IT_Spec.li ⇒ 'a ⇒ 'a IT_Spec.li")
 
     // Check uses of a constant
@@ -90,14 +90,14 @@ primrec rev :: "'a li \<Rightarrow> 'a li" where
     // Check constant
     constants should have size 1
     val const = constants.head
-    const.name should equal("IT_Spec.rev")
+    const.name should equal("rev")
     const.constantType should equal("'a IT_Spec.li ⇒ 'a IT_Spec.li")
     // "Constant.IT_Spec.li.C" is at argument position and thus not present here
     const.uses should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.li.N", "Constant.IT_Spec.app")
 SPEC:END*)
 
 (*SPEC:BEGIN:Check short lemma and proposition dependencies*)
-lemma app_rev [simp]: "app (rev xs) x = rev (C x xs)"
+lemma rev_app [simp]: "rev (app xs x) = C x (rev xs)"
   by (induction xs) auto
 (*SPEC:VERIFY
     command should equal("lemma")
@@ -106,7 +106,7 @@ lemma app_rev [simp]: "app (rev xs) x = rev (C x xs)"
     entities should have size 1
     facts should have size 1
     val fact = facts.head
-    fact.name should equal("IT_Spec.app_rev")
+    fact.name should equal("rev_app")
     fact.uses should contain allOf("Constant.IT_Spec.app", "Constant.IT_Spec.rev")
 
     // Check implicit proposition dependencies
@@ -114,16 +114,12 @@ lemma app_rev [simp]: "app (rev xs) x = rev (C x xs)"
 SPEC:END*)
 
 (*SPEC:BEGIN:Check long Isar-style theorem and proof dependencies*)
-theorem
-  assumes "app xs x = C x xs"
-  shows "rev xs = xs"
-proof -
-  from assms show ?thesis
-  proof (induction xs)
-    case (C x1 xs)
-    then show ?case by simp
-  qed (simp)
-qed
+theorem "rev_rev":
+  shows "rev (rev xs) = xs"
+proof (induction xs)
+  case (C x1 xs)
+  then show ?case by simp
+qed (simp)
 (*SPEC:VERIFY
     command should equal("theorem")
 
@@ -135,10 +131,10 @@ qed
     facts should have size 1
     val fact = facts.head
     fact.name should not be(empty)
-    fact.uses should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.app", "Constant.IT_Spec.rev")
+    fact.uses should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.rev")
 
     // Check proof-only dependency
-    fact.uses should contain ("Fact.IT_Spec.app_rev")
+    fact.uses should contain ("Fact.IT_Spec.rev_app")
 SPEC:END*)
 
 (*SPEC:BEGIN:Check definition and HOL dependency*)
@@ -149,7 +145,7 @@ definition"palindrome \<equiv> \<lambda> xs. rev xs = xs"
     // Check definition
     constants should have size 1
     val const = constants.head
-    const.name should equal("IT_Spec.palindrome")
+    const.name should equal("palindrome")
     const.constantType should equal("'a IT_Spec.li ⇒ HOL.bool")
     const.uses should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.rev")
     

@@ -90,6 +90,7 @@ lazy val `common-utils` = project
 // Common api for data access
 lazy val `common-da-api` = project
   .settings(libraryDependencies ++= Seq(shapeless, circeCore, circeGeneric % "test"))
+  .dependsOn(`common-utils`)
 
 // Common solr data access/bindings
 lazy val `common-da-solr` = project

@@ -2,7 +2,7 @@ package de.qaware.findfacts.common.dt
 
 import enumeratum.EnumEntry
 
-import de.qaware.findfacts.common.da.api.{ChildrenField, Field, MultiValuedField, SingleValuedField}
+import de.qaware.findfacts.common.da.api.{ChildrenField, DocumentKind, Field, MultiValuedField, SingleValuedField}
 import de.qaware.findfacts.common.dt.solr.SolrSchema
 import de.qaware.findfacts.common.utils.DefaultEnum
 
@@ -37,9 +37,9 @@ object EtField extends DefaultEnum[EtField] {
   }
 
   /** Document kind. */
-  case object DocKind extends SingleValuedField[Kind] with EtField {
+  case object DocKind extends SingleValuedField[DocumentKind] with EtField {
     override val name: String = SolrSchema.DocKind
-    override val implicits: FieldImplicits[Kind] = FieldImplicits()
+    override val implicits: FieldImplicits[DocumentKind] = FieldImplicits()
   }
 
   /** Id of child document. */

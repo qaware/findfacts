@@ -3,9 +3,9 @@ package de.qaware.findfacts.common.dt.solr
 /** All solr fields. */
 object SolrSchema {
   final val Id = "id"
-  final val DocKind = "kind"
+  final val DocKind = "doc_kind"
   final val ParentFlag = "parent_flag"
-  final val TheoryKind = "thy_kind"
+  final val TheoryKind = "kind"
   final val Command = "command"
   final val SourceTheory = "theory"
   final val SourceTheoryFacet = "theory_facet"

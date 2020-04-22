@@ -29,7 +29,7 @@ class SolrFilterMapperTest extends FunSuite with Matchers with MockitoSugar with
   test("Test filter mapping for bool connectives") {
     val term = core.And(Term("1"), core.Or(core.Not(Term("2")), Term("3")), Term("4"))
 
-    sut.mapFilter(term).get should equal("((1)&&((!(2))||(3))&&(4))")
+    sut.mapFilter(term).get should equal("((1)&&((* !(2))||(3))&&(4))")
   }
 
   test("Test filter mapping for recursive query") {

@@ -33,6 +33,6 @@ class SolrFieldFilterMapperTest extends FunSuite with Matchers with MockitoSugar
 
     verify(filterMapper, times(3)).mapFilter(any)(any, any)
     filters.get.fqs should contain theSameElementsAs List("{!tag=top,theory}theory:f2")
-    filters.get.childFqs should contain theSameElementsAs List("{!tag=name}name:f1", "{!tag=thy_kind}thy_kind:f3")
+    filters.get.childFqs should contain theSameElementsAs List("{!tag=name}name:f1", "{!tag=kind}kind:f3")
   })
 }

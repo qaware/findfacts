@@ -11,7 +11,7 @@ import cats.syntax.traverse._
 import de.qaware.findfacts.common.da.api.{MultiValuedField, OptionalField, SingleValuedField}
 import de.qaware.findfacts.common.dt.EtField
 import de.qaware.findfacts.core._
-import de.qaware.findfacts.core.solrimpl.SolrQueryLiterals.ALL
+import de.qaware.findfacts.core.solrimpl.SolrQueryLiterals.{ALL, AND, NOT, OR}
 
 /** Mapper to map filters to solr query strings. */
 final class SolrFilterMapper {
@@ -42,7 +42,7 @@ final class SolrFilterMapper {
 
   private def anyInResult(res: Seq[String]): String = {
     if (res.isEmpty) {
-      s"(${SolrQueryLiterals.NOT}$ALL)"
+      s"(${NOT}$ALL)"
     } else {
       s"(${res.mkString(" ")})"
     }
@@ -75,11 +75,11 @@ final class SolrFilterMapper {
    */
   def mapFilter(filter: Filter)(implicit index: String, queryService: SolrQueryService): Try[String] =
     filter match {
-      case Not(filter) => mapFilter(filter).map(f => s"(${SolrQueryLiterals.NOT}$f)")
+      case Not(filter) => mapFilter(filter).map(f => s"($NOT$f)")
       case Or(f1, f2, fn @ _*) =>
-        (f1 +: f2 +: fn).map(mapFilter).toList.sequence.map(fs => s"(${fs.mkString(SolrQueryLiterals.OR)})")
+        (f1 +: f2 +: fn).map(mapFilter).toList.sequence.map(fs => s"(${fs.mkString(OR)})")
       case And(f1, f2, fn @ _*) =>
-        (f1 +: f2 +: fn).map(mapFilter).toList.sequence.map(fs => s"(${fs.mkString(SolrQueryLiterals.AND)})")
+        (f1 +: f2 +: fn).map(mapFilter).toList.sequence.map(fs => s"(${fs.mkString(AND)})")
       case Term(inner) => Success(escape(inner, exact = false))
       case Exact(inner) => Success(escape(inner, exact = true))
       case InRange(from, to) => Success(s"[$from TO $to]")

@@ -2,6 +2,8 @@ package de.qaware.findfacts.common.dt
 
 import io.circe.generic.auto._
 
+import de.qaware.findfacts.common.da.api
+import de.qaware.findfacts.common.da.api.DocumentKind
 import de.qaware.findfacts.common.da.api.Variant.Discriminator
 import de.qaware.findfacts.common.dt.EtField._
 
@@ -50,7 +52,7 @@ final case class CodeblockEt(
     srcAfter: SourceTextAfter.T,
     entities: TheoryChildren.T)
   extends BaseEt
-  with Discriminator[Kind, EtField.DocKind.type, Kind.Block.type]
+  with Discriminator[DocumentKind, EtField.DocKind.type, api.DocumentKind.Parent.type]
 
 /**
  * Constant entity.
@@ -62,7 +64,7 @@ final case class ConstantEt(
     override val name: Name.T,
     override val uses: Uses.T,
     constantType: ConstantType.T,
-    override val docKind: DocKind.T = Kind.Constant)
+    override val docKind: DocKind.T = DocumentKind.Child)
   extends TheoryEt
   with Discriminator[Kind, EtField.Kind.type, Kind.Constant.type]
 
@@ -71,7 +73,7 @@ final case class FactEt(
     override val id: Id.T,
     override val name: Name.T,
     override val uses: Uses.T,
-    override val docKind: DocKind.T = Kind.Fact)
+    override val docKind: DocKind.T = DocumentKind.Child)
   extends TheoryEt
   with Discriminator[Kind, EtField.Kind.type, Kind.Fact.type]
 
@@ -80,6 +82,6 @@ final case class TypeEt(
     override val id: Id.T,
     override val name: Name.T,
     override val uses: Uses.T,
-    override val docKind: DocKind.T = Kind.Type)
+    override val docKind: DocKind.T = DocumentKind.Child)
   extends TheoryEt
   with Discriminator[Kind, EtField.Kind.type, Kind.Type.type]

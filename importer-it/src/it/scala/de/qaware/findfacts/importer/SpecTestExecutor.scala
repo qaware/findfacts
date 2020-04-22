@@ -48,8 +48,8 @@ class SpecTestExecutor extends FunSuite with Matchers {
     val toolbox = currentMirror.mkToolBox()
 
     // Get imported entities
-    val query = new SolrQuery("{!parent which=kind:Block}")
-      .setFields("*", "[child parentFilter=kind:Block limit=-1]")
+    val query = new SolrQuery("{!parent which=doc_kind:Parent}")
+      .setFields("*", "[child parentFilter=doc_kind:Parent limit=-1]")
       .setRows(Int.MaxValue)
     val mapper = FromSolrDoc[CodeblockEt]
     val blocks = Using.resource(LocalSolr(File(Resource.getUrl("solrdir/")).toJava)) { solr =>
