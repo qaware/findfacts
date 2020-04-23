@@ -3,8 +3,8 @@ module Pages.Help exposing (view)
 {-| The static 'help' page.
 -}
 
-import Html exposing (Html, a, b, br, dd, div, dl, dt, h1, h2, h3, h4, img, p, span, text)
-import Html.Attributes exposing (alt, href, src, style, width)
+import Html exposing (Html, a, b, br, dd, div, dl, dt, h1, h2, img, p, span, text)
+import Html.Attributes exposing (alt, href, src, style)
 import Material.Extra.Typography as TypographyExtra
 import Material.Typography as Typography
 

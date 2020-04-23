@@ -31,6 +31,7 @@ import Material.Theme as Theme
 import Material.TopAppBar as TopAppBar exposing (topAppBarConfig)
 import Material.Typography as Typography
 import Pages.About as About
+import Pages.Examples as Examples
 import Pages.Feedback as Feedback
 import Pages.Help as Help
 import Task
@@ -80,7 +81,7 @@ init _ url navKey =
 {-| Min width for expanded top bar.
 -}
 topBarMinWidth =
-    540
+    600
 
 
 {-| Email address, encoded so it is not visible in the source code.
@@ -115,6 +116,7 @@ type Page
     | Details PageDetails
     | Theory PageTheory
     | Help
+    | Examples
     | Feedback Obfuscated.State
     | About
     | NotFound
@@ -390,6 +392,7 @@ routeParser model =
         , UrlParser.map (parseTheory model) (UrlParser.s "theory" </> UrlParser.string </> UrlParser.string)
         , UrlParser.map ( Feedback <| Obfuscated.init email, Cmd.none ) (UrlParser.s "feedback")
         , UrlParser.map ( Help, Cmd.none ) (UrlParser.s "help")
+        , UrlParser.map ( Examples, Cmd.none ) (UrlParser.s "examples")
         , UrlParser.map ( About, Cmd.none ) (UrlParser.s "about")
         ]
 
@@ -658,6 +661,8 @@ renderDrawer open =
                 [ MList.listItem { listItemConfig | href = Just "#" } [ text "Search" ]
                 , MList.listItem { listItemConfig | href = Just "#help" }
                     [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "help" ], text "Help" ]
+                , MList.listItem { listItemConfig | href = Just "#examples" }
+                    [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "search" ], text "Examples" ]
                 , MList.listItem { listItemConfig | href = Just "#feedback" }
                     [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "question_answer" ], text "Feedback" ]
                 , MList.listItem { listItemConfig | href = Just "#about" }
@@ -691,6 +696,7 @@ renderTopBar width =
                     []
                     [ renderLink "search" "#"
                     , renderLink "help" "#help"
+                    , renderLink "examples" "#examples"
                     , renderLink "feedback" "#feedback"
                     , renderLink "about" "#about"
                     ]
@@ -726,6 +732,9 @@ renderPage width page =
         Help ->
             Help.view |> renderInPage []
 
+        Examples ->
+            Examples.view |> renderInPage []
+
         Feedback emailState ->
             Feedback.config EmailMsg |> lazy2 Feedback.view emailState |> (List.singleton >> renderInPage [])
 
@@ -758,7 +767,7 @@ renderInPage additionalAttrs content =
 -}
 renderPageHome : Int -> PageHome -> List (Html Msg)
 renderPageHome width home =
-    (if width > 540 then
+    (if width > topBarMinWidth then
         div [ style "float" "right", style "max-width" "260px", style "margin-top" "16px", style "margin-left" "32px" ]
             [ lazy2 Index.view home.index (Index.config IndexMsg) ]
 
