@@ -85,7 +85,7 @@ termFilterableFields : AnyDict String Field FilterField
 termFilterableFields =
     AnyDict.fromList fieldToString
         [ ( Command, FilterField "Isabelle Command" <| Just Command )
-        , ( Src, FilterField "Source Text" Nothing )
+        , ( Src, FilterField "Source Code" Nothing )
         , ( SrcFile, FilterField "Source Theory" <| Just SrcFileFacet )
         , ( Name, FilterField "Semantic Entity Name" <| Just NameFacet )
         , ( ConstType, FilterField "Constant Type" <| Just ConstTypeFacet )
@@ -549,7 +549,7 @@ view (State state) (Config conf) =
             [ TextField.textField
                 { textFieldConfig
                     | placeholder = Just "Enter search terms with * wildcards..."
-                    , label = Just "Source Text"
+                    , label = Just "Source Code"
                     , outlined = True
                     , additionalAttributes = [ style "width" "100%", style "background-color" "white" ]
                     , value = state.term

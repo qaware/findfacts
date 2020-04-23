@@ -16,3 +16,8 @@ body {
     font-weight: 300;
     letter-spacing: 0.5px;
 }
+
+.example-highlight {
+    border-style: dashed;
+    border-color: red;
+}
