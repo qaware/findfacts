@@ -7,7 +7,7 @@ import de.qaware.findfacts.importer.TheoryView.{Abs, App, ConstTerm, Free, Term,
  *
  * @param typExtractor to extract types
  */
-final class TermExtractor(typExtractor: TypExtractor) {
+class TermExtractor(typExtractor: TypExtractor) {
 
   /**
    * Finds consts referenced in the term.

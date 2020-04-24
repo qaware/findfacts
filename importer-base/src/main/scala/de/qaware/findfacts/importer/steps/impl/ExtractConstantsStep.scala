@@ -19,7 +19,7 @@ import de.qaware.findfacts.importer.{ImportError, TheoryView}
  * @param termExtractor to extract types from abbreviation terms
  * @param propExtractor to extract references from propositions
  */
-final class ExtractConstantsStep(
+class ExtractConstantsStep(
     idBuilder: IdBuilder,
     typExtractor: TypExtractor,
     termExtractor: TermExtractor,
@@ -27,7 +27,7 @@ final class ExtractConstantsStep(
   extends ImportStep {
   private val logger = Logger[ExtractConstantsStep]
 
-  override def apply(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
+  override def execute(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Importing ${theory.consts.size} constants with ${theory.constdefs.size} def axioms...")
 
     // Store names in set for fast lookup
@@ -36,6 +36,7 @@ final class ExtractConstantsStep(
     val errors = ListBuffer.empty[ImportError]
 
     // Group relevant axioms by their names
+    @SuppressWarnings(Array("TraversableHead"))
     val axiomsByName = theory.axioms
       .filter(ax => axiomNames.contains(ax.entity.name))
       .groupBy(_.entity.name)

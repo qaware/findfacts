@@ -79,7 +79,7 @@ final class LocalSolr private (
         }
 
         if (confFiles.isEmpty) {
-          throw new IllegalStateException(s"No solr configuration resources found")
+          throw new IllegalStateException("No solr configuration resources found")
         }
 
         // Copy solr config files

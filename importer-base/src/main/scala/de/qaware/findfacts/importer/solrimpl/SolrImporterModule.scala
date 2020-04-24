@@ -29,7 +29,7 @@ class SolrImporterModule(solr: SolrRepository) extends ImporterModule {
       logger.info(s"Processing theory ${theory.name}")
 
       implicit val ctx: StepContext = StepContext()
-      val errors = (steps :+ writeSolrStep).flatMap(_(theory))
+      val errors = (steps :+ writeSolrStep).flatMap(_.execute(theory))
 
       errors foreach { error =>
         logger.warn(s"Error during import: $error")

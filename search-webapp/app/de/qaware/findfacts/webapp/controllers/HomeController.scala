@@ -10,7 +10,7 @@ import de.qaware.findfacts.webapp.views
  *
  * @param cc components of this controller
  */
-final class HomeController(cc: ControllerComponents, assetsFinder: AssetsFinder) extends AbstractController(cc) {
+class HomeController(cc: ControllerComponents, assetsFinder: AssetsFinder) extends AbstractController(cc) {
 
   /**
    * Deliver application.

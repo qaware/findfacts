@@ -12,11 +12,11 @@ import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
  *
  * @param idBuilder util to create ids
  */
-final class ExtractBlocksStep(idBuilder: IdBuilder) extends ImportStep {
+class ExtractBlocksStep(idBuilder: IdBuilder) extends ImportStep {
 
   private val logger = Logger[ExtractBlocksStep]
 
-  override def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
+  override def execute(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Importing ${theory.source.blocks.size} blocks.")
 
     val errors = theory.source.blocks.flatMap { src =>

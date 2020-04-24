@@ -22,7 +22,7 @@ class WriteSolrStep(index: String, solr: SolrRepository) extends ImportStep {
 
   private val logger = Logger[WriteSolrStep]
 
-  override def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
+  override def execute(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
     solr.createIndex(index)
     val entities = ctx.blocks
 

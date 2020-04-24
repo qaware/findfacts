@@ -8,7 +8,7 @@ import de.qaware.findfacts.importer.steps.impl.pure.PureSyntax
  *
  * @param nameExtractor to pretty-print names
  */
-final class TypExtractor(nameExtractor: NameExtractor) {
+class TypExtractor(nameExtractor: NameExtractor) {
 
   /**
    * Pretty-prints types.

@@ -18,11 +18,11 @@ import de.qaware.findfacts.importer.{ImportError, TheoryView}
  * @param typExtractor to extract references form abbreviations
  * @param propExtractor to extract references from propositions
  */
-final class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, propExtractor: PropExtractor)
+class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, propExtractor: PropExtractor)
   extends ImportStep {
   private val logger = Logger[ExtractTypesStep]
 
-  override def apply(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
+  override def execute(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Importing ${theory.types.size} types with ${theory.typedefs} def axioms...")
 
     // Store names in set for fast lookup
@@ -31,6 +31,7 @@ final class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, p
     val errors = ListBuffer.empty[ImportError]
 
     // Group relevant axioms by their names
+    @SuppressWarnings(Array("TraversableHead"))
     val axiomsByName = theory.axioms
       .filter(ax => axiomNames.contains(ax.entity.name))
       .groupBy(_.entity.name)

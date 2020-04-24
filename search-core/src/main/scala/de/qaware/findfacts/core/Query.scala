@@ -3,7 +3,7 @@ package de.qaware.findfacts.core
 import de.qaware.findfacts.common.dt.EtField
 
 /** Filter for a field. */
-case class FieldFilter(field: EtField, filter: Filter)
+final case class FieldFilter(field: EtField, filter: Filter)
 
 /** Union type for all filters. */
 sealed trait Filter

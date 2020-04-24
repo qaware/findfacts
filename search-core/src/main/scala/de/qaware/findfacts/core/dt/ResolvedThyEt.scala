@@ -12,7 +12,7 @@ sealed trait ResolvedThyEt
  * @param typ of the constant
  * @param uses referenced entities
  */
-case class ResolvedConstant(id: String, typ: String, uses: List[ShortThyEt], kind: Kind = Kind.Constant)
+final case class ResolvedConstant(id: String, typ: String, uses: List[ShortThyEt], kind: Kind = Kind.Constant)
   extends ResolvedThyEt
 
 /**
@@ -21,7 +21,7 @@ case class ResolvedConstant(id: String, typ: String, uses: List[ShortThyEt], kin
  * @param id unique identifier
  * @param uses referenced entities
  */
-case class ResolvedFact(id: String, uses: List[ShortThyEt], kind: Kind = Kind.Fact) extends ResolvedThyEt
+final case class ResolvedFact(id: String, uses: List[ShortThyEt], kind: Kind = Kind.Fact) extends ResolvedThyEt
 
 /**
  * Resolved information for types.
@@ -29,4 +29,4 @@ case class ResolvedFact(id: String, uses: List[ShortThyEt], kind: Kind = Kind.Fa
  * @param id unique identifier
  * @param uses referenced entities
  */
-case class ResolvedType(id: String, uses: List[ShortThyEt], kind: Kind = Kind.Type) extends ResolvedThyEt
+final case class ResolvedType(id: String, uses: List[ShortThyEt], kind: Kind = Kind.Type) extends ResolvedThyEt

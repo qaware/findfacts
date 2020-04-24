@@ -8,7 +8,7 @@ import de.qaware.findfacts.importer.TheoryView.Prop
  * @param typExtractor  to extract types
  * @param termExtractor to extract terms.
  */
-final class PropExtractor(typExtractor: TypExtractor, termExtractor: TermExtractor) {
+class PropExtractor(typExtractor: TypExtractor, termExtractor: TermExtractor) {
 
   /**
    * Find referenced constants for a proposition.

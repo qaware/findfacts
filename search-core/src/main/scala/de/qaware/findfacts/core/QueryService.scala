@@ -76,6 +76,6 @@ object QueryService {
    * @param nextCursor for paging
    * @tparam A type of result entities
    */
-  case class ResultList[A](values: Vector[A], count: Long, nextCursor: String)
+  final case class ResultList[A](values: Vector[A], count: Long, nextCursor: String)
 
 }

@@ -16,9 +16,9 @@ import de.qaware.findfacts.core.{FacetQuery, FilterQuery}
 /**
  * Mappers to map queries to solr query string.
  *
- * @param filterMapper to map filter queries
+ * @param fieldFilterMapper to map filter queries
  */
-class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: SolrFilterMapper) {
+class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper) {
 
   /**
    * Builds solr query (that retrieves parent blocks) for a filter query.
@@ -42,17 +42,17 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
 
       if (filters.fqs.nonEmpty) {
         // Add filter queries in a literal query (v) for scoring
-        queryStr = "_query_:{!query v=$fq} " + AND + " _query_:" + queryStr
+        queryStr = s"_query_:{!query v=$$fq} $AND _query_:$queryStr"
         solrQuery.setFilterQueries(filters.fqs: _*)
       }
       if (filters.childFqs.nonEmpty) {
         solrQuery
         // Add child query to filters for caching and as literal query (v) for scoring.
-          .setQuery(queryStr + " filters=$child.fq v=$child.fq}")
+          .setQuery(s"$queryStr filters=$$child.fq v=$$child.fq}")
           .set(CHILD_FQ, filters.childFqs: _*)
       } else {
         solrQuery
-          .setQuery(queryStr + "}")
+          .setQuery(s"$queryStr}")
       }
 
       // Set cursor to start or next cursor for paging
@@ -118,10 +118,10 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
       }
       if (filters.childFqs.nonEmpty) {
         jsonRequest
-          .setQuery(PARENT_QUERY_COMMON + " filters=$child.fq}")
+          .setQuery(s"$PARENT_QUERY_COMMON filters=$$child.fq}")
           .withParam(CHILD_FQ, filters.childFqs.toList.asJava)
       } else {
-        jsonRequest.setQuery(PARENT_QUERY_COMMON + "}")
+        jsonRequest.setQuery(s"$PARENT_QUERY_COMMON}")
       }
 
       facetQuery.fields foreach { field =>
@@ -129,8 +129,8 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper, filterMapper: So
         if (field.isChild) {
           val domain = new DomainMap()
             .withTagsToExclude("top")
-            .withFilter("{!filters param=$child.fq excludeTags=" + s"${field.name}}")
-            .withFilter(if (filters.fqs.nonEmpty) CHILD_QUERY_COMMON + " filters=$fq}" else CHILD_QUERY_COMMON + "}")
+            .withFilter(s"{!filters param=$$child.fq excludeTags=${field.name}}")
+            .withFilter(if (filters.fqs.nonEmpty) s"CHILD_QUERY_COMMON filters=$$fq}" else s"$CHILD_QUERY_COMMON}")
 
           // For child fields, go to child documents domain and then count unique parent blocks.
           facet.withDomain(domain).withStatSubFacet(COUNT_FIELD, "uniqueBlock(_root_)")
@@ -162,7 +162,7 @@ object SolrQueryMapper {
   final val PARENT_QUERY_COMMON = s"{!parent tag=top which=$QUERY_PARENT"
 
   /** Common part of child queries. */
-  final val CHILD_QUERY_COMMON = "{!child of=" + QUERY_PARENT
+  final val CHILD_QUERY_COMMON = s"{!child of=$QUERY_PARENT"
 
   /** Name of field for block aggregation subfacet. Overrides the default 'count' field. */
   final val COUNT_FIELD = "count"

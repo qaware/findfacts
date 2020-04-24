@@ -264,6 +264,7 @@ object TheoryView {
 
     override def toString: String = s"[$offset..$endOffset]"
 
+    @SuppressWarnings(Array("IsInstanceOf"))
     def canEqual(other: Any): Boolean = other.isInstanceOf[Position]
 
     override def equals(other: Any): Boolean =

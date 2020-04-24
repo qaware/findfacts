@@ -3,7 +3,7 @@ package de.qaware.findfacts.importer.steps.impl.thy
 import de.qaware.findfacts.importer.TheoryView.Indexname
 
 /** Extractor to pretty-print names. */
-final class NameExtractor {
+class NameExtractor {
 
   /**
    * Pretty-prints index names.

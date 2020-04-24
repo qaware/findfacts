@@ -8,7 +8,7 @@ import de.qaware.findfacts.importer.TheoryView._
  * @param typExtractor to extract types
  * @param termExtractor to extract terms
  */
-final class ProofExtractor(typExtractor: TypExtractor, termExtractor: TermExtractor) {
+class ProofExtractor(typExtractor: TypExtractor, termExtractor: TermExtractor) {
 
   /**
    * Find facts referenced in a proof.
@@ -23,7 +23,7 @@ final class ProofExtractor(typExtractor: TypExtractor, termExtractor: TermExtrac
       case Appt(fun, _) => referencedFacts(fun)
       case AppP(fun, arg) => referencedFacts(fun) ++ referencedFacts(arg)
       case PAxm(name, _) => Set(name)
-      case Oracle(name, _, _) => Set.empty // TODO correct?
+      case Oracle(name, _, _) => Set(name)
       case PThm(_, name, _) => Set(name)
       case _ => Set.empty
     }

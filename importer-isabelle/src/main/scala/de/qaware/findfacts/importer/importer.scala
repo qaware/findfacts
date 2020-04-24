@@ -57,7 +57,7 @@ object Importer
     val errors = importer.importSession(index_name, theories)
 
     errors foreach { error =>
-      val message = session_name + ": " + error.step.getClass + ": " + error.causeEntity + ": " + error.errorMsg
+      val message = session_name + ": " + error.step.getClass + ": " + error.causeEntity + ": " + error.errorMsg + " -- " + error.getDebugInfo
       progress.echo_error_message(message)
     }
 

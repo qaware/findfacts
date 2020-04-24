@@ -15,11 +15,11 @@ import de.qaware.findfacts.importer.{ImportError, TheoryView}
  * @param propExtractor to extract proposition data
  * @param proofExtractor to extract proof data
  */
-final class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor, proofExtractor: ProofExtractor)
+class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor, proofExtractor: ProofExtractor)
   extends ImportStep {
   private val logger = Logger[ExtractFactsStep]
 
-  override def apply(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
+  override def execute(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Importing ${theory.axioms.size} axioms and ${theory.thms.size} thms...")
 
     // Filter out definition axioms as they are aggregated in their entity types

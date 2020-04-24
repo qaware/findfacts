@@ -13,5 +13,5 @@ trait ImportStep {
    * @param ctx    context that is mutated in the step
    * @return import errors, if any
    */
-  def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError]
+  def execute(theory: Theory)(implicit ctx: StepContext): List[ImportError]
 }

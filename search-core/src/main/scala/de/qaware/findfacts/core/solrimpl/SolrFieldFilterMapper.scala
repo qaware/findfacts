@@ -15,7 +15,7 @@ import de.qaware.findfacts.core.{FieldFilter, Filter}
  * @param fqs filter queries
  * @param childFqs child filter queries
  */
-case class Filters(fqs: Seq[String], childFqs: Seq[String])
+final case class Filters(fqs: Seq[String], childFqs: Seq[String])
 
 /**
  * Mapper to map field filters to solr filter strings.

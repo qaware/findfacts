@@ -14,7 +14,7 @@ import de.qaware.findfacts.core._
 import de.qaware.findfacts.core.solrimpl.SolrQueryLiterals.{ALL, AND, NOT, OR}
 
 /** Mapper to map filters to solr query strings. */
-final class SolrFilterMapper {
+class SolrFilterMapper {
 
   private val EscapeRegex = SolrFilterMapper.SPECIAL_CHARS.map(s => s"($s)").mkString("|").r
 
@@ -23,6 +23,7 @@ final class SolrFilterMapper {
       .map(s => s"($s)").mkString("|").r
   }
 
+  @SuppressWarnings(Array("AsInstanceOf"))
   private def innerQuery(field: EtField, fq: List[FieldFilter], toQuery: Seq[String] => String)(implicit
       index: String,
       queryService: SolrQueryService): Try[String] = {
