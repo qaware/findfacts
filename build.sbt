@@ -165,8 +165,8 @@ lazy val `importer-it` = project
 
         // Run dump and dump_importer in Isabelle
         (run in isabelle)
-          .toTask(" -A markup,theory -D " + thyDir + " -O " + dumpDir)
-          .zip((run in `importer-isabelle`).toTask(" -L " + solrDir + " " + dumpDir))
+          .toTask(" -A markup,theory -b HOL -D " + thyDir + " -O " + dumpDir)
+          .zip((run in `importer-isabelle`).toTask(" -l " + solrDir + " Spec-Tests " + dumpDir))
           .flatMap { case (t1, t2) => t1 && t2 } && testTask
       } else {
         Def.task(testTask.value)
