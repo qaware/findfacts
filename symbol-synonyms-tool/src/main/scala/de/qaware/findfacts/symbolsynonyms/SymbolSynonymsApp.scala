@@ -28,8 +28,8 @@ object SymbolSynonymsApp extends App {
   /** Parse files from better.files */
   implicit val betterFileRead: Read[File] = Read.reads(File(_))
 
-  private val builder = new OptionParser[Config]("yxml-parser") {
-    head("Parses a yxml file")
+  private val builder = new OptionParser[Config]("symbol-synonyms") {
+    head("Creates synonyms config")
     arg[File]("<dir>")
       .required()
       .text("isabelle symbols file to read - usually isabelle/etc/symbols")
