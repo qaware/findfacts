@@ -130,7 +130,7 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper) {
           val domain = new DomainMap()
             .withTagsToExclude("top")
             .withFilter(s"{!filters param=$$child.fq excludeTags=${field.name}}")
-            .withFilter(if (filters.fqs.nonEmpty) s"CHILD_QUERY_COMMON filters=$$fq}" else s"$CHILD_QUERY_COMMON}")
+            .withFilter(if (filters.fqs.nonEmpty) s"$CHILD_QUERY_COMMON filters=$$fq}" else s"$CHILD_QUERY_COMMON}")
 
           // For child fields, go to child documents domain and then count unique parent blocks.
           facet.withDomain(domain).withStatSubFacet(COUNT_FIELD, "uniqueBlock(_root_)")
