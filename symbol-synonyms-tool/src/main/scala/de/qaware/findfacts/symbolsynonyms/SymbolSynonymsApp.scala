@@ -58,7 +58,7 @@ object SymbolSynonymsApp extends App {
    * @param words that have synonyms
    * @param replacements for words
    */
-  case class Synonym(words: Seq[String], replacements: Seq[String]) {
+  final case class Synonym(words: Seq[String], replacements: Seq[String]) {
     def write: String =
       s"${words.map(filterMapper.escape(_, exact = false).drop(1).dropRight(1)).mkString(",")} => ${replacements.mkString(",")}"
   }

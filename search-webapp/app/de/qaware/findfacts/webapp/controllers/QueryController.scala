@@ -67,6 +67,9 @@ class QueryController(
   "maxFacets": 10
 }
 """
+  private final val NOT_AN_ID = "Not an id"
+  private final val ENTITY_NOT_FOUND = "Entity not found"
+  private final val INDEX = "Index to search in"
 
   // Json printer defines output format
   implicit val jsonPrinter: Printer = Printer.noSpacesSortKeys.copy(dropNullValues = true)
@@ -95,7 +98,7 @@ class QueryController(
         dataType = "de.qaware.findfacts.core.FilterQuery",
         examples = new Example(value = Array(new ExampleProperty(mediaType = "default", value = ExampleFilterQuery)))
       )))
-  def search(@ApiParam(value = "Index to search in", required = true) index: String): Action[FilterQuery] = {
+  def search(@ApiParam(value = INDEX, required = true) index: String): Action[FilterQuery] = {
     implicit val idx: String = index
     actionBuilder.indexValid(index) {
       actionBuilder.filterQueryValid {
@@ -115,10 +118,10 @@ class QueryController(
     httpMethod = "GET")
   @ApiResponses(
     Array(
-      new ApiResponse(code = 400, message = "Entity not found"),
-      new ApiResponse(code = 422, message = "Not an id")))
+      new ApiResponse(code = 400, message = ENTITY_NOT_FOUND),
+      new ApiResponse(code = 422, message = NOT_AN_ID)))
   def entity(
-      @ApiParam(value = "Index to search in", required = true) index: String,
+      @ApiParam(value = INDEX, required = true) index: String,
       @ApiParam(value = "ID of result entity to fetch", required = true) id: String): Action[AnyContent] =
     actionBuilder.indexValid(index) {
       actionBuilder.idValid(id) {
@@ -139,10 +142,10 @@ class QueryController(
     httpMethod = "GET")
   @ApiResponses(
     Array(
-      new ApiResponse(code = 400, message = "Entity not found"),
-      new ApiResponse(code = 422, message = "Not an id")))
+      new ApiResponse(code = 400, message = ENTITY_NOT_FOUND),
+      new ApiResponse(code = 422, message = NOT_AN_ID)))
   def resolved(
-      @ApiParam(value = "Index to search in", required = true) index: String,
+      @ApiParam(value = INDEX, required = true) index: String,
       @ApiParam(value = "ID of theory entity to fetch", required = true) id: String): Action[AnyContent] =
     actionBuilder.indexValid(index) {
       actionBuilder.idValid(id) {
@@ -163,10 +166,10 @@ class QueryController(
   )
   @ApiResponses(
     Array(
-      new ApiResponse(code = 400, message = "Entity not found"),
-      new ApiResponse(code = 422, message = "Not an id")))
+      new ApiResponse(code = 400, message = ENTITY_NOT_FOUND),
+      new ApiResponse(code = 422, message = NOT_AN_ID)))
   def shortBlock(
-      @ApiParam(value = "Index to search in", required = true) index: String,
+      @ApiParam(value = INDEX, required = true) index: String,
       @ApiParam(value = "ID of cmd to fetch", required = true) id: String): Action[AnyContent] =
     actionBuilder.indexValid(index) {
       actionBuilder.idValid(id) {
@@ -203,7 +206,7 @@ class QueryController(
       )
     )
   )
-  def facet(@ApiParam(value = "Index to search in", required = true) index: String): Action[FacetQuery] = {
+  def facet(@ApiParam(value = INDEX, required = true) index: String): Action[FacetQuery] = {
     implicit val idx: String = index
     actionBuilder.indexValid(index) {
       actionBuilder.facetQueryValid {
