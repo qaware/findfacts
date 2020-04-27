@@ -1,27 +1,40 @@
 package de.qaware.findfacts.core
 
-import de.qaware.findfacts.common.dt.EtField.{StartLine, Uses}
-import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, ITSolr, Kind}
-import de.qaware.findfacts.common.solr.{LocalSolr, SolrRepository}
-import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
-import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 import org.apache.solr.client.solrj.SolrQuery
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Inside, Matchers}
+
+import de.qaware.findfacts.common.dt.EtField.{StartLine, Uses}
+import de.qaware.findfacts.common.dt._
+import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
+import de.qaware.findfacts.common.solr.{LocalSolr, SolrRepository}
+import de.qaware.findfacts.core.solrimpl.SolrQueryModule
 
 /** Test base functionality of query module with a setup that's as simple as possible.  */
 class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with Inside {
   final val itSolr = ITSolr()
-  final val queryModule: QueryModule = new SolrQueryModule { override lazy val solr: SolrRepository = itSolr }
-  implicit val index: String = LocalSolr.DefaultCoreName
+  final val queryModule: QueryModule = new SolrQueryModule {
+    override lazy val solr: SolrRepository = itSolr
+  }
+  implicit val index: String = LocalSolr.DEFAULT_CORE_NAME
 
   override def beforeAll(): Unit = {
-    itSolr.createIndex(LocalSolr.DefaultCoreName)
+    itSolr.createIndex(LocalSolr.DEFAULT_CORE_NAME)
 
     // Add integration test data set
-    val const1 = new ConstantEt("Const1", List("someId"), "'a => 'b")
-    val block1 = new CodeblockEt(1, 11, "ExampleThy", 1, "fun", "\n", "fun Example = ...", "\n...", List(const1))
-    val fact1 = new FactEt("ConstIsFact", List(const1.id))
-    val block2 = new CodeblockEt(12, 14, "ExampleThy", 3, "lemma", "\n...", "lemma ...", "(* stuff *)", List(fact1))
+    val const1 = ConstantEt("Const.ExampleThy.Const1", "Const1", List("someId"), "'a => 'b")
+    val block1 =
+      CodeblockEt("ExampleThy.1.11", "ExampleThy", 1, "fun", "\n", "fun Example = ...", "\n...", List(const1))
+    val fact1 = FactEt("Fact.ExampleThy.ConstIsFact", "ConstIsFact", List(const1.id))
+    val block2 =
+      CodeblockEt(
+        "ExampleThy.12.14",
+        "ExampleThy",
+        3,
+        "lemma",
+        "\n...",
+        "lemma example_lem...",
+        "(* stuff *)",
+        List(fact1))
 
     val mapper = ToSolrDoc[BaseEt]
     itSolr.add(mapper.toSolrDoc(block1))
@@ -63,7 +76,7 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
   }
 
   test("Recursive query") {
-    val innerQuery = List(FieldFilter(EtField.Kind, Exact(Kind.Constant.toString)))
+    val innerQuery = List(FieldFilter(EtField.Kind, Exact(Kind.Constant.entryName)))
     val query = FilterQuery(List(FieldFilter(Uses, InResult(EtField.Id, innerQuery))))
     val result = queryModule.service.getResultShortlist(query)
 
@@ -78,5 +91,29 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
 
     val resultFacet = result.get
     resultFacet should equal(Map(EtField.StartLine -> Map("1" -> 1, "3" -> 1)))
+  }
+
+  test("Query with connectives") {
+    val query =
+      FilterQuery(List(FieldFilter(EtField.Kind, Not(Or(Exact(Kind.Fact.entryName), Exact(Kind.Type.entryName))))))
+    val result = queryModule.service.getResultShortlist(query)
+
+    val resList = result.get
+    resList.values should have size 1
+
+    val thyRes = resList.values.head.entities
+    thyRes should have size 1
+    thyRes.head.kind should equal(Kind.Constant)
+  }
+
+  test("Result scoring") {
+    val query = FilterQuery(List(FieldFilter(EtField.SourceText, Or(Exact("example"), Exact("lemma")))))
+    val result = queryModule.service.getResultShortlist(query)
+
+    val resList = result.get
+    resList.values should have size 2
+
+    val first = resList.values.head
+    first.command should equal("lemma")
   }
 }

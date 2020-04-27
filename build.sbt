@@ -4,8 +4,8 @@ import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
-val projectVersion = "0.3.2"
-val schemaVersion = "0.3.0"
+val projectVersion = "0.4.0"
+val schemaVersion = "0.3.1"
 
 // Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
@@ -90,6 +90,7 @@ lazy val `common-utils` = project
 // Common api for data access
 lazy val `common-da-api` = project
   .settings(libraryDependencies ++= Seq(shapeless, circeCore, circeGeneric % "test"))
+  .dependsOn(`common-utils`)
 
 // Common solr data access/bindings
 lazy val `common-da-solr` = project
@@ -181,8 +182,7 @@ lazy val `search-core` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
-    libraryDependencies ++= loggingBackend
-      .map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it", scalaMock % "it")
+    libraryDependencies ++= (loggingBackend ++ mockito).map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it")
   )
   .dependsOn(`common-dt`, `common-da-solr`, `common-utils`, `common-dt` % "it->it")
 

@@ -8,8 +8,8 @@ class DefaultEnumTest extends FunSuite with Matchers with TryValues {
   object TestEnum extends DefaultEnum[TestEnum] {
     override final val values = findValues
 
-    case object VariantA extends Value
-    case object VariantB extends Value
+    case object VariantA extends TestEnum
+    case object VariantB extends TestEnum
   }
 
   test("values") {

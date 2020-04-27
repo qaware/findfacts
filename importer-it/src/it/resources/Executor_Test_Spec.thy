@@ -20,9 +20,6 @@ fun test where
 (*SPEC:VERIFY
     block should be(ctx.block)
     entities should be(block.entities)
-    constants should contain theSameElementsAs entities.filter(_.docKind == Kind.Constant)
-    facts should contain theSameElementsAs entities.filter(_.docKind == Kind.Fact)
-    types should contain theSameElementsAs entities.filter(_.docKind == Kind.Type)
     blocks should contain (block)
     blocks should have size 2
 SPEC:END*)

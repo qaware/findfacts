@@ -13,7 +13,7 @@ object Dependencies {
 
   val log4jVersion = "2.12.1"
   val scalaTestVersion = "3.0.8"
-  val scalaMockVersion = "4.4.0"
+  val scalaMockVersion = "1.13.9"
   val scalaLoggingVersion = "3.9.2"
 
   val enumVersion = "1.5.13"
@@ -40,8 +40,11 @@ object Dependencies {
   // Wire is only needed at compile-time
   val wire = "com.softwaremill.macwire" %% "macros" % wireVersion % "provided"
   val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
-  val scalaMock = "org.scalamock" %% "scalamock" % scalaMockVersion
-  val scalaTests = Seq(scalaTest, scalaMock).map(_ % "test")
+  val mockito =
+    Seq(
+      "org.mockito" %% "mockito-scala" % scalaMockVersion,
+      "org.mockito" %% "mockito-scala-scalatest" % scalaMockVersion)
+  val scalaTests = (scalaTest +: mockito).map(_ % "test")
   val shapeless = "com.chuusai" %% "shapeless" % shapelessVersion
   val cats = "org.typelevel" %% "cats-core" % catsVersion
   val cmdOpts = "com.github.scopt" %% "scopt" % scoptsVersion

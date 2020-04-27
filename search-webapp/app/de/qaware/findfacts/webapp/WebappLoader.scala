@@ -2,15 +2,11 @@ package de.qaware.findfacts.webapp
 
 import java.io.File
 
+import scala.collection.JavaConverters._
+
 import _root_.controllers.{ApiHelpController, AssetsComponents}
 import com.softwaremill.macwire.wire
 import com.typesafe.config.Config
-import de.qaware.findfacts.common.solr
-import de.qaware.findfacts.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
-import de.qaware.findfacts.core.solrimpl.SolrQueryModule
-import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
-import de.qaware.findfacts.webapp.filters.StatsLoggingFilter
-import de.qaware.findfacts.webapp.utils.{ActionBuilderUtils, JsonMappings}
 import play.api.ApplicationLoader.Context
 import play.api.mvc.EssentialFilter
 import play.api.routing.Router
@@ -21,23 +17,29 @@ import play.filters.gzip.GzipFilterComponents
 import play.modules.swagger.{SwaggerPlugin, SwaggerPluginImpl}
 import router.Routes
 
-import scala.collection.JavaConverters._
+import de.qaware.findfacts.common.solr
+import de.qaware.findfacts.common.solr.{CloudSolr, LocalSolr, RemoteSolr, SolrRepository, ZKHost}
+import de.qaware.findfacts.core.solrimpl.SolrQueryModule
+import de.qaware.findfacts.webapp.controllers.{HomeController, QueryController}
+import de.qaware.findfacts.webapp.filters.StatsLoggingFilter
+import de.qaware.findfacts.webapp.utils.{ActionBuilderUtils, JsonMappings}
 
 /** Loader that can dynamically load wired up application. */
 class WebappLoader extends ApplicationLoader {
   override def load(context: Context): Application = new WebappModule(context).application
 }
 
-/** DI Module for configured webapp.
-  *
-  * @param context play context
-  */
+/**
+ * DI Module for configured webapp.
+ *
+ * @param context play context
+ */
 class WebappModule(context: Context)
-    extends BuiltInComponentsFromContext(context)
-    with SolrQueryModule
-    with AssetsComponents
-    with HttpFiltersComponents
-    with GzipFilterComponents {
+  extends BuiltInComponentsFromContext(context)
+  with SolrQueryModule
+  with AssetsComponents
+  with HttpFiltersComponents
+  with GzipFilterComponents {
 
   lazy val statsLoggingFilter: StatsLoggingFilter = wire[StatsLoggingFilter]
 
@@ -68,35 +70,35 @@ class WebappModule(context: Context)
 /** Companion object. */
 object WebappModule {
 
-  final val SolrHome = "solrhome"
-  final val Host = "host"
-  final val Port = "port"
-  final val ZKHost = "zkhost"
-  final val ZKHosts = "zkhosts"
-  final val NumShards = "numShards"
-  final val NumReplicas = "numReplicas"
-  final val Configset = "configset"
-  final val Core = "core"
+  final val SOLR_HOME = "solrhome"
+  final val HOST = "host"
+  final val PORT = "port"
+  final val ZK_HOST = "zkhost"
+  final val ZK_HOSTS = "zkhosts"
+  final val NUM_SHARDS = "numShards"
+  final val NUM_REPLICAS = "numReplicas"
+  final val CONFIGSET = "configset"
+  final val CORE = "core"
 
   /** Configuration loader for zk hosts. */
   implicit val zkHostLoader: ConfigLoader[ZKHost] = (rootConfig: Config, path: String) => {
     val config = rootConfig.getConfig(path)
-    solr.ZKHost(config.getString(Host), config.getInt(Port))
+    solr.ZKHost(config.getString(HOST), config.getInt(PORT))
   }
 
   /** Configuration loader for all solr repositories. */
   implicit val repositoryLoader: ConfigLoader[SolrRepository] = (rootConfig: Config, path: String) => {
     val config = rootConfig.getConfig(path)
-    if (config.hasPath(SolrHome)) {
-      LocalSolr(new File(config.getString(SolrHome)), config.getString(Core))
-    } else if (config.hasPath(Host) && config.hasPath(Host)) {
-      RemoteSolr(config.getString(Host), config.getInt(Port), config.getString(Configset))
+    if (config.hasPath(SOLR_HOME)) {
+      LocalSolr(new File(config.getString(SOLR_HOME)), config.getString(CORE))
+    } else if (config.hasPath(HOST) && config.hasPath(PORT)) {
+      RemoteSolr(config.getString(HOST), config.getInt(PORT), config.getString(CONFIGSET))
     } else {
       CloudSolr(
-        config.getObjectList(ZKHosts).asScala.map(c => zkHostLoader.load(c.toConfig, ZKHost)),
-        config.getString(Configset),
-        config.getInt(NumShards),
-        config.getInt(NumReplicas)
+        config.getObjectList(ZK_HOSTS).asScala.map(c => zkHostLoader.load(c.toConfig, ZK_HOST)),
+        config.getString(CONFIGSET),
+        config.getInt(NUM_SHARDS),
+        config.getInt(NUM_REPLICAS)
       )
     }
   }

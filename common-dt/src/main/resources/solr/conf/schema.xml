@@ -2,22 +2,21 @@
 <schema name="theorydata" version="1.6">
     <fields>
         <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
-        <field name="id" type="string" required="true" docValues="false" uninvertible="true" multiValued="false"
-               omitTermFreqAndPositions="true"/>
-        <field name="kind" type="string" required="true" docValues="true" multiValued="false"/>
+        <field name="id" type="string" required="true" docValues="false" uninvertible="true" multiValued="false"/>
+        <field name="doc_kind" type="string" docValues="true" multiValued="false" required="true"/>
         <field name="command" type="string" docValues="true" multiValued="false"/>
-        <field name="thy_kind" type="string" docValues="true" multiValued="false"/>
-        <field name="theory" type="name_text" multiValued="false" omitNorms="true"/>
-        <field name="theory_facet" type="string" docValues="true" multiValued="false" omitNorms="true"/>
+        <field name="theory" type="name_text" multiValued="false"/>
+        <field name="kind" type="string" docValues="true" multiValued="false"/>
+        <field name="theory_facet" type="string" docValues="true" multiValued="false"/>
         <field name="start_line" type="pint" multiValued="false"/>
-        <field name="name" type="name_text" multiValued="false" omitNorms="true"/>
-        <field name="name_facet" type="string" docValues="true" multiValued="false" omitNorms="true"/>
+        <field name="name" type="name_text" multiValued="false"/>
+        <field name="name_facet" type="string" docValues="true" multiValued="false"/>
         <field name="type" type="type_text" multiValued="false"/>
         <field name="type_facet" type="string" docValues="true" multiValued="false"/>
         <field name="src_before" type="string" uninvertible="false" multiValued="false"/>
         <field name="src" type="source_text" uninvertible="false" multiValued="false"/>
         <field name="src_after" type="string" uninvertible="false" multiValued="false"/>
-        <field name="uses" type="string" uninvertible="false" multiValued="true" omitTermFreqAndPositions="true"/>
+        <field name="uses" type="string" uninvertible="false" multiValued="true"/>
         <field name="_version_" type="plong" indexed="false" stored="false" multiValued="false"/>
     </fields>
 

@@ -24,8 +24,7 @@ build:
     - echo 'init_component "'$PWD'/importer-isabelle/target/scala-2.12"' >> /root/.isabelle/etc/settings
     - ./ci-scripts/install-elm.sh
   script:
-    - ./sbt -Dprofiles=$profiles clean scalastyle || true
-    - ./sbt -Dprofiles=$profiles coverage test
+    - ./sbt -Dprofiles=$profiles clean coverage test
     - ./sbt -Dprofiles=$profiles it:test
     - ./sbt -Dprofiles=$profiles coverageReport coverageOff scapegoat || true
     - ./sbt sonarScan -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_TOKEN

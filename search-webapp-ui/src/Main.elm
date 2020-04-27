@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Base64.Decode as Base64Decode
 import Browser
-import Browser.Dom
+import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
 import Browser.Navigation as Navigation
 import Components.Details as Details
@@ -12,7 +12,7 @@ import Components.Results as Results
 import Components.Search as Search
 import Components.Theory as Theory
 import DataTypes exposing (..)
-import Html exposing (Html, a, b, br, div, h1, h2, h3, p, span, text)
+import Html exposing (Html, a, br, div, h1, h2, p, text)
 import Html.Attributes exposing (attribute, href, style)
 import Html.Lazy exposing (lazy, lazy2)
 import Http
@@ -30,12 +30,16 @@ import Material.List as MList exposing (listItemConfig)
 import Material.Theme as Theme
 import Material.TopAppBar as TopAppBar exposing (topAppBarConfig)
 import Material.Typography as Typography
+import Pages.About as About
+import Pages.Examples as Examples
+import Pages.Feedback as Feedback
+import Pages.Help as Help
 import Task
 import Url exposing (Url)
 import Url.Builder as UrlBuilder
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 import Url.Parser.Query as UrlQueryParser
-import Util exposing (consIf, ite, toMaybe)
+import Util exposing (consIf, ite, singletonIf)
 
 
 
@@ -69,7 +73,7 @@ init _ url navKey =
             updateFromUrl url (Model baseUrl navKey True 0 False <| Waiting initSearch)
 
         windowSizeCmd =
-            Task.perform (\v -> WidthMsg <| floor v.viewport.width) Browser.Dom.getViewport
+            Task.perform (\v -> WidthMsg <| floor v.viewport.width) Dom.getViewport
     in
     ( model, Cmd.batch [ urlCmd, windowSizeCmd ] )
 
@@ -77,7 +81,7 @@ init _ url navKey =
 {-| Min width for expanded top bar.
 -}
 topBarMinWidth =
-    540
+    600
 
 
 {-| Email address, encoded so it is not visible in the source code.
@@ -112,6 +116,7 @@ type Page
     | Details PageDetails
     | Theory PageTheory
     | Help
+    | Examples
     | Feedback Obfuscated.State
     | About
     | NotFound
@@ -387,6 +392,7 @@ routeParser model =
         , UrlParser.map (parseTheory model) (UrlParser.s "theory" </> UrlParser.string </> UrlParser.string)
         , UrlParser.map ( Feedback <| Obfuscated.init email, Cmd.none ) (UrlParser.s "feedback")
         , UrlParser.map ( Help, Cmd.none ) (UrlParser.s "help")
+        , UrlParser.map ( Examples, Cmd.none ) (UrlParser.s "examples")
         , UrlParser.map ( About, Cmd.none ) (UrlParser.s "about")
         ]
 
@@ -460,10 +466,10 @@ mergeHome model parsedIndex parsedSearch paging =
                             )
                         )
 
-                    Search.NewFacet q ->
+                    Search.NewFieldSearcherFacet q ->
                         -- Search is still good, but information for a new facet is missing
                         ( Home { old | index = index, search = search }
-                        , executeFacetQuery model.apiBaseUrl parsedIndex Search.NewFieldSearcher q
+                        , executeFacetQuery model.apiBaseUrl parsedIndex Search.ForFieldSearcher q
                         )
 
                     Search.UpToDate fqs ->
@@ -525,12 +531,6 @@ urlEncodeHome index search paging =
         ([ UrlBuilder.string "q" (search |> Search.encode |> Encode.encode 0) ]
             |> consIf (not (Paging.isEmpty paging)) (UrlBuilder.string "page" (paging |> Paging.encode |> Encode.encode 0))
         )
-
-
-urlEncodeDefaultQuery : String -> Maybe String -> String
-urlEncodeDefaultQuery index search =
-    UrlBuilder.absolute [ "#search", index ]
-        (search |> Maybe.map (UrlBuilder.string "q" >> List.singleton) |> Maybe.withDefault [])
 
 
 urlEncodeDetail : String -> String -> String
@@ -661,6 +661,8 @@ renderDrawer open =
                 [ MList.listItem { listItemConfig | href = Just "#" } [ text "Search" ]
                 , MList.listItem { listItemConfig | href = Just "#help" }
                     [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "help" ], text "Help" ]
+                , MList.listItem { listItemConfig | href = Just "#examples" }
+                    [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "search" ], text "Examples" ]
                 , MList.listItem { listItemConfig | href = Just "#feedback" }
                     [ MList.listItemGraphic [] [ Icon.icon Icon.iconConfig "question_answer" ], text "Feedback" ]
                 , MList.listItem { listItemConfig | href = Just "#about" }
@@ -694,6 +696,7 @@ renderTopBar width =
                     []
                     [ renderLink "search" "#"
                     , renderLink "help" "#help"
+                    , renderLink "examples" "#examples"
                     , renderLink "feedback" "#feedback"
                     , renderLink "about" "#about"
                     ]
@@ -727,13 +730,16 @@ renderPage width page =
                 |> lazy (renderInPage [])
 
         Help ->
-            renderPageHelp |> renderInPage []
+            Help.view |> renderInPage []
+
+        Examples ->
+            Examples.view |> renderInPage []
 
         Feedback emailState ->
-            renderPageFeedback emailState |> renderInPage []
+            Feedback.config EmailMsg |> lazy2 Feedback.view emailState |> (List.singleton >> renderInPage [])
 
         About ->
-            renderPageAbout |> renderInPage []
+            About.view |> renderInPage []
 
         NotFound ->
             renderPageNotFound |> renderInPage []
@@ -761,7 +767,7 @@ renderInPage additionalAttrs content =
 -}
 renderPageHome : Int -> PageHome -> List (Html Msg)
 renderPageHome width home =
-    (if width > 540 then
+    (if width > topBarMinWidth then
         div [ style "float" "right", style "max-width" "260px", style "margin-top" "16px", style "margin-left" "32px" ]
             [ lazy2 Index.view home.index (Index.config IndexMsg) ]
 
@@ -772,135 +778,19 @@ renderPageHome width home =
                 |> lazy2 Index.view home.index
             ]
     )
-        :: [ h1 [ Typography.headline3 ]
-                [ text "Search "
-                , span [ style "display" "inline-block" ]
-                    [ text
-                        (Results.hasResults home.results
-                            |> toMaybe (" (" ++ String.fromInt (Paging.numResults home.paging) ++ " Results)")
-                            |> Maybe.withDefault ""
-                        )
-                    ]
-                ]
-           , lazy2 Search.view home.search (Search.config SearchInternalMsg SearchMsg)
-           , br [] []
-           , lazy2 Results.view home.results (Results.config ResultsMsg ToDetail FindUsedByMsg FindUsesMsg)
-           , br [] []
-           , lazy2 Paging.view home.paging (Paging.config PagingMsg)
-           ]
-
-
-{-| Renders the 'syntax' page.
--}
-renderPageHelp : List (Html msg)
-renderPageHelp =
-    [ h1 [ Typography.headline3 ] [ text "Help" ]
-    , p [ Typography.body1 ]
-        [ text "Generally, "
-        , b [] [ text "Inputs" ]
-        , text " are split into "
-        , b [] [ text "terms" ]
-        , text " by special characters, such as whitespace, '.', '_', or '-'."
-        ]
-    , h2 [ Typography.headline4 ] [ text "Isabelle Characters" ]
-    , p [ Typography.body1 ]
-        [ text "To search for isabelle characters, use the abbreviation (if unique): "
-        , a [ href "#search?q={\"term\"%3A\"%3D%3D>\"}" ] [ text "==>" ]
-        , text ", the isabelle markup : "
-        , a [ href "#search?q={\"term\"%3A\"\\\\<Longrightarrow>\"}" ] [ text "\\<Longrightarrow>" ]
-        , text ", or the unicode representation: "
-        , a [ href "#search?q={\"term\"%3A\"⟹\"}" ] [ text "⟹" ]
-        , text "."
-        ]
-    , h2 [ Typography.headline4 ] [ text "Main Search Bar" ]
-    , p [ Typography.body1 ]
-        [ text "The main search bar will match for any of your search terms - listings results first where multiple terms match."
-        , br [] []
-        , text "'*' Wildcards are allowed so you don't need to be too specific."
-        ]
-    , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?q={\"term\"%3A\"inv*\"}" ]
-        [ text "Searching for inverse, which might be abbreviated by 'inv'" ]
-    , h2 [ Typography.headline4 ] [ text "Filters" ]
-    , p [ Typography.body1 ]
-        [ text "You can add filters that restrict your results further."
-        , br [] []
-        , text "Filters always target a specific field, and they will restrict results to match either of your inputs. However, for an input to match, all its terms must match."
-        ]
-    , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?&q={\"fields\"%3A[{\"field\"%3A\"Name\"%2C\"terms\"%3A[\"equal nat\"%2C\"equal integer\"]}]}" ]
-        [ text "Filtering for semantic entities with that are (from their name) about equality in integers or nats." ]
-    , h2 [ Typography.headline4 ] [ text "Facets" ]
-    , p [ Typography.body1 ]
-        [ text "If you have restricted your search enough so there are only a handful of alternatives for a property, you can choose between the remaining options."
-        , br [] []
-        , text "Selecting multiple values will give you results that match either."
-        ]
-    , h3 [ Typography.headline6 ] [ text "Example" ]
-    , a [ Typography.typography, href "#search?q={\"term\"%3A\"*\"%2C\"facets\"%3A{\"Kind\"%3A[\"Constant\"]}}" ]
-        [ text "Restricting search to constants" ]
-    ]
-
-
-{-| Renders the 'feedback' page
--}
-renderPageFeedback : Obfuscated.State -> List (Html Msg)
-renderPageFeedback obfuscated =
-    [ h1 [ Typography.headline3 ] [ text "Feedback" ]
-    , p [ Typography.body1 ]
-        [ text "All feedback is greatly appreciated! Also feel free to ask any questions." ]
-    , p [ Typography.body1 ]
-        [ text "Simply write a message to "
-        , Obfuscated.config EmailMsg
-            |> Obfuscated.withDisplay
-                (\s ->
-                    a [ href <| "mailto:" ++ s ++ "?subject=[FindFacts] Feedback..." ]
-                        [ text s ]
-                )
-            |> Obfuscated.withObfuscate (\e -> a [ href "" ] [ e ])
-            |> Obfuscated.view obfuscated
-        , text ". If you have a specific question, please include the URL!"
-        ]
-    , p [ Typography.body1 ]
-        [ text "Please also consider filling out this short "
-        , a [ href "https://forms.gle/K7Dmae9m5uVViPb57" ] [ text "survey" ]
-        , text ". It won't take more than five minutes."
-        ]
-    ]
-
-
-{-| Renders the 'about' page.
--}
-renderPageAbout : List (Html msg)
-renderPageAbout =
-    [ h1 [ Typography.headline3 ] [ text "About" ]
-    , p [ Typography.body1 ]
-        [ text "This is a search application to find formal theory content of "
-        , a [ href "https://isabelle.in.tum.de/" ] [ text "Isabelle" ]
-        , text " and the "
-        , a [ href "https://www.isa-afp.org/" ] [ text "AFP" ]
-        , text "."
-        ]
-    , p [ Typography.body1 ]
-        [ text "The development is part of my master thesis at the "
-        , a [ href "http://www21.in.tum.de/index" ] [ text "Chair for Logic and Verification" ]
-        , text " at TUM, in cooperation with "
-        , a [ href "https://www.qaware.de/" ] [ text "QAware Software Engineering" ]
-        , text "."
-        ]
-    , p [ Typography.body1 ]
-        [ text "Source code can be found in the "
-        , a [ href "https://github.com/qaware/isabelle-afp-search" ] [ text "github repository" ]
-        , text "."
-        ]
-    , h2 [ Typography.headline5 ] [ text "Status" ]
-    , p [ Typography.body1 ] [ text "The application is still ", b [] [ text "work in progress" ], text "." ]
-    , p [ Typography.body1 ]
-        [ text "If you encounter any bugs, unexpected behaviour, unclear UI, or have any suggestions, please leave some "
-        , a [ href "#feedback" ] [ text "feedback" ]
-        , text "."
-        ]
-    ]
+        :: ([ h1 [ Typography.headline3 ] [ text "Search" ]
+            , lazy2 Search.view home.search (Search.config SearchInternalMsg SearchMsg)
+            , br [] []
+            ]
+                ++ singletonIf (Results.hasResults home.results)
+                    (h2 [ Typography.headline4 ]
+                        [ text <| String.fromInt (Paging.numResults home.paging) ++ " Blocks Found" ]
+                    )
+                ++ [ lazy2 Results.view home.results (Results.config ResultsMsg ToDetail FindUsedByMsg FindUsesMsg)
+                   , br [] []
+                   , lazy2 Paging.view home.paging (Paging.config PagingMsg)
+                   ]
+           )
 
 
 {-| Renders the error 404 page.

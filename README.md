@@ -61,3 +61,15 @@ Build and publish docker image:
 ```
 
 For deployment, see the [deployment repo](https://github.com/qaware/findfacts-deployment).
+
+## Code style
+This project uses the [databricks style guide](https://github.com/databricks/scala-style-guide) with some changes:
+
+- __column width__: use 120.
+- __implicits__: Only avoid them outside of well-known patterns, such as type-classes, implicit context, and pimp-my-library.
+- __monadic chaining__: Use for-comprehensions to easily chain monads in an understandable and readable way.
+- __multiple parameter lists__: Use multiple parameter list for partially applicable functions or to improve type inference.
+
+(Most) formatting is automated via scalafmt.
+
+The `importer-isabelle` submodule instead adheres to the Isabelle code style.

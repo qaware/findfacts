@@ -4,24 +4,27 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 import com.typesafe.scalalogging.Logger
+
 import de.qaware.findfacts.common.dt.CodeblockEt
 import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
 import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 import de.qaware.findfacts.importer.{ImportError, TheoryView}
 
-/** Step to join codeblocks and theory entities.
-  *
-  * @param idBuilder to build ids
-  */
+/**
+ * Step to join code-blocks and theory entities.
+ *
+ * @param idBuilder to build ids
+ */
 class JoinBlockEntitiesStep(idBuilder: IdBuilder) extends ImportStep {
   private val logger = Logger[JoinBlockEntitiesStep]
 
-  override def apply(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
+  override def execute(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Joining ${ctx.blocks.size} blocks with ${ctx.theoryEts.size}...")
 
     val errors = ListBuffer.empty[ImportError]
 
     // Create map from blocks by their id
+    @SuppressWarnings(Array("TraversableHead"))
     val blocksMap: mutable.Map[String, CodeblockEt] = mutable.Map(
       ctx.blocks.toList
         .groupBy(_.id)
@@ -37,12 +40,12 @@ class JoinBlockEntitiesStep(idBuilder: IdBuilder) extends ImportStep {
     // Go through entity positions
     val joinErrors = ctx.theoryEtsByPosition flatMap {
       case (pos, theoryEts) =>
-        // Find block in source and get corresponding codeblock
+        // Find block in source and get corresponding code-block
         val block = theory.source
           .get(pos)
-          .flatMap(src => blocksMap.get(CodeblockEt.makeId(theory.name, src.startPos, src.endPos)))
+          .flatMap(src => blocksMap.get(idBuilder.blockId(theory.name, src.startPos, src.endPos)))
 
-        // Update block with the new entiteis
+        // Update block with the new entities
         block match {
           case Some(block) =>
             blocksMap.update(block.id, block.copy(entities = block.entities ++ theoryEts))

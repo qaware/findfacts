@@ -1,19 +1,16 @@
 package de.qaware.findfacts.webapp.utils
 
+import io.circe.generic.auto._
+import io.circe.generic.semiauto._
+import io.circe.{Decoder, Encoder}
+
 import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, FactEt, TheoryEt, TypeEt}
 import de.qaware.findfacts.core.QueryService.ResultList
 import de.qaware.findfacts.core.dt.{ResolvedConstant, ResolvedFact, ResolvedThyEt, ResolvedType, ShortBlock}
 import de.qaware.findfacts.core.{FacetQuery, FilterQuery}
-import io.circe.{Decoder, Encoder}
-// scalastyle:off
-import io.circe.generic.semiauto._
-import io.circe.generic.auto._
-// scalastyle:on
 
 /** This component defines all json mapping implicits. This also encapsulates all automatic derivation. */
 class JsonMappings {
-  // scalastyle:off scaladoc
-
   // Encoding
   implicit val constantEtEncoder: Encoder[ConstantEt] = deriveEncoder[ConstantEt]
   implicit val factEtEncoder: Encoder[FactEt] = deriveEncoder[FactEt]

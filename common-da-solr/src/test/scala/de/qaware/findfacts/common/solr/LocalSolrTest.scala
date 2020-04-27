@@ -3,15 +3,18 @@ package de.qaware.findfacts.common.solr
 import java.io.{File => JFile}
 
 import better.files.File
-import de.qaware.findfacts.scala.Using
 import org.apache.solr.client.solrj.SolrQuery
 import org.apache.solr.common.SolrInputDocument
 import org.scalatest.{FunSuite, Matchers}
 
+import de.qaware.findfacts.scala.Using
+
 class LocalSolrTest extends FunSuite with Matchers {
 
   test("Test without config") {
-    assertThrows[IllegalArgumentException] { LocalSolr(new JFile(""), "missing") }
+    assertThrows[IllegalArgumentException] {
+      LocalSolr(new JFile(""), "missing")
+    }
   }
 
   test("Test core creation") {
@@ -34,7 +37,7 @@ class LocalSolrTest extends FunSuite with Matchers {
         doc.setField("kind", "Parent")
         solr.add("test", doc)
         val res = solr.commit("test")
-        res.getStatus should be (0)
+        res.getStatus should be(0)
       }
       // Re-open index
       Using.resource(LocalSolr(dir.toJava)) { solr =>
@@ -42,8 +45,8 @@ class LocalSolrTest extends FunSuite with Matchers {
         solr.listIndexes should contain theSameElementsAs List("test")
         // Get document
         val resp = solr.query("test", new SolrQuery("*:*"))
-        resp.getStatus should be (0)
-        resp.getResults.getNumFound should be (1)
+        resp.getStatus should be(0)
+        resp.getResults.getNumFound should be(1)
       }
     }
   }

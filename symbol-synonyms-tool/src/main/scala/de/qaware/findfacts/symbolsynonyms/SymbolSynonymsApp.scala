@@ -1,17 +1,19 @@
 package de.qaware.findfacts.symbolsynonyms
 
-import better.files.File
-import com.typesafe.scalalogging.Logger
-import de.qaware.findfacts.core.solrimpl.SolrFilterMapper
-import scopt.{OptionParser, Read}
-
 import scala.collection.mutable
 
-/** Application config.
-  *
-  * @param file input file to read
-  * @param out output file to write to, if any (otherwise write to logging out)
-  */
+import better.files.File
+import com.typesafe.scalalogging.Logger
+import scopt.{OptionParser, Read}
+
+import de.qaware.findfacts.core.solrimpl.SolrFilterMapper
+
+/**
+ * Application config.
+ *
+ * @param file input file to read
+ * @param out output file to write to, if any (otherwise write to logging out)
+ */
 final case class Config(file: File = File(""), out: Option[File] = None)
 
 /** Simple app to parse yxml files. */
@@ -50,11 +52,12 @@ object SymbolSynonymsApp extends App {
   private val logger = Logger[SymbolSynonymsApp.type]
   private val filterMapper = new SolrFilterMapper()
 
-  /** Synonyms.
-    *
-    * @param words that have synonyms
-    * @param replacements for words
-    */
+  /**
+   * Synonyms.
+   *
+   * @param words that have synonyms
+   * @param replacements for words
+   */
   case class Synonym(words: Seq[String], replacements: Seq[String]) {
     def write: String =
       s"${words.map(filterMapper.escape(_, exact = false).drop(1).dropRight(1)).mkString(",")} => ${replacements.mkString(",")}"
@@ -63,25 +66,26 @@ object SymbolSynonymsApp extends App {
   /** Regex for isabelle name and unicode codepoint. */
   val synonym = """^(\\<[^\s]*>)\s*code: 0x([0-9a-fA-F]*) .*""".r
 
-  private def parseLine(line: String, uniqueAbbrevs: Set[String]): Option[Synonym] = line match {
-    case synonym(isabelleToken, hex) =>
-      val replacement = Character.toString(Integer.parseInt(hex, 16))
-      val abbrevs = getAbbrevs(line).filter(uniqueAbbrevs.contains).filter { abbrev =>
-        if (IsTokenDelimited.test(abbrev)) {
-          logger.info(
-            "<charFilter class=\"solr.PatternReplaceCharFilterFactory\" pattern=\"\\Q" + abbrev + "\\E\" replacement=\"" + replacement + "\"/>")
-          false
-        } else if (IsSynonymDelimiter.test(abbrev)) {
-          logger.info(
-            "<filter class=\"solr.PatternReplaceFilterFactory\" pattern=\"\\Q" + abbrev + "\\E\" replacement=\"" + replacement + "\"/>")
-          false
-        } else {
-          true
+  private def parseLine(line: String, uniqueAbbrevs: Set[String]): Option[Synonym] =
+    line match {
+      case synonym(isabelleToken, hex) =>
+        val replacement = Character.toString(Integer.parseInt(hex, 16))
+        val abbrevs = getAbbrevs(line).filter(uniqueAbbrevs.contains).filter { abbrev =>
+          if (IsTokenDelimited.test(abbrev)) {
+            logger.info(
+              "<charFilter class=\"solr.PatternReplaceCharFilterFactory\" pattern=\"\\Q" + abbrev + "\\E\" replacement=\"" + replacement + "\"/>")
+            false
+          } else if (IsSynonymDelimiter.test(abbrev)) {
+            logger.info(
+              "<filter class=\"solr.PatternReplaceFilterFactory\" pattern=\"\\Q" + abbrev + "\\E\" replacement=\"" + replacement + "\"/>")
+            false
+          } else {
+            true
+          }
         }
-      }
-      Some(Synonym(isabelleToken +: abbrevs, Seq(replacement)))
-    case _ => None
-  }
+        Some(Synonym(isabelleToken +: abbrevs, Seq(replacement)))
+      case _ => None
+    }
 
   private def getAbbrevs(s: String): List[String] = "abbrev: ([^\\s]+)".r.findAllMatchIn(s).map(_.group(1)).toList
 

@@ -2,11 +2,10 @@ package de.qaware.findfacts.common.dt.solr
 
 /** All solr fields. */
 object SolrSchema {
-  // scalastyle:off scaladoc Justification: better explained in the entity classes.
   final val Id = "id"
-  final val DocKind = "kind"
+  final val DocKind = "doc_kind"
   final val ParentFlag = "parent_flag"
-  final val TheoryKind = "thy_kind"
+  final val TheoryKind = "kind"
   final val Command = "command"
   final val SourceTheory = "theory"
   final val SourceTheoryFacet = "theory_facet"
@@ -20,5 +19,4 @@ object SolrSchema {
   final val ConstantType = "type"
   final val ConstantTypeFacet = "type_facet"
   final val Children = "children"
-  // scalastyle:on scaladoc
 }

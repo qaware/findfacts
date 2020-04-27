@@ -1,7 +1,8 @@
 package de.qaware.findfacts.common.dt
 
-import de.qaware.findfacts.common.utils.DefaultEnum
 import enumeratum.EnumEntry
+
+import de.qaware.findfacts.common.utils.DefaultEnum
 
 /** Union type for theory entity kinds. */
 sealed trait Kind extends EnumEntry
@@ -10,15 +11,12 @@ sealed trait Kind extends EnumEntry
 object Kind extends DefaultEnum[Kind] {
   override final val values = findValues
 
-  /** Code blocks. */
-  case object Block extends Value
-
   /** Type definitions. */
-  case object Type extends Value
+  case object Type extends Kind
 
   /** Pure constants. */
-  case object Constant extends Value
+  case object Constant extends Kind
 
   /** Pure axioms and theorems. */
-  case object Fact extends Value
+  case object Fact extends Kind
 }

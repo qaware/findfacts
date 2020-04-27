@@ -1,6 +1,7 @@
 package de.qaware.findfacts.importer.steps.impl
 
 import com.typesafe.scalalogging.Logger
+
 import de.qaware.findfacts.importer.ImportError
 import de.qaware.findfacts.importer.TheoryView.Theory
 import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
@@ -9,21 +10,17 @@ import de.qaware.findfacts.importer.steps.{ImportStep, StepContext}
 class SanityCheckStep extends ImportStep {
   private val logger = Logger[SanityCheckStep]
 
-  override def apply(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
+  override def execute(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Checking sanity for ${ctx.allEts.size} entities")
     // Check unique IDs
     val duplicateIDs = ctx.allEts.groupBy(_.id).filter(_._2.size > 1)
 
-    // Check that names of each kind are unique
-    val duplicateNames = ctx.theoryEts.groupBy(e => (e.name, e.getClass)).filter(_._2.size > 1)
-
     // Check that uses are distinct
-    val duplicateUses = ctx.theoryEts.filter(e => e.uses.distinct.size != e.uses.size)
+    val duplicateUses = ctx.theoryEts.filter(e => e.uses.distinct.length != e.uses.length)
 
-    logger.debug(s"Finished checking sanity, found ${duplicateIDs.size + duplicateNames.size + duplicateUses.size} potential issues")
+    logger.debug(s"Finished checking sanity, found ${duplicateIDs.size + duplicateUses.size} potential issues")
 
-    duplicateIDs.map(e => ImportError(this, e._1, "Dumplicate id", e._2.mkString(","))).toList ++
-      duplicateNames.map(e => ImportError(this, s"${e._1._1}:${e._1._2}", "Duplicate name", e._2.mkString(","))) ++
+    duplicateIDs.map(e => ImportError(this, e._1, "Duplicate id", e._2.mkString(","))).toList ++
       duplicateUses.map(e => ImportError(this, e.name, "Duplicate uses in entity", e.toString))
   }
 }

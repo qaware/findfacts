@@ -1,9 +1,10 @@
 package de.qaware.findfacts.core
 
-import de.qaware.findfacts.common.dt.EtField
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalatest.{FunSuite, Matchers}
+
+import de.qaware.findfacts.common.dt.EtField
 
 class QueryTest extends FunSuite with Matchers {
   test("Json encoding/decoding for filter query") {

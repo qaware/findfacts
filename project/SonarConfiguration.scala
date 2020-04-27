@@ -20,41 +20,42 @@ object SonarConfiguration extends AutoPlugin {
   import autoImport._
 
   /** Retrieves sonarProjects' names, in a comma-seperated string. */
-  def sonarModules: Def.Initialize[String] = Def.settingDyn {
-    val names = sonarProjects.value.map(project => Def.setting(name.in(project).value))
-    Def.Initialize.joinInitialize(names).join.apply(_.mkString(","))
-  }
+  def sonarModules: Def.Initialize[String] =
+    Def.settingDyn {
+      val names = sonarProjects.value.map(project => Def.setting(name.in(project).value))
+      Def.Initialize.joinInitialize(names).join.apply(_.mkString(","))
+    }
 
   /** Retrieves key-value-pairs of sonar settings. */
-  def sonarModuleSettings: Def.Initialize[Map[String, String]] = Def.settingDyn {
-    val settings = sonarProjects.value map { project =>
-      Def.setting {
-        // Read out paths, as the plugin doesn't to that correctly
-        val projectName = name.in(project).value
-        val sourceDir = (project / Compile / sourceDirectory).value.getPath
-        val testSources =
-          Seq((project / Test / sourceDirectory).value, (project / IntegrationTest / sourceDirectory).value)
-            .filter(_.exists)
-            .map(_.getPath)
-            .filterNot(sourceDir.contains(_))
-            .mkString(",")
+  def sonarModuleSettings: Def.Initialize[Map[String, String]] =
+    Def.settingDyn {
+      val settings = sonarProjects.value map { project =>
+        Def.setting {
+          // Read out paths, as the plugin doesn't to that correctly
+          val projectName = name.in(project).value
+          val sourceDir = (project / Compile / sourceDirectory).value.getPath
+          val testSources =
+            Seq((project / Test / sourceDirectory).value, (project / IntegrationTest / sourceDirectory).value)
+              .filter(_.exists)
+              .map(_.getPath)
+              .filterNot(sourceDir.contains(_))
+              .mkString(",")
 
-        val targetDir = (project / Compile / target).value
-        // Build sonar config map
-        Seq(
-          s"$projectName.sonar.sources" -> sourceDir,
-          s"$projectName.sonar.tests" -> testSources,
-          s"$projectName.sonar.junit.reportPaths" -> (targetDir / "test-reports").getPath,
-          s"$projectName.sonar.scala.coverage.reportPaths" ->
-            (targetDir / "scala-2.12" / "scoverage-report" / "scoverage.xml").getPath,
-          s"$projectName.sonar.scala.scapegoat.reportPaths" ->
-            (targetDir / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath,
-          s"$projectName.sonar.scala.scalastyle.reportPaths" -> (targetDir / "scalastyle-result.xml").getPath
-        )
+          val targetDir = (project / Compile / target).value
+          // Build sonar config map
+          Seq(
+            s"$projectName.sonar.sources" -> sourceDir,
+            s"$projectName.sonar.tests" -> testSources,
+            s"$projectName.sonar.junit.reportPaths" -> (targetDir / "test-reports").getPath,
+            s"$projectName.sonar.scala.coverage.reportPaths" ->
+              (targetDir / "scala-2.12" / "scoverage-report" / "scoverage.xml").getPath,
+            s"$projectName.sonar.scala.scapegoat.reportPaths" ->
+              (targetDir / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath
+          )
+        }
       }
+      Def.Initialize.join(settings).apply(_.flatten.toMap)
     }
-    Def.Initialize.join(settings).apply(_.flatten.toMap)
-  }
 
   override lazy val projectSettings: Seq[Setting[_]] = Seq(
     sonarProperties ++= Map(
@@ -66,7 +67,8 @@ object SonarConfiguration extends AutoPlugin {
     aggregate in sonarScan := false
   )
 
-  override def buildSettings: Seq[Def.Setting[_]] = Seq(
-    scapegoatVersion := "1.3.8"
-  )
+  override def buildSettings: Seq[Def.Setting[_]] =
+    Seq(
+      scapegoatVersion := "1.3.8"
+    )
 }

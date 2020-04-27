@@ -1,18 +1,19 @@
 package de.qaware.findfacts.webapp.filters
 
+import scala.concurrent.{ExecutionContext, Future}
+
 import akka.stream.Materializer
 import play.api.Logging
 import play.api.mvc.{Filter, RequestHeader, Result}
 
-import scala.concurrent.{ExecutionContext, Future}
-
-/** Filter to log request path, timing, and status.
-  * Code from https://www.playframework.com/documentation/2.7.x/ScalaHttpFilters, for some reason this is not actually
-  * included in the play sources.
-  *
-  * @param mat stream materializer for Filter
-  * @param ctx execution context of request
-  */
+/**
+ * Filter to log request path, timing, and status.
+ * Code from https://www.playframework.com/documentation/2.7.x/ScalaHttpFilters, for some reason this is not actually
+ * included in the play sources.
+ *
+ * @param mat stream materializer for Filter
+ * @param ctx execution context of request
+ */
 class StatsLoggingFilter(implicit val mat: Materializer, ctx: ExecutionContext) extends Filter with Logging {
   override def apply(nextFilter: RequestHeader => Future[Result])(requestHeader: RequestHeader): Future[Result] = {
     val startTime = System.currentTimeMillis

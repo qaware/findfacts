@@ -1,8 +1,8 @@
 package de.qaware.findfacts.common.utils
 
-import org.scalatest.{FunSuite, Matchers}
-
 import scala.util.Success
+
+import org.scalatest.{FunSuite, Matchers}
 
 class FromStringTest extends FunSuite with Matchers {
 
@@ -14,5 +14,4 @@ class FromStringTest extends FunSuite with Matchers {
   test("test string from string") {
     FromString[String].apply("some string") should equal(Success("some string"))
   }
-
 }
