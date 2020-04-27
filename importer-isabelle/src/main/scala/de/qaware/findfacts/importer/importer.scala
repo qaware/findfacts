@@ -75,36 +75,43 @@ object Importer
     /* arguments */
 
     var index_name = "theorydata"
-    var sessions: List[String] = Nil
+    var all_sessions = false
     var configset = Isabelle_System.getenv("SOLR_CONFIGSET")
     var local_solr = ""
     var remote_solr: List[String] = Nil
 
     val getopts = Getopts("""
-Usage: isabelle dump_importer [OPTIONS] DUMPDIR
+Usage: isabelle dump_importer [OPTIONS] [SESSIONS ...] DUMPDIR
 
   Options are:
-    -B NAME         import session NAME
-    -I NAME         solr index NAME
-    -L SOLRDIR      local solr repository at SOLRDIR
-    -R HOST:PORT    remote solr connection at HOST:PORT
-    -C NAME         solr configset NAME
+    -a              select all dumped sessions
+    -i NAME         index NAME to import into
+    -C NAME         Solr configset NAME
+    -l SOLRDIR      local Solr repository at SOLRDIR
+    -r HOST:PORT    remote Solr connection at HOST:PORT
 
-  Import isabelle dump from DUMPDIR into solr db.
-  Only one solr connection may be specified.
-  For remote connections, a configset must be specified
-  (either via argument or env var 'SOLR_CONFIGSET').
+  Import isabelle dump from DUMPDIR into solr db. Only one solr connection
+  may be used. For remote connections, a configset must be set (either via
+  argument or env var 'SOLR_CONFIGSET').
+  Index name usually has form '${NAME}_${ISABELLE_VERSION}_${AFP_VERSION}'.
 """,
-      "B:" -> (arg => sessions = sessions ::: List(arg)),
-      "I:" -> (arg => index_name = arg),
+      "a" -> (_ => all_sessions = true),
+      "i:" -> (arg => index_name = arg),
       "C:" -> (arg => configset = arg),
-      "L:" -> (arg => local_solr = arg),
-      "R:" -> (arg => remote_solr = Library.distinct(space_explode(':', arg))))
+      "l:" -> (arg => local_solr = arg),
+      "r:" -> (arg => remote_solr = Library.distinct(space_explode(':', arg))))
 
     val more_args = getopts(args)
 
     val dump_dir = more_args match {
-      case dump :: Nil => Path.explode(dump)
+      case Nil => getopts.usage
+      case opts => Path.explode(opts.last)
+    }
+    val dump_theory_dirs = File.read_dir(dump_dir)
+
+    val sessions = (more_args.dropRight(1), all_sessions) match {
+      case (Nil, true) => dump_theory_dirs.map(_.split('.').head).distinct
+      case (session_list, false) => session_list
       case _ => getopts.usage
     }
 
@@ -119,14 +126,6 @@ Usage: isabelle dump_importer [OPTIONS] DUMPDIR
       val importer_module = new SolrImporterModule(solr_repository)
 
       val progress = new Console_Progress()
-
-      // find all sessions written by 'isabelle dump'
-
-      val dump_theory_dirs = File.read_dir(dump_dir)
-
-      if (sessions.isEmpty) {
-        sessions = dump_theory_dirs.map(_.split('.').head).distinct
-      }
 
       // run import
 

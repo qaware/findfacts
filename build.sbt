@@ -4,7 +4,7 @@ import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
-val projectVersion = "0.4.1-SNAPSHOT"
+val projectVersion = "0.4.2-SNAPSHOT"
 val schemaVersion = "0.3.1"
 
 // Project-wide settings
