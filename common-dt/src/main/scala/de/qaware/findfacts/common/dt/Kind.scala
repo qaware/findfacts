@@ -6,7 +6,7 @@ import io.swagger.annotations.ApiModel
 import de.qaware.findfacts.common.utils.DefaultEnum
 
 /** Union type for theory entity kinds. */
-@ApiModel(description = "variants: " + Kind.names)
+@ApiModel(description = Kind.names)
 sealed trait Kind extends EnumEntry
 
 /** Kinds of theory entities. */

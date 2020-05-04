@@ -8,7 +8,7 @@ import de.qaware.findfacts.common.dt.solr.SolrSchema
 import de.qaware.findfacts.common.utils.DefaultEnum
 
 /** Seal field types so only existing fields can be used. */
-@ApiModel(description = "variants: " + EtField.names)
+@ApiModel(description = EtField.names)
 sealed trait EtField extends EnumEntry with Field {
 
   /** Flag for parent fields. */

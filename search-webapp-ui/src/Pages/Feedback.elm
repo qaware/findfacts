@@ -42,9 +42,4 @@ view obfuscated (Config { toMsg }) =
                 |> Obfuscated.view obfuscated
             , text ". If you have a specific question, please include the URL!"
             ]
-        , p [ Typography.body1 ]
-            [ text "Please also consider filling out this short "
-            , a [ href "https://forms.gle/K7Dmae9m5uVViPb57" ] [ text "survey" ]
-            , text ". It won't take more than five minutes."
-            ]
         ]

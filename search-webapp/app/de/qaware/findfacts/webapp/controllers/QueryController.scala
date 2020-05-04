@@ -31,10 +31,11 @@ class QueryController(
   extends AbstractController(cc)
   with Circe
   with Logging {
-  // Import all json mapping implicits
 
+  // Import all json mapping implicits
   import jsonMappings._
 
+  // Examples
   private final val ExampleFilterQuery =
     """
 {
@@ -67,37 +68,118 @@ class QueryController(
   "maxFacets": 10
 }
 """
-  private final val NOT_AN_ID = "Not an id"
-  private final val ENTITY_NOT_FOUND = "Entity not found"
-  private final val INDEX = "Index to search in"
+
+  // Parameters
+  private final val INDEX = "index to search in"
+  private final val BLOCK = "id of block (or contained entity) to fetch"
+
+  // Errors
+  private final val NOT_AN_ID = "not an id"
+  private final val INVALID_QUERY = "invalid query parameters"
+  private final val ENTITY_NOT_FOUND = "index not found, entity not found"
+  private final val MALFORMED_QUERY = "index not found, malformed query"
 
   // Json printer defines output format
   implicit val jsonPrinter: Printer = Printer.noSpacesSortKeys.copy(dropNullValues = true)
 
   // Api Operations.
   @ApiOperation(
-    value = "SearchComponent query",
-    notes = "Accepts a search query and returns list of all results.",
-    response = classOf[ShortBlock],
+    value = "List Indexes",
+    notes = "Retrieves a list of all available indexes.",
+    response = classOf[String],
     responseContainer = "List",
-    httpMethod = "POST"
+    httpMethod = "GET"
+  )
+  def indexes(): Action[AnyContent] =
+    Action.async { request: Request[AnyContent] =>
+      actionBuilder.inResult((_: Request[AnyContent]) => queryService.listIndexes) { indexes =>
+        Future.successful(Ok(indexes.asJson))
+      }(request)
+    }
+
+  @ApiOperation(
+    value = "Retrieve Block",
+    notes = "Retrieves information about a single block.",
+    response = classOf[CodeblockEt],
+    httpMethod = "GET")
+  @ApiResponses(
+    Array(new ApiResponse(code = 400, message = ENTITY_NOT_FOUND), new ApiResponse(code = 422, message = NOT_AN_ID)))
+  def block(
+      @ApiParam(value = INDEX, required = true) index: String,
+      @ApiParam(value = BLOCK, required = true) id: String): Action[AnyContent] =
+    actionBuilder.indexValid(index) {
+      actionBuilder.idValid(id) {
+        Action.async { request: Request[AnyContent] =>
+          actionBuilder.inResult((_: Request[AnyContent]) => queryService.getBlock(id)(index)) {
+            actionBuilder.inOption(identity[Option[CodeblockEt]]) { value =>
+              Future.successful(Ok(value.asJson))
+            }
+          }(request)
+        }
+      }
+    }
+
+  @ApiOperation(
+    value = "Retrieve Short Block",
+    notes = "Retrieves the shortened information about a single block.",
+    response = classOf[ShortBlock],
+    httpMethod = "GET"
   )
   @ApiResponses(
-    Array(
-      new ApiResponse(code = 400, message = "Invalid Query"),
-      new ApiResponse(code = 400, message = "Index Not Found"),
-      new ApiResponse(code = 422, message = "Invalid Query Parameter")
-    ))
+    Array(new ApiResponse(code = 400, message = ENTITY_NOT_FOUND), new ApiResponse(code = 422, message = NOT_AN_ID)))
+  def shortBlock(
+      @ApiParam(value = INDEX, required = true) index: String,
+      @ApiParam(value = BLOCK, required = true) id: String): Action[AnyContent] =
+    actionBuilder.indexValid(index) {
+      actionBuilder.idValid(id) {
+        Action.async { request: Request[AnyContent] =>
+          actionBuilder.inResult((_: Request[AnyContent]) => queryService.getShortBlock(id)(index)) {
+            actionBuilder.inOption(identity[Option[ShortBlock]]) { value =>
+              Future.successful(Ok(value.asJson))
+            }
+          }(request)
+        }
+      }
+    }
+
+  @ApiOperation(
+    value = "Resolve Theory Entity",
+    notes = "Retrieves a theory entity and resolved information about its relations.",
+    response = classOf[ResolvedThyEt],
+    httpMethod = "GET")
+  @ApiResponses(
+    Array(new ApiResponse(code = 400, message = ENTITY_NOT_FOUND), new ApiResponse(code = 422, message = NOT_AN_ID)))
+  def resolved(
+      @ApiParam(value = INDEX, required = true) index: String,
+      @ApiParam(value = "id of theory entity to fetch", required = true) id: String): Action[AnyContent] =
+    actionBuilder.indexValid(index) {
+      actionBuilder.idValid(id) {
+        Action.async { request: Request[AnyContent] =>
+          actionBuilder.inResult((_: Request[AnyContent]) => queryService.getResultResolved(id)(index)) {
+            actionBuilder.inOption(identity[Option[ResolvedThyEt]]) { value =>
+              Future.successful(Ok(value.asJson))
+            }
+          }(request)
+        }
+      }
+    }
+
+  @ApiOperation(
+    value = "Execute Filter Query",
+    notes = "Executes a filter query and returns a list of all results.",
+    response = classOf[ShortBlock],
+    responseContainer = "List",
+    httpMethod = "POST")
+  @ApiResponses(
+    Array(new ApiResponse(code = 400, message = MALFORMED_QUERY), new ApiResponse(code = 422, message = INVALID_QUERY)))
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(
-        name = "filterQuery",
-        value = "filter query object",
+        value = "filter query",
         required = true,
         paramType = "body",
         dataType = "de.qaware.findfacts.core.FilterQuery",
-        examples = new Example(value = Array(new ExampleProperty(mediaType = "default", value = ExampleFilterQuery)))
-      )))
+        examples = new Example(value = Array(new ExampleProperty(mediaType = "default", value = ExampleFilterQuery))))))
   def search(@ApiParam(value = INDEX, required = true) index: String): Action[FilterQuery] = {
     implicit val idx: String = index
     actionBuilder.indexValid(index) {
@@ -112,93 +194,17 @@ class QueryController(
   }
 
   @ApiOperation(
-    value = "Gets a single entity",
-    notes = "Retrieves information about a single entity",
-    response = classOf[CodeblockEt],
-    httpMethod = "GET")
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 400, message = ENTITY_NOT_FOUND),
-      new ApiResponse(code = 422, message = NOT_AN_ID)))
-  def entity(
-      @ApiParam(value = INDEX, required = true) index: String,
-      @ApiParam(value = "ID of result entity to fetch", required = true) id: String): Action[AnyContent] =
-    actionBuilder.indexValid(index) {
-      actionBuilder.idValid(id) {
-        Action.async { request: Request[AnyContent] =>
-          actionBuilder.inResult((_: Request[AnyContent]) => queryService.getBlock(id)(index)) {
-            actionBuilder.inOption(identity[Option[CodeblockEt]]) { value =>
-              Future.successful(Ok(value.asJson))
-            }
-          }(request)
-        }
-      }
-    }
-
-  @ApiOperation(
-    value = "Resolves a theory entity.",
-    notes = "Fetches values for relations of a theory entity",
-    response = classOf[ResolvedThyEt],
-    httpMethod = "GET")
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 400, message = ENTITY_NOT_FOUND),
-      new ApiResponse(code = 422, message = NOT_AN_ID)))
-  def resolved(
-      @ApiParam(value = INDEX, required = true) index: String,
-      @ApiParam(value = "ID of theory entity to fetch", required = true) id: String): Action[AnyContent] =
-    actionBuilder.indexValid(index) {
-      actionBuilder.idValid(id) {
-        Action.async { request: Request[AnyContent] =>
-          actionBuilder.inResult((_: Request[AnyContent]) => queryService.getResultResolved(id)(index)) {
-            actionBuilder.inOption(identity[Option[ResolvedThyEt]]) { value =>
-              Future.successful(Ok(value.asJson))
-            }
-          }(request)
-        }
-      }
-    }
-  @ApiOperation(
-    value = "Gets a single command.",
-    notes = "Retrieves the shortened information about a single command.",
-    response = classOf[ShortBlock],
-    httpMethod = "GET"
-  )
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 400, message = ENTITY_NOT_FOUND),
-      new ApiResponse(code = 422, message = NOT_AN_ID)))
-  def shortBlock(
-      @ApiParam(value = INDEX, required = true) index: String,
-      @ApiParam(value = "ID of cmd to fetch", required = true) id: String): Action[AnyContent] =
-    actionBuilder.indexValid(index) {
-      actionBuilder.idValid(id) {
-        Action.async { request: Request[AnyContent] =>
-          actionBuilder.inResult((_: Request[AnyContent]) => queryService.getShortBlock(id)(index)) {
-            actionBuilder.inOption(identity[Option[ShortBlock]]) { value =>
-              Future.successful(Ok(value.asJson))
-            }
-          }(request)
-        }
-      }
-    }
-
-  @ApiOperation(
-    value = "Facet query",
+    value = "Execute Facet Query",
     notes = "Executes a facet query and returns faceted results.",
-    response = classOf[Map[_, _]],
+    response = classOf[Int],
     responseContainer = "Map",
-    httpMethod = "POST"
-  )
+    httpMethod = "POST")
   @ApiResponses(
-    Array(
-      new ApiResponse(code = 400, message = "Invalid Query"),
-      new ApiResponse(code = 422, message = "Invalid Query Parameters")))
+    Array(new ApiResponse(code = 400, message = MALFORMED_QUERY), new ApiResponse(code = 422, message = INVALID_QUERY)))
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(
-        name = "facetQuery",
-        value = "facet query object",
+        value = "facet query",
         required = true,
         paramType = "body",
         dataType = "de.qaware.findfacts.core.FacetQuery",
@@ -218,18 +224,4 @@ class QueryController(
       }
     }
   }
-
-  @ApiOperation(
-    value = "Index list",
-    notes = "Gets all available indexes.",
-    response = classOf[String],
-    responseContainer = "List",
-    httpMethod = "GET"
-  )
-  def indexes(): Action[AnyContent] =
-    Action.async { request: Request[AnyContent] =>
-      actionBuilder.inResult((_: Request[AnyContent]) => queryService.listIndexes) { indexes =>
-        Future.successful(Ok(indexes.asJson))
-      }(request)
-    }
 }

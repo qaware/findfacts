@@ -197,7 +197,8 @@ lazy val `search-webapp` = project
     javaOptions in Runtime ++= Seq(
       // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
       "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
-      "-Dsolr.configset=theorydata-" + schemaVersion
+      "-Dsolr.configset=theorydata-" + schemaVersion,
+      "-Dapp.version=" + projectVersion
     ),
     libraryDependencies ++= (loggingBackend ++ circe ++ playSwaggerGen ++ Seq(
       playGuice,
