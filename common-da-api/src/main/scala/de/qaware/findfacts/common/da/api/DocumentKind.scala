@@ -10,6 +10,7 @@ sealed trait DocumentKind extends EnumEntry
 /** Kind of documents */
 object DocumentKind extends DefaultEnum[DocumentKind] {
   override final val values = findValues
+  override final val names = findNames
 
   /** Parent docs. */
   case object Parent extends DocumentKind

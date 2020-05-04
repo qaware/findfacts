@@ -104,7 +104,7 @@ lazy val `common-dt` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
-    libraryDependencies ++= circe ++ Seq(shapeless, scalaTest % "it") ++ loggingBackend.map(_ % "it")
+    libraryDependencies ++= circe ++ Seq(swaggerAnnotations, shapeless, scalaTest % "it") ++ loggingBackend.map(_ % "it")
   )
   .dependsOn(`common-da-api`, `common-utils`, `common-da-solr` % "it")
 
@@ -182,7 +182,11 @@ lazy val `search-core` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
-    libraryDependencies ++= (loggingBackend ++ mockito).map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it")
+    libraryDependencies ++= (loggingBackend ++ mockito).map(_ % "it") ++ Seq(
+      shapeless,
+      circeGeneric,
+      swaggerAnnotations,
+      scalaTest % "it")
   )
   .dependsOn(`common-dt`, `common-da-solr`, `common-utils`, `common-dt` % "it->it")
 
@@ -195,11 +199,9 @@ lazy val `search-webapp` = project
       "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
       "-Dsolr.configset=theorydata-" + schemaVersion
     ),
-    libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
+    libraryDependencies ++= (loggingBackend ++ circe ++ playSwaggerGen ++ Seq(
       playGuice,
       playCirce,
-      playSwaggerGen,
-      swaggerUi,
       playTestPlus % "test"
     )),
     dockerPermissionStrategy := DockerPermissionStrategy.Run,

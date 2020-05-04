@@ -2,6 +2,7 @@ package de.qaware.findfacts.core.dt
 
 import io.circe.generic.auto._
 
+import de.qaware.findfacts.common.dt.Children
 import de.qaware.findfacts.common.dt.EtField._
 
 /** Children field for short theory entities. */
@@ -25,12 +26,11 @@ final case class ShortBlock(
     id: Id.T,
     theory: SourceTheory.T,
     startLine: StartLine.T,
-    srcBefore: SourceTextBefore.T,
-    src: SourceText.T,
-    srcAfter: SourceTextAfter.T,
+    srcBefore: SourceCodeBefore.T,
+    src: SourceCode.T,
+    srcAfter: SourceCodeAfter.T,
     entities: ShortChildren.T,
-    command: Command.T
-)
+    command: Command.T)
 
 /**
  * Short theory entity.

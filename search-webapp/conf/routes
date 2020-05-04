@@ -6,7 +6,7 @@ GET     /                                           de.qaware.findfacts.webapp.c
 # Redirect to swagger doc index
 GET     /docs                                       de.qaware.findfacts.webapp.controllers.HomeController.redirectDocs
 # Deliver swagger-ui assets
-GET     /docs/*file                                 controllers.Assets.at(path:String="/public/lib/swagger-ui/dist", file:String)
+GET     /docs/*file                                 controllers.Assets.at(path:String="/public/swagger-ui", file:String)
 # Deliver generated swagger.json
 GET     /swagger.json                               controllers.ApiHelpController.getResources
 

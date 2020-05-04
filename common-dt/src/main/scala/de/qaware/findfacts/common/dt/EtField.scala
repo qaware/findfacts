@@ -1,12 +1,14 @@
 package de.qaware.findfacts.common.dt
 
 import enumeratum.EnumEntry
+import io.swagger.annotations.ApiModel
 
 import de.qaware.findfacts.common.da.api.{ChildrenField, DocumentKind, Field, MultiValuedField, SingleValuedField}
 import de.qaware.findfacts.common.dt.solr.SolrSchema
 import de.qaware.findfacts.common.utils.DefaultEnum
 
 /** Seal field types so only existing fields can be used. */
+@ApiModel(description = "variants: " + EtField.names)
 sealed trait EtField extends EnumEntry with Field {
 
   /** Flag for parent fields. */
@@ -26,8 +28,18 @@ sealed trait ChildField extends EtField {
   override val isParent: Boolean = false
 }
 
+/**
+ * Field for child entities.
+ *
+ * @tparam A Children type
+ */
+abstract class Children[A] extends ChildrenField[A] with ParentField {
+  override val name: String = SolrSchema.Children
+}
+
 /** Type-level representation of parent fields. */
 object EtField extends DefaultEnum[EtField] {
+  override final val names = findNames
   override final val values = findValues
 
   /** Unique id. */
@@ -55,20 +67,20 @@ object EtField extends DefaultEnum[EtField] {
   }
 
   /** Source text in theory before this code block. */
-  case object SourceTextBefore extends SingleValuedField[String] with ParentField {
-    override val name: String = SolrSchema.SourceTextBefore
+  case object SourceCodeBefore extends SingleValuedField[String] with ParentField {
+    override val name: String = SolrSchema.SourceCodeBefore
     override val implicits: FieldImplicits[String] = FieldImplicits()
   }
 
   /** Source text in isabelle thy. */
-  case object SourceText extends SingleValuedField[String] with ParentField {
-    override final val name = SolrSchema.SourceText
+  case object SourceCode extends SingleValuedField[String] with ParentField {
+    override final val name = SolrSchema.SourceCode
     override val implicits: FieldImplicits[String] = FieldImplicits()
   }
 
   /** Source text in theory after this code block. */
-  case object SourceTextAfter extends SingleValuedField[String] with ParentField {
-    override val name: String = SolrSchema.SourceTextAfter
+  case object SourceCodeAfter extends SingleValuedField[String] with ParentField {
+    override val name: String = SolrSchema.SourceCodeAfter
     override val implicits: FieldImplicits[String] = FieldImplicits()
   }
 
@@ -88,15 +100,6 @@ object EtField extends DefaultEnum[EtField] {
   case object StartLine extends SingleValuedField[Int] with ParentField {
     override final val name = SolrSchema.StartLine
     override val implicits: FieldImplicits[Int] = FieldImplicits()
-  }
-
-  /**
-   * Field for child entities.
-   *
-   * @tparam A Children type
-   */
-  abstract class Children[A] extends ChildrenField[A] with ParentField {
-    override val name: String = SolrSchema.Children
   }
 
   /** Kind of theory entity. Possible values in [[Kind]]. */

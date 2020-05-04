@@ -9,6 +9,7 @@ object Dependencies {
 
   val circeVersion = "0.12.0"
   val playCirceVersion = "2712.0"
+  val swaggerAnnotationsVersion = "1.5.22"
   val playSwaggerGenVersion = "1.7.1"
 
   val log4jVersion = "2.12.1"
@@ -23,7 +24,6 @@ object Dependencies {
   val shapelessVersion = "2.3.3"
   val catsVersion = "2.0.0"
   val scoptsVersion = "3.7.1"
-  val swaggerUiVersion = "2.2.10"
   val parserCombinatorsVersion = "1.1.2"
   val fastparseVersion = "2.1.3"
   val tukaaniVersion = "1.8"
@@ -56,7 +56,6 @@ object Dependencies {
     "io.circe" %% "circe-parser" % circeVersion
   )
   val scalaCompiler = "org.scala-lang" % "scala-compiler" % scalaVersion
-  val swaggerUi = "org.webjars.npm" % "swagger-ui" % swaggerUiVersion
   val scalaParserCombinators = "org.scala-lang.modules" %% "scala-parser-combinators" % parserCombinatorsVersion
   val fastParse = "com.lihaoyi" %% "fastparse" % fastparseVersion
   val solr = ("org.apache.solr" % "solr-core" % solrVersion
@@ -67,7 +66,9 @@ object Dependencies {
   val playCirce = "com.dripower" %% "play-circe" % playCirceVersion
   val playTestPlus = ("org.scalatestplus.play" %% "scalatestplus-play" % scalaTestPlusVersion
     excludeAll ("org.slf4j" %% "slf4j-api"))
-  val playSwaggerGen = ("io.swagger" %% "swagger-play2" % playSwaggerGenVersion
+  val swaggerAnnotations = "io.swagger" % "swagger-annotations" % swaggerAnnotationsVersion
+  val playSwaggerGen = Seq(swaggerAnnotations, "io.swagger" %% "swagger-play2" % playSwaggerGenVersion
+    excludeAll ("io.swagger" %% "swagger-annotations")
     excludeAll ("com.google.guava" %% "guava")
     excludeAll ("com.typesafe.play" %% "play-logback"))
   val classgraph = "io.github.classgraph" % "classgraph" % classgraphVersion

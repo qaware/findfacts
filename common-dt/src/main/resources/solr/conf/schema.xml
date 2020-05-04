@@ -113,7 +113,7 @@
         </fieldType>
         <fieldType name="name_text" class="solr.TextField">
             <analyzer type="index">
-                <tokenizer class="solr.WhitespaceTokenizerFactory" rule="java" />
+                <tokenizer class="solr.WhitespaceTokenizerFactory" rule="java"/>
                 <filter class="solr.WordDelimiterGraphFilterFactory"
                         generateWordParts="1" catenateWords="0"
                         generateNumberParts="1" catenateNumbers="0" splitOnNumerics="1"
@@ -123,7 +123,7 @@
                 <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
             <analyzer type="query">
-                <tokenizer class="solr.WhitespaceTokenizerFactory" rule="java" />
+                <tokenizer class="solr.WhitespaceTokenizerFactory" rule="java"/>
                 <filter class="solr.LowerCaseFilterFactory"/>
             </analyzer>
         </fieldType>

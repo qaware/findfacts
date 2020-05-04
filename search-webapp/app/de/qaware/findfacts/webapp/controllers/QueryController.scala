@@ -114,7 +114,7 @@ class QueryController(
   @ApiOperation(
     value = "Gets a single entity",
     notes = "Retrieves information about a single entity",
-    response = classOf[Option[CodeblockEt]],
+    response = classOf[CodeblockEt],
     httpMethod = "GET")
   @ApiResponses(
     Array(
@@ -138,7 +138,7 @@ class QueryController(
   @ApiOperation(
     value = "Resolves a theory entity.",
     notes = "Fetches values for relations of a theory entity",
-    response = classOf[Option[ResolvedThyEt]],
+    response = classOf[ResolvedThyEt],
     httpMethod = "GET")
   @ApiResponses(
     Array(
@@ -161,7 +161,7 @@ class QueryController(
   @ApiOperation(
     value = "Gets a single command.",
     notes = "Retrieves the shortened information about a single command.",
-    response = classOf[Option[ShortBlock]],
+    response = classOf[ShortBlock],
     httpMethod = "GET"
   )
   @ApiResponses(
