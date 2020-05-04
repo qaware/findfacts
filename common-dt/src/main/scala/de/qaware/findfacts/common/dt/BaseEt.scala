@@ -1,6 +1,7 @@
 package de.qaware.findfacts.common.dt
 
 import io.circe.generic.auto._
+import io.swagger.annotations.ApiModel
 
 import de.qaware.findfacts.common.da.api
 import de.qaware.findfacts.common.da.api.DocumentKind
@@ -20,6 +21,7 @@ sealed trait BaseEt {
 }
 
 /** Fields for Entities that from the semantic theory. */
+@ApiModel(description = "TheoryEt variants", subTypes = Array(classOf[ConstantEt], classOf[FactEt], classOf[TypeEt]))
 sealed trait TheoryEt extends BaseEt {
 
   /** Name of the entity. */
@@ -47,9 +49,9 @@ final case class CodeblockEt(
     theory: SourceTheory.T,
     startLine: StartLine.T,
     command: Command.T,
-    srcBefore: SourceTextBefore.T,
-    src: SourceText.T,
-    srcAfter: SourceTextAfter.T,
+    srcBefore: SourceCodeBefore.T,
+    src: SourceCode.T,
+    srcAfter: SourceCodeAfter.T,
     entities: TheoryChildren.T)
   extends BaseEt
   with Discriminator[DocumentKind, EtField.DocKind.type, api.DocumentKind.Parent.type]

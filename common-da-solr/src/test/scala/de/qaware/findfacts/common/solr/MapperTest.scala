@@ -27,6 +27,7 @@ class MapperTest extends FunSuite {
   sealed trait TestKind extends EnumEntry
   object Kinds extends DefaultEnum[TestKind] {
     override final val values = findValues
+    override final val names = findNames
     case object A extends TestKind
     case object B extends TestKind
   }

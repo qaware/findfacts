@@ -1,11 +1,17 @@
 package de.qaware.findfacts.core
 
+import io.swagger.annotations.ApiModel
+
 import de.qaware.findfacts.common.dt.EtField
 
 /** Filter for a field. */
 final case class FieldFilter(field: EtField, filter: Filter)
 
 /** Union type for all filters. */
+@ApiModel(
+  description = "Filter variants",
+  subTypes =
+    Array(classOf[Not], classOf[Or], classOf[And], classOf[Term], classOf[Exact], classOf[InRange], classOf[InResult]))
 sealed trait Filter
 
 /**

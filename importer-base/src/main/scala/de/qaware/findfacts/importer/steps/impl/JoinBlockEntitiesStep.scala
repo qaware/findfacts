@@ -18,13 +18,13 @@ import de.qaware.findfacts.importer.{ImportError, TheoryView}
 class JoinBlockEntitiesStep(idBuilder: IdBuilder) extends ImportStep {
   private val logger = Logger[JoinBlockEntitiesStep]
 
+  @SuppressWarnings(Array("TraversableHead"))
   override def execute(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Joining ${ctx.blocks.size} blocks with ${ctx.theoryEts.size}...")
 
     val errors = ListBuffer.empty[ImportError]
 
     // Create map from blocks by their id
-    @SuppressWarnings(Array("TraversableHead"))
     val blocksMap: mutable.Map[String, CodeblockEt] = mutable.Map(
       ctx.blocks.toList
         .groupBy(_.id)

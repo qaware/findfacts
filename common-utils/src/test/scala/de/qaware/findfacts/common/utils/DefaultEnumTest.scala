@@ -7,6 +7,7 @@ class DefaultEnumTest extends FunSuite with Matchers with TryValues {
   sealed trait TestEnum extends EnumEntry
   object TestEnum extends DefaultEnum[TestEnum] {
     override final val values = findValues
+    override final val names = findNames
 
     case object VariantA extends TestEnum
     case object VariantB extends TestEnum
@@ -14,6 +15,10 @@ class DefaultEnumTest extends FunSuite with Matchers with TryValues {
 
   test("values") {
     TestEnum.values should contain theSameElementsAs List(TestEnum.VariantA, TestEnum.VariantB)
+  }
+
+  test("names") {
+    TestEnum.names should equal("VariantA, VariantB")
   }
 
   test("from string") {

@@ -4,7 +4,7 @@ import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
-val projectVersion = "0.4.1"
+val projectVersion = "0.4.2"
 val schemaVersion = "0.3.1"
 
 // Project-wide settings
@@ -104,7 +104,7 @@ lazy val `common-dt` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
-    libraryDependencies ++= circe ++ Seq(shapeless, scalaTest % "it") ++ loggingBackend.map(_ % "it")
+    libraryDependencies ++= circe ++ Seq(swaggerAnnotations, shapeless, scalaTest % "it") ++ loggingBackend.map(_ % "it")
   )
   .dependsOn(`common-da-api`, `common-utils`, `common-da-solr` % "it")
 
@@ -165,8 +165,8 @@ lazy val `importer-it` = project
 
         // Run dump and dump_importer in Isabelle
         (run in isabelle)
-          .toTask(" -A markup,theory -D " + thyDir + " -O " + dumpDir)
-          .zip((run in `importer-isabelle`).toTask(" -L " + solrDir + " " + dumpDir))
+          .toTask(" -A markup,theory -b HOL -D " + thyDir + " -O " + dumpDir)
+          .zip((run in `importer-isabelle`).toTask(" -l " + solrDir + " Spec-Tests " + dumpDir))
           .flatMap { case (t1, t2) => t1 && t2 } && testTask
       } else {
         Def.task(testTask.value)
@@ -182,7 +182,11 @@ lazy val `search-core` = project
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
-    libraryDependencies ++= (loggingBackend ++ mockito).map(_ % "it") ++ Seq(shapeless, circeGeneric, scalaTest % "it")
+    libraryDependencies ++= (loggingBackend ++ mockito).map(_ % "it") ++ Seq(
+      shapeless,
+      circeGeneric,
+      swaggerAnnotations,
+      scalaTest % "it")
   )
   .dependsOn(`common-dt`, `common-da-solr`, `common-utils`, `common-dt` % "it->it")
 
@@ -193,13 +197,12 @@ lazy val `search-webapp` = project
     javaOptions in Runtime ++= Seq(
       // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
       "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
-      "-Dsolr.configset=theorydata-" + schemaVersion
+      "-Dsolr.configset=theorydata-" + schemaVersion,
+      "-Dapp.version=" + projectVersion
     ),
-    libraryDependencies ++= (loggingBackend ++ circe ++ Seq(
+    libraryDependencies ++= (loggingBackend ++ circe ++ playSwaggerGen ++ Seq(
       playGuice,
       playCirce,
-      playSwaggerGen,
-      swaggerUi,
       playTestPlus % "test"
     )),
     dockerPermissionStrategy := DockerPermissionStrategy.Run,

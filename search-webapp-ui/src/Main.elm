@@ -118,7 +118,7 @@ type Page
     | Help
     | Examples
     | Feedback Obfuscated.State
-    | About
+    | About String
     | NotFound
 
 
@@ -154,6 +154,7 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | DrawerMsg
     | WidthMsg Int
+    | VersionResult (Result Http.Error String)
       -- Index component
     | IndexesResult (Result Http.Error (List String))
     | IndexMsg Index.State
@@ -344,6 +345,9 @@ updatePage apiBaseUrl msg page =
         ( EmailMsg state, Feedback _ ) ->
             ( Feedback state, Cmd.none )
 
+        ( VersionResult (Ok version), About _ ) ->
+            ( About version, Cmd.none )
+
         ( _, _ ) ->
             ( page, Cmd.none )
 
@@ -393,7 +397,7 @@ routeParser model =
         , UrlParser.map ( Feedback <| Obfuscated.init email, Cmd.none ) (UrlParser.s "feedback")
         , UrlParser.map ( Help, Cmd.none ) (UrlParser.s "help")
         , UrlParser.map ( Examples, Cmd.none ) (UrlParser.s "examples")
-        , UrlParser.map ( About, Cmd.none ) (UrlParser.s "about")
+        , UrlParser.map ( About "...", executeVersionQuery model.apiBaseUrl ) (UrlParser.s "about")
         ]
 
 
@@ -542,9 +546,20 @@ urlEncodeDetail index id =
 -- QUERIES
 
 
+executeVersionQuery : String -> Cmd Msg
+executeVersionQuery apiBaseUrl =
+    Http.get
+        { url = apiBaseUrl ++ UrlBuilder.absolute [ "version" ] []
+        , expect = Http.expectString VersionResult
+        }
+
+
 executeIndexesQuery : String -> Cmd Msg
 executeIndexesQuery apiBaseUrl =
-    Http.get { url = apiBaseUrl ++ "/v1/indexes", expect = Http.expectJson IndexesResult (Decode.list Decode.string) }
+    Http.get
+        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", "indexes" ] []
+        , expect = Http.expectJson IndexesResult (Decode.list Decode.string)
+        }
 
 
 {-| Builds the command to execute a facet query.
@@ -574,7 +589,7 @@ executeFilterQuery apiBaseUrl index query =
 executeBlockQuery : String -> String -> String -> Cmd Msg
 executeBlockQuery apiBaseUrl index blockId =
     Http.get
-        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", index, "entities", "block", "short", blockId ] []
+        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", index, "blocks", "short", blockId ] []
         , expect = Http.expectJson DetailsResult shortBlockDecoder
         }
 
@@ -584,7 +599,7 @@ executeBlockQuery apiBaseUrl index blockId =
 executeThyEtQuery : String -> String -> String -> Cmd Msg
 executeThyEtQuery apiBaseUrl index entityId =
     Http.get
-        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", index, "entities", "theory", "resolved", entityId ] []
+        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", index, "entities", "resolved", entityId ] []
         , expect = Http.expectJson DetailsEntityResult thyEtDecoder
         }
 
@@ -738,8 +753,8 @@ renderPage width page =
         Feedback emailState ->
             Feedback.config EmailMsg |> lazy2 Feedback.view emailState |> (List.singleton >> renderInPage [])
 
-        About ->
-            About.view |> renderInPage []
+        About version ->
+            lazy (About.view >> renderInPage []) version
 
         NotFound ->
             renderPageNotFound |> renderInPage []

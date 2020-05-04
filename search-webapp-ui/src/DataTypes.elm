@@ -170,13 +170,13 @@ fieldToString field =
             "StartLine"
 
         SrcBefore ->
-            "SourceTextBefore"
+            "SourceCodeBefore"
 
         Src ->
-            "SourceText"
+            "SourceCode"
 
         SrcAfter ->
-            "SourceTextAfter"
+            "SourceCodeAfter"
 
         Kind ->
             "Kind"
@@ -222,13 +222,13 @@ fieldFromString str =
         "StartLine" ->
             Ok StartLine
 
-        "SourceTextBefore" ->
+        "SourceCodeBefore" ->
             Ok SrcBefore
 
-        "SourceText" ->
+        "SourceCode" ->
             Ok Src
 
-        "SourceTextAfter" ->
+        "SourceCodeAfter" ->
             Ok SrcAfter
 
         "Kind" ->

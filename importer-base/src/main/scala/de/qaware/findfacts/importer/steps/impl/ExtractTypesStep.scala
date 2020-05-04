@@ -22,6 +22,7 @@ class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, propExt
   extends ImportStep {
   private val logger = Logger[ExtractTypesStep]
 
+  @SuppressWarnings(Array("TraversableHead"))
   override def execute(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Importing ${theory.types.size} types with ${theory.typedefs} def axioms...")
 
@@ -31,7 +32,6 @@ class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, propExt
     val errors = ListBuffer.empty[ImportError]
 
     // Group relevant axioms by their names
-    @SuppressWarnings(Array("TraversableHead"))
     val axiomsByName = theory.axioms
       .filter(ax => axiomNames.contains(ax.entity.name))
       .groupBy(_.entity.name)

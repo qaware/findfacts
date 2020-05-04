@@ -1,8 +1,13 @@
 package de.qaware.findfacts.core.dt
 
+import io.swagger.annotations.ApiModel
+
 import de.qaware.findfacts.common.dt.Kind
 
 /** Theory entity types with resolved relations. */
+@ApiModel(
+  description = "ResolvedThyEt variants",
+  subTypes = Array(classOf[ResolvedConstant], classOf[ResolvedFact], classOf[ResolvedType]))
 sealed trait ResolvedThyEt
 
 /**

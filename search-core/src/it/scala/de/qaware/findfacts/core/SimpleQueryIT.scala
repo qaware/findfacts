@@ -107,7 +107,7 @@ class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with I
   }
 
   test("Result scoring") {
-    val query = FilterQuery(List(FieldFilter(EtField.SourceText, Or(Exact("example"), Exact("lemma")))))
+    val query = FilterQuery(List(FieldFilter(EtField.SourceCode, Or(Exact("example"), Exact("lemma")))))
     val result = queryModule.service.getResultShortlist(query)
 
     val resList = result.get

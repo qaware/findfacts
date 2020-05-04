@@ -1,8 +1,9 @@
 package de.qaware.findfacts.common.utils
 
+import scala.language.experimental.macros
 import scala.util.Try
 
-import enumeratum.{Enum, EnumEntry}
+import enumeratum.{DefaultEnumMacros, Enum, EnumEntry}
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 /**
@@ -11,6 +12,11 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
  * @tparam E type of the entry, should be a sealed trait
  */
 trait DefaultEnum[E <: EnumEntry] extends Enum[E] {
+
+  protected final def findNames: String = macro DefaultEnumMacros.names[E]
+
+  /** All names of elements in the enum, comma-separated. */
+  val names: String
 
   /** Implicit to get objects from string. */
   implicit val fromString: FromString[E] = FromString.instance { s =>

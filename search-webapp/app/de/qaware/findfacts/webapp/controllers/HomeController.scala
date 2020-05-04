@@ -1,6 +1,7 @@
 package de.qaware.findfacts.webapp.controllers
 
 import controllers.AssetsFinder
+import play.api.Configuration
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, Request}
 
 import de.qaware.findfacts.webapp.views
@@ -10,7 +11,8 @@ import de.qaware.findfacts.webapp.views
  *
  * @param cc components of this controller
  */
-class HomeController(cc: ControllerComponents, assetsFinder: AssetsFinder) extends AbstractController(cc) {
+class HomeController(cc: ControllerComponents, assetsFinder: AssetsFinder, config: Configuration)
+  extends AbstractController(cc) {
 
   /**
    * Deliver application.
@@ -20,6 +22,16 @@ class HomeController(cc: ControllerComponents, assetsFinder: AssetsFinder) exten
   def index(): Action[AnyContent] =
     Action { implicit request: Request[AnyContent] =>
       Ok(views.html.index(assetsFinder))
+    }
+
+  /**
+   * Returns the application version.
+   *
+   * @return version action
+   */
+  def version(): Action[AnyContent] =
+    Action { implicit request: Request[AnyContent] =>
+      Ok(config.get[String]("app.version"))
     }
 
   /**

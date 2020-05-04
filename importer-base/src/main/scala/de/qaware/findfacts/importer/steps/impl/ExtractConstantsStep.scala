@@ -27,6 +27,7 @@ class ExtractConstantsStep(
   extends ImportStep {
   private val logger = Logger[ExtractConstantsStep]
 
+  @SuppressWarnings(Array("TraversableHead"))
   override def execute(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
     logger.debug(s"Importing ${theory.consts.size} constants with ${theory.constdefs.size} def axioms...")
 
@@ -36,7 +37,6 @@ class ExtractConstantsStep(
     val errors = ListBuffer.empty[ImportError]
 
     // Group relevant axioms by their names
-    @SuppressWarnings(Array("TraversableHead"))
     val axiomsByName = theory.axioms
       .filter(ax => axiomNames.contains(ax.entity.name))
       .groupBy(_.entity.name)
