@@ -1,10 +1,13 @@
 import Dependencies._
 import Profiles._
+import com.typesafe.config._
 import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 
 Global / onChangedBuildSource := IgnoreSourceChanges
 
-val projectVersion = "0.4.2"
+// Versions
+val conf = ConfigFactory.parseFile(`search-webapp`.base / "conf" / "application.conf").resolve()
+val projectVersion = conf.getString("app.version")
 val schemaVersion = "0.3.1"
 
 // Project-wide settings
@@ -198,7 +201,6 @@ lazy val `search-webapp` = project
       // Resource loading doesn't work properly in 'run' mode (only in prod), so we need to specify the logging conf here
       "-Dlog4j.configurationFile=" + (file("search-webapp") / "conf" / "log4j2.properties").getPath,
       "-Dsolr.configset=theorydata-" + schemaVersion,
-      "-Dapp.version=" + projectVersion
     ),
     libraryDependencies ++= (loggingBackend ++ circe ++ playSwaggerGen ++ Seq(
       playGuice,
