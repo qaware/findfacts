@@ -41,13 +41,13 @@ class SolrFilterMapperTest extends FunSuite with Matchers with MockitoSugar with
     sut.mapFilter(InResult(Uses, subQ)).get should equal("(id1 id2 id3)")
   }
 
-  test("Test term escaping") {
+  test("Test string escaping") {
     val allAscii =
       " !\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~&&||"
 
     sut.escape(allAscii, exact = true) should equal(
-      "\"\\ \\!\\\"#$%&\\\\'\\(\\)\\*\\+,\\-.\\/0123456789\\:;<=>\\?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\]\\^_`abcdefghijklmnopqrstuvwxyz\\{|\\}\\~\\&&\\||\"~10")
+      "\\ \\!\\\"#$%&\\\\'\\(\\)\\*\\+,\\-.\\/0123456789\\:;<=>\\?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\]\\^_`abcdefghijklmnopqrstuvwxyz\\{|\\}\\~\\&&\\||")
     sut.escape(allAscii, exact = false) should equal(
-      "(\\ \\!\\\"#$%&\\\\'\\(\\)*\\+,\\-.\\/0123456789\\:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\]\\^_`abcdefghijklmnopqrstuvwxyz\\{|\\}\\~\\&&\\||)")
+      "\\ \\!\\\"#$%&\\\\'\\(\\)*\\+,\\-.\\/0123456789\\:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\]\\^_`abcdefghijklmnopqrstuvwxyz\\{|\\}\\~\\&&\\||")
   }
 }

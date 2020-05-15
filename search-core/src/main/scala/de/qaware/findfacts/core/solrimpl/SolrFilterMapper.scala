@@ -58,13 +58,23 @@ class SolrFilterMapper {
    */
   def escape(value: String, exact: Boolean): String = {
     if (exact) {
-      "\"" + ExactEscapeRegex.replaceAllIn(
-        value,
-        m => Matcher.quoteReplacement(s"\\$m")) + "\"~" + SolrFilterMapper.DEFAULT_PHRASE_PROXIMITY
+      ExactEscapeRegex.replaceAllIn(value, m => Matcher.quoteReplacement(s"\\$m"))
     } else {
-      val escaped = EscapeRegex.replaceAllIn(value, m => Matcher.quoteReplacement(s"\\$m"))
-      if (escaped == "") "\"\"" else s"($escaped)"
+      EscapeRegex.replaceAllIn(value, m => Matcher.quoteReplacement(s"\\$m"))
     }
+  }
+
+  private def escapeTerm(term: Term): String = {
+    val escaped = escape(term.inner, exact = false)
+    if (escaped.isBlank) {
+      "\"" + escaped + "\""
+    } else {
+      s"($escaped)"
+    }
+  }
+
+  private def escapeExact(exact: Exact): String = {
+    "\"" + escape(exact.inner, exact = true) + "\"~" + SolrFilterMapper.DEFAULT_PHRASE_PROXIMITY
   }
 
   /**
@@ -81,8 +91,8 @@ class SolrFilterMapper {
         (f1 +: f2 +: fn).map(mapFilter).toList.sequence.map(fs => s"(${fs.mkString(OR)})")
       case And(f1, f2, fn @ _*) =>
         (f1 +: f2 +: fn).map(mapFilter).toList.sequence.map(fs => s"(${fs.mkString(AND)})")
-      case Term(inner) => Success(escape(inner, exact = false))
-      case Exact(inner) => Success(escape(inner, exact = true))
+      case t: Term => Success(escapeTerm(t))
+      case e: Exact => Success(escapeExact(e))
       case InRange(from, to) => Success(s"[$from TO $to]")
       case InResult(ofField, query) => innerQuery(ofField, query, anyInResult)
     }
