@@ -44,7 +44,7 @@ object Theory
     case p: Term.AppP => p
     case p: Term.Hyp => p
     case p: Term.PAxm => p
-    case p: Term.OfClass => p
+    case p: Term.PClass => p
     case p: Term.Oracle => p
     case p: Term.PThm => p
   }
@@ -165,7 +165,7 @@ object Theory
     override def types: List[TheoryView.Typ] = inner.types.map(map_typ)
   }
 
-  implicit class OfClass_Wrapper(val inner: Term.OfClass) extends AnyVal with TheoryView.OfClass
+  implicit class OfClass_Wrapper(val inner: Term.PClass) extends AnyVal with TheoryView.OfClass
   {
     override def typ: TheoryView.Typ = inner.typ
     override def cls: String = inner.cls

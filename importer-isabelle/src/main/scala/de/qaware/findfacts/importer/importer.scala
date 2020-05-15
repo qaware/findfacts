@@ -23,7 +23,7 @@ object Importer
      session_name: String,
      theory_names: List[String],
      solr_repository: SolrRepository,
-     progress: Progress = No_Progress)
+     progress: Progress = new Progress)
   {
     val importer = new SolrImporterModule(solr_repository)
     import_session(index_name, provider, session_name, theory_names, importer, progress)
@@ -37,7 +37,7 @@ object Importer
     session_name: String,
     theory_names: List[String],
     importer: ImporterModule,
-    progress: Progress = No_Progress)
+    progress: Progress = new Progress)
   {
     progress.echo("importing " + session_name + " with " + theory_names.size + " theories...")
 
