@@ -43,9 +43,9 @@ class SolrFilterMapper {
 
   private def anyInResult(res: Seq[String]): String = {
     if (res.isEmpty) {
-      s"(${NOT}$ALL)"
+      s"($NOT$ALL)"
     } else {
-      s"(${res.mkString(" ")})"
+      s"(${res.map(escape(_, exact = true)).mkString(" ")})"
     }
   }
 
