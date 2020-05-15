@@ -35,6 +35,7 @@ import Material.LinearProgress as Progress
 import Material.Theme as Theme
 import Material.Typography as Typography
 import Maybe.Extra
+import Url
 import Url.Builder as UrlBuilder
 import Util exposing (ite, pairWith, stripTrailingBlankline, trailingBlanklines)
 
@@ -162,7 +163,15 @@ view state (Config conf) =
                 ([ Html.h1 [ Typography.headline3 ] [ text "Details" ]
                  , Html.h3 [ Typography.headline6 ]
                     [ text "Theory: "
-                    , a [ href <| UrlBuilder.relative [ "#theory", conf.index, stateInternal.block.file ] [] ]
+                    , a
+                        [ href <|
+                            UrlBuilder.relative
+                                [ "#theory"
+                                , Url.percentEncode conf.index
+                                , Url.percentEncode stateInternal.block.file
+                                ]
+                                []
+                        ]
                         [ text stateInternal.block.file ]
                     ]
                  , div

@@ -424,9 +424,9 @@ defaultSearch model q ( idx, _ ) =
 {-| Parses the 'home' page, and executes queries if necessary.
 -}
 parseHome : Model -> String -> Maybe String -> Maybe String -> ( Page, Cmd Msg )
-parseHome model index maybeSearch maybePaging =
-    case maybeSearch of
-        Just searchJson ->
+parseHome model indexEnc maybeSearch maybePaging =
+    case ( maybeSearch, Url.percentDecode indexEnc ) of
+        ( Just searchJson, Just index ) ->
             case
                 ( searchJson |> Decode.decodeString Search.decoder
                 , maybePaging
@@ -440,7 +440,7 @@ parseHome model index maybeSearch maybePaging =
                 _ ->
                     ( NotFound, Cmd.none )
 
-        Nothing ->
+        _ ->
             ( NotFound, Cmd.none )
 
 
@@ -514,32 +514,44 @@ buildHome apiBaseUrl index search paging =
 {-| Parses the url for the 'details' page, and executes query.
 -}
 parseDetails : Model -> String -> String -> ( Page, Cmd Msg )
-parseDetails model index id =
-    ( Details { index = index, state = Details.empty }, executeBlockQuery model.apiBaseUrl index id )
+parseDetails model indexEnc idEnc =
+    case ( Url.percentDecode indexEnc, Url.percentDecode idEnc ) of
+        ( Just index, Just id ) ->
+            ( Details { index = index, state = Details.empty }, executeBlockQuery model.apiBaseUrl index id )
+
+        _ ->
+            ( NotFound, Cmd.none )
 
 
 {-| Parses the url for the 'theory' page, and executes query.
 -}
 parseTheory : Model -> String -> String -> ( Page, Cmd Msg )
-parseTheory model index name =
-    ( Theory { index = index, state = Theory.empty name }
-    , executeFilterQuery model.apiBaseUrl index <| FilterQuery [ FieldFilter SrcFile <| Exact name ] 10000 Nothing
-    )
+parseTheory model indexEnc nameEnc =
+    case ( Url.percentDecode indexEnc, Url.percentDecode nameEnc ) of
+        ( Just index, Just name ) ->
+            ( Theory { index = index, state = Theory.empty name }
+            , executeFilterQuery model.apiBaseUrl index <| FilterQuery [ FieldFilter SrcFile <| Exact name ] 10000 Nothing
+            )
+
+        _ ->
+            ( NotFound, Cmd.none )
 
 
 {-| Encodes search state as url.
 -}
 urlEncodeHome : String -> Search.State -> Paging.State -> String
 urlEncodeHome index search paging =
-    UrlBuilder.absolute [ "#search", index ]
+    UrlBuilder.absolute [ "#search", Url.percentEncode index ]
         ([ UrlBuilder.string "q" (search |> Search.encode |> Encode.encode 0) ]
-            |> consIf (not (Paging.isEmpty paging)) (UrlBuilder.string "page" (paging |> Paging.encode |> Encode.encode 0))
+            |> consIf
+                (not (Paging.isEmpty paging))
+                (UrlBuilder.string "page" (paging |> Paging.encode |> Encode.encode 0))
         )
 
 
 urlEncodeDetail : String -> String -> String
 urlEncodeDetail index id =
-    UrlBuilder.absolute [ "#details", index, id ] []
+    UrlBuilder.absolute [ "#details", Url.percentEncode index, Url.percentEncode id ] []
 
 
 
@@ -567,7 +579,7 @@ executeIndexesQuery apiBaseUrl =
 executeFacetQuery : String -> String -> Search.ResultFor -> FacetQuery -> Cmd Msg
 executeFacetQuery apiBaseUrl index resultFor query =
     Http.post
-        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", index, "facet" ] []
+        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", Url.percentEncode index, "facet" ] []
         , body = Http.jsonBody (encodeFacetQuery query)
         , expect = Http.expectJson (SearchFacetResult resultFor) resultFacetingDecoder
         }
@@ -578,7 +590,7 @@ executeFacetQuery apiBaseUrl index resultFor query =
 executeFilterQuery : String -> String -> FilterQuery -> Cmd Msg
 executeFilterQuery apiBaseUrl index query =
     Http.post
-        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", index, "search" ] []
+        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", Url.percentEncode index, "search" ] []
         , body = Http.jsonBody (encodeFilterQuery query)
         , expect = Http.expectJson FilterResult (resultListDecoder shortBlockDecoder)
         }
@@ -589,7 +601,11 @@ executeFilterQuery apiBaseUrl index query =
 executeBlockQuery : String -> String -> String -> Cmd Msg
 executeBlockQuery apiBaseUrl index blockId =
     Http.get
-        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", index, "blocks", "short", blockId ] []
+        { url =
+            apiBaseUrl
+                ++ UrlBuilder.absolute
+                    [ "v1", Url.percentEncode index, "blocks", "short", Url.percentEncode blockId ]
+                    []
         , expect = Http.expectJson DetailsResult shortBlockDecoder
         }
 
@@ -599,7 +615,11 @@ executeBlockQuery apiBaseUrl index blockId =
 executeThyEtQuery : String -> String -> String -> Cmd Msg
 executeThyEtQuery apiBaseUrl index entityId =
     Http.get
-        { url = apiBaseUrl ++ UrlBuilder.absolute [ "v1", index, "entities", "resolved", entityId ] []
+        { url =
+            apiBaseUrl
+                ++ UrlBuilder.absolute
+                    [ "v1", Url.percentEncode index, "entities", "resolved", Url.percentEncode entityId ]
+                    []
         , expect = Http.expectJson DetailsEntityResult thyEtDecoder
         }
 
@@ -737,7 +757,10 @@ renderPage width page =
             renderPageHome width home |> renderInPage [ style "min-width" "360px" ]
 
         Details details ->
-            [ lazy2 Details.view details.state (Details.config details.index DetailsMsg ToDetail FindUsedByMsg FindUsesMsg) ]
+            [ lazy2 Details.view
+                details.state
+                (Details.config details.index DetailsMsg ToDetail FindUsedByMsg FindUsesMsg)
+            ]
                 |> lazy (renderInPage [])
 
         Theory theory ->
