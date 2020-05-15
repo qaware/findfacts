@@ -34,7 +34,7 @@ object IsabelleToolPlugin extends AutoPlugin {
         // Write settings file
         val file = (crossTarget in Compile).value / "etc" / "settings"
         val contents = "classpath \"$COMPONENT/" + fatJarName + "\"\n" +
-          "isabelle_scala_tools \"" + toolClass + "\"\n" +
+          "isabelle_scala_service \"" + toolClass + "\"\n" +
           isabelleSettings.value.mkString("\n")
         IO.write(file, contents)
 

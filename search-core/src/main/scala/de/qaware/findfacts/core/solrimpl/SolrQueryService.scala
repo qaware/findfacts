@@ -12,6 +12,7 @@ import org.apache.solr.client.solrj.request.json.JsonQueryRequest
 import org.apache.solr.client.solrj.response.QueryResponse
 import org.apache.solr.client.solrj.{SolrQuery, SolrServerException}
 
+import de.qaware.findfacts.common.dt.EtField.Uses
 import de.qaware.findfacts.common.dt.{BaseEt, CodeblockEt, ConstantEt, EtField, FactEt, TypeEt}
 import de.qaware.findfacts.common.solr.SolrRepository
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
@@ -171,29 +172,25 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
       elem <- resOpt
     } yield elem match {
       case ConstantEt(id, _, uses, constantType, _) =>
-        for {
-          resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
-            idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
-            mapper.buildFilterQuery,
-            mapResults)
-        } yield dt.ResolvedConstant(id, constantType, resolved.toList)
+        for { resolved <- resolve(uses) } yield dt.ResolvedConstant(id, constantType, resolved.toList)
       case FactEt(id, _, uses, _) =>
-        for {
-          resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
-            idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
-            mapper.buildFilterQuery,
-            mapResults)
-        } yield dt.ResolvedFact(id, resolved.toList)
+        for { resolved <- resolve(uses) } yield dt.ResolvedFact(id, resolved.toList)
       case TypeEt(id, _, uses, _) =>
-        for {
-          resolved <- getRes[ShortThyEt, Vector[ShortThyEt]](
-            idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
-            mapper.buildFilterQuery,
-            mapResults)
-        } yield dt.ResolvedType(id, resolved.toList)
+        for { resolved <- resolve(uses) } yield dt.ResolvedType(id, resolved.toList)
       case _ => return Success(None)
     }
     res.map(_.map(_.toEither.left.map(t => return Failure(t)).merge))
+  }
+
+  private def resolve(uses: Uses.T)(implicit index: String) = {
+    if (uses.isEmpty) {
+      Success(List.empty)
+    } else {
+      getRes[ShortThyEt, Vector[ShortThyEt]](
+        idsFilterQuery(uses.map(x => EtField.Id(x)): _*),
+        mapper.buildFilterQuery,
+        mapResults)
+    }
   }
 
   override def getBlock(id: EtField.Id.T)(implicit index: String): Try[Option[CodeblockEt]] = {

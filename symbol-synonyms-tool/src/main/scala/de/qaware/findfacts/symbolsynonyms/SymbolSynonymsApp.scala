@@ -60,7 +60,7 @@ object SymbolSynonymsApp extends App {
    */
   final case class Synonym(words: Seq[String], replacements: Seq[String]) {
     def write: String =
-      s"${words.map(filterMapper.escape(_, exact = false).drop(1).dropRight(1)).mkString(",")} => ${replacements.mkString(",")}"
+      s"${words.map(filterMapper.escape(_, exact = false)).mkString(",")} => ${replacements.mkString(",")}"
   }
 
   /** Regex for isabelle name and unicode codepoint. */

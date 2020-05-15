@@ -34,9 +34,9 @@ view =
                 ]
             ]
         ]
-    , h2 [ Typography.headline4 ] [ text "Isabelle Characters" ]
+    , h2 [ Typography.headline4 ] [ text "Isabelle Symbols" ]
     , p [ Typography.body1 ]
-        [ text "To search for isabelle special characters, use the abbreviation (if unique): "
+        [ text "To search for Isabelle special symbols, use the abbreviation (if unique): "
         , a [ href "#search?q={\"term\"%3A\"%3D%3D>\"}" ] [ text "==>" ]
         , text ", the isabelle markup : "
         , a [ href "#search?q={\"term\"%3A\"\\\\<Longrightarrow>\"}" ] [ text "\\<Longrightarrow>" ]

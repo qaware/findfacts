@@ -23,7 +23,7 @@ object Importer
      session_name: String,
      theory_names: List[String],
      solr_repository: SolrRepository,
-     progress: Progress = No_Progress)
+     progress: Progress = new Progress)
   {
     val importer = new SolrImporterModule(solr_repository)
     import_session(index_name, provider, session_name, theory_names, importer, progress)
@@ -37,7 +37,7 @@ object Importer
     session_name: String,
     theory_names: List[String],
     importer: ImporterModule,
-    progress: Progress = No_Progress)
+    progress: Progress = new Progress)
   {
     progress.echo("importing " + session_name + " with " + theory_names.size + " theories...")
 
@@ -90,7 +90,7 @@ Usage: isabelle dump_importer [OPTIONS] [SESSIONS ...] DUMPDIR
     -l SOLRDIR      local Solr repository at SOLRDIR
     -r HOST:PORT    remote Solr connection at HOST:PORT
 
-  Import isabelle dump from DUMPDIR into Solr db. Only one Solr connection
+  Import Isabelle dump from DUMPDIR into Solr db. Only one Solr connection
   may be used. For remote connections, a configset must be set (either via
   argument or environment variable 'SOLR_CONFIGSET').
   Index name usually has form '${NAME}_${ISABELLE_VERSION}_${AFP_VERSION}'.
