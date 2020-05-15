@@ -59,7 +59,7 @@ view =
         , text ", leaving nearly 8000 results."
         , br
         , text "Next, to filter out all blocks that only use commutativity, "
-        , search "we require the entity name to be 'comm' or 'commutativity'" "{\"term\":\"comm*\",\"fields\":[{\"field\":\"Command\",\"match\":\"OneOf\",\"terms\":[\"lemma\"]},{\"field\":\"Name\",\"match\":\"OneOf\",\"terms\":[\"comm\",\"commute\"]}],\"facets\":{\"Kind\":[\"Fact\"]}}"
+        , search "we require the entity name to be 'comm' or 'commute'" "{\"term\":\"comm*\",\"fields\":[{\"field\":\"Command\",\"match\":\"OneOf\",\"terms\":[\"lemma\"]},{\"field\":\"Name\",\"match\":\"OneOf\",\"terms\":[\"comm\",\"commute\"]}],\"facets\":{\"Kind\":[\"Fact\"]}}"
         , text " (as we can't use wildcards here). This gives us 1169 results, for which the first few pages all are lemmas that prove commutativity of different operators - to restrict further, we would need more context."
         ]
     ]
