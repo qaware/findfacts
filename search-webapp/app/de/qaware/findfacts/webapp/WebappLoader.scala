@@ -12,6 +12,7 @@ import play.api.mvc.EssentialFilter
 import play.api.routing.Router
 import play.api.{Application, ApplicationLoader, BuiltInComponentsFromContext, ConfigLoader}
 import play.filters.HttpFiltersComponents
+import play.filters.cors.CORSComponents
 import play.filters.csrf.CSRFFilter
 import play.filters.gzip.GzipFilterComponents
 import play.modules.swagger.{SwaggerPlugin, SwaggerPluginImpl}
@@ -39,13 +40,14 @@ class WebappModule(context: Context)
   with SolrQueryModule
   with AssetsComponents
   with HttpFiltersComponents
+  with CORSComponents
   with GzipFilterComponents {
 
   lazy val statsLoggingFilter: StatsLoggingFilter = wire[StatsLoggingFilter]
 
   // Disable CSRF, as it is not needed in this application, and add gzip filter
   override def httpFilters: Seq[EssentialFilter] = {
-    super.httpFilters.filterNot(_.getClass == classOf[CSRFFilter]) :+ gzipFilter :+ statsLoggingFilter
+    super.httpFilters.filterNot(_.getClass == classOf[CSRFFilter]) :+ gzipFilter :+ statsLoggingFilter :+ corsFilter
   }
 
   // Connect to remote solr.
