@@ -1,9 +1,8 @@
 package de.qaware.findfacts.importer.steps.solrimpl
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import com.typesafe.scalalogging.Logger
-
 import de.qaware.findfacts.common.dt.BaseEt
 import de.qaware.findfacts.common.solr.SolrRepository
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc

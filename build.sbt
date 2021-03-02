@@ -13,10 +13,10 @@ val schemaVersion = "0.3.1"
 // Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
 ThisBuild / version := projectVersion
-ThisBuild / scalaVersion := "2.12.10"
+ThisBuild / scalaVersion := "2.13.4"
 ThisBuild / resolvers ++= Resolvers.all
 // Use java 11
-ThisBuild / javacOptions ++= Seq("-source", "11", "-target", "11")
+ThisBuild / javacOptions ++= Seq("-source", "15", "-target", "15")
 // Parallel execution causes logging issues
 ThisBuild / Test / parallelExecution := false
 // Enable deprecation warnings

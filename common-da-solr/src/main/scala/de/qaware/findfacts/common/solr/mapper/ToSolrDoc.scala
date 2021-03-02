@@ -1,15 +1,21 @@
 package de.qaware.findfacts.common.solr.mapper
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
+import de.qaware.findfacts.common.da.api.Variant.Discriminator
+import de.qaware.findfacts.common.da.api.{
+  ChildrenField,
+  Field,
+  MultiValuedField,
+  OptionalField,
+  SingleValuedField,
+  Variant
+}
 import enumeratum.EnumEntry
 import org.apache.solr.common.SolrInputDocument
 import shapeless.labelled.FieldType
 import shapeless.tag.{@@, Tagged}
 import shapeless.{:+:, ::, CNil, Coproduct, HList, HNil, LabelledGeneric, Lazy, Witness}
-
-import de.qaware.findfacts.common.da.api.Variant.Discriminator
-import de.qaware.findfacts.common.da.api.{ChildrenField, Field, MultiValuedField, OptionalField, SingleValuedField, Variant}
 
 /**
  * Solr document mapper type class.

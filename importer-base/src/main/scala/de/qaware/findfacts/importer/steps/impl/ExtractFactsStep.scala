@@ -1,7 +1,8 @@
 package de.qaware.findfacts.importer.steps.impl
 
-import com.typesafe.scalalogging.Logger
+import scala.collection.mutable
 
+import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.{FactEt, Kind}
 import de.qaware.findfacts.importer.steps.impl.thy.{ProofExtractor, PropExtractor}
 import de.qaware.findfacts.importer.steps.impl.util.IdBuilder
@@ -32,7 +33,10 @@ class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor, proof
 
       val fullName = axiom.entity.name
       val name = fullName.split('.').drop(1).mkString(".")
-      ctx.facts.addBinding(axiom.entity.pos, FactEt(idBuilder.theoryEtId(Kind.Fact, fullName), name, uses))
+      ctx.facts.getOrElseUpdate(axiom.entity.pos, { mutable.Set.empty }).addOne(FactEt(
+        idBuilder.theoryEtId(Kind.Fact, fullName),
+        name,
+        uses))
     }
 
     // Add theorems
@@ -53,9 +57,8 @@ class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor, proof
         (thm.deps ++ proofExtractor.referencedFacts(thm.proof).filterNot(fullName.equals)).distinct)
 
       val name = fullName.split('.').drop(1).mkString(".")
-      ctx.facts.addBinding(
-        thm.entity.pos,
-        FactEt(idBuilder.theoryEtId(Kind.Fact, fullName), name, usedTypes ++ usedConsts ++ usedFacts))
+      ctx.facts.getOrElseUpdate(thm.entity.pos, { mutable.Set.empty })
+        .addOne(FactEt(idBuilder.theoryEtId(Kind.Fact, fullName), name, usedTypes ++ usedConsts ++ usedFacts))
     }
 
     logger.debug("Finished importing facts")

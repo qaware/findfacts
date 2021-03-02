@@ -1,6 +1,6 @@
 package de.qaware.findfacts.core.solrimpl
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 import org.apache.solr.client.solrj
@@ -47,7 +47,7 @@ class SolrQueryMapper(fieldFilterMapper: SolrFieldFilterMapper) {
       }
       if (filters.childFqs.nonEmpty) {
         solrQuery
-        // Add child query to filters for caching and as literal query (v) for scoring.
+          // Add child query to filters for caching and as literal query (v) for scoring.
           .setQuery(s"$queryStr filters=$$child.fq v=$$child.fq}")
           .set(CHILD_FQ, filters.childFqs: _*)
       } else {

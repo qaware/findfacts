@@ -1,9 +1,9 @@
 package de.qaware.findfacts.importer.steps.impl
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 import com.typesafe.scalalogging.Logger
-
 import de.qaware.findfacts.common.dt.{Kind, TypeEt}
 import de.qaware.findfacts.importer.TheoryView.Type
 import de.qaware.findfacts.importer.steps.impl.thy.{PropExtractor, TypExtractor}
@@ -47,7 +47,9 @@ class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, propExt
     // Convert mapping to map
     val axiomNamesByTyp = theory.typedefs
       .groupBy(_.name)
+      .view
       .mapValues(_.map(_.axiomName))
+      .toMap
 
     theory.types foreach { typ =>
       // Build entities
@@ -68,7 +70,8 @@ class ExtractTypesStep(idBuilder: IdBuilder, typExtractor: TypExtractor, propExt
         idBuilder.getIds(Kind.Constant, props.flatMap(propExtractor.referencedConsts))
 
       val name = fullName.split('.').drop(1).mkString(".")
-      ctx.types.addBinding(typ.entity.pos, TypeEt(idBuilder.theoryEtId(Kind.Type, fullName), name, uses))
+      ctx.types.getOrElseUpdate(typ.entity.pos, { mutable.Set.empty })
+        .addOne(TypeEt(idBuilder.theoryEtId(Kind.Type, fullName), name, uses))
     }
     logger.debug(s"Finished importing types with ${errors.size} errors")
     errors.toList

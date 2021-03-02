@@ -2,10 +2,10 @@ package de.qaware.findfacts.common.dt
 
 import io.circe.generic.auto._
 import io.swagger.annotations.ApiModel
-
 import de.qaware.findfacts.common.da.api
 import de.qaware.findfacts.common.da.api.DocumentKind
 import de.qaware.findfacts.common.da.api.Variant.Discriminator
+import de.qaware.findfacts.common.dt
 import de.qaware.findfacts.common.dt.EtField._
 
 /** Children for base theory blocks. */
@@ -68,7 +68,7 @@ final case class ConstantEt(
     constantType: ConstantType.T,
     override val docKind: DocKind.T = DocumentKind.Child)
   extends TheoryEt
-  with Discriminator[Kind, EtField.Kind.type, Kind.Constant.type]
+  with Discriminator[Kind, EtField.Kind.type, dt.Kind.Constant.type]
 
 /** Fact entity. */
 final case class FactEt(
@@ -77,7 +77,7 @@ final case class FactEt(
     override val uses: Uses.T,
     override val docKind: DocKind.T = DocumentKind.Child)
   extends TheoryEt
-  with Discriminator[Kind, EtField.Kind.type, Kind.Fact.type]
+  with Discriminator[Kind, EtField.Kind.type, dt.Kind.Fact.type]
 
 /** Type entity. */
 final case class TypeEt(
@@ -86,4 +86,4 @@ final case class TypeEt(
     override val uses: Uses.T,
     override val docKind: DocKind.T = DocumentKind.Child)
   extends TheoryEt
-  with Discriminator[Kind, EtField.Kind.type, Kind.Type.type]
+  with Discriminator[Kind, EtField.Kind.type, dt.Kind.Type.type]

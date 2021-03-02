@@ -9,7 +9,7 @@ build:
     refs:
       - master
   stage: analyze
-  image: openjdk:11-jdk
+  image: openjdk:15-jdk
   cache:
     key: $CI_COMMIT_REF_SLUG
     paths:
