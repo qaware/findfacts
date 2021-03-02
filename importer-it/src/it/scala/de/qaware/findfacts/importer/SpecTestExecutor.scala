@@ -29,7 +29,7 @@ import de.qaware.findfacts.scala.Using
 case class SpecTestContext(name: String, block: CodeblockEt, src: String, startLine: Int)
 
 /** Parent test suite, that builds a nested suite for each Spec-theory. */
-class SpecTestExecutor extends FunSuite with Matchers {
+class SpecTestExecutor extends AnyFunSuite with Matchers {
 
   test("Solr core present") {
     Using.resource(LocalSolr(File(Resource.getUrl("solrdir/")).toJava)) { solr =>
@@ -79,7 +79,7 @@ class SpecTestExecutor extends FunSuite with Matchers {
     // Try to parse 'SPEC' format
     val testSpecs = SpecTestParser.parse(file) match {
       case Left(error) =>
-        return new FunSuite() {
+        return new AnyFunSuite() {
           override val suiteName: String = specSuiteName
           test(s"Check spec file")(fail(error))
         }
@@ -102,7 +102,7 @@ class SpecTestExecutor extends FunSuite with Matchers {
     // Build test suite creator (function that takes all the contexts and makes them available in the testsuite)
     val buildTestSuiteAst =
       q"""(contexts: List[de.qaware.findfacts.importer.SpecTestContext]) =>
-          new org.scalatest.FunSuite with org.scalatest.Matchers {
+          new org.scalatest.funsuite.AnyFunSuite with org.scalatest.Matchers {
             import de.qaware.findfacts.common.dt._
 
             val blocks = contexts.map(_.block)
@@ -114,11 +114,11 @@ class SpecTestExecutor extends FunSuite with Matchers {
 
     // Compile and run
     try {
-      val buildTestSuite = toolbox.eval(buildTestSuiteAst).asInstanceOf[List[SpecTestContext] => FunSuite]
+      val buildTestSuite = toolbox.eval(buildTestSuiteAst).asInstanceOf[List[SpecTestContext] => AnyFunSuite]
       buildTestSuite(contexts.toList)
     } catch {
       case e: Throwable =>
-        new FunSuite() {
+        new AnyFunSuite() {
           override val suiteName: String = specSuiteName
           test("Compile tests")(fail(e.getMessage))
         }

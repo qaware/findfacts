@@ -2,9 +2,10 @@ package de.qaware.findfacts.common.utils
 
 import scala.util.Success
 
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class FromStringTest extends FunSuite with Matchers {
+class FromStringTest extends AnyFunSuite with Matchers {
 
   test("test int from string") {
     FromString[Int].apply("1") should equal(Success(1))

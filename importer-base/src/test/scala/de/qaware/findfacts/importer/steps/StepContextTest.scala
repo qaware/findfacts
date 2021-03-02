@@ -1,11 +1,13 @@
 package de.qaware.findfacts.importer.steps
 
-import org.scalatest.{BeforeAndAfterEach, Matchers, OptionValues}
+import scala.collection.mutable
 
+import org.scalatest.{BeforeAndAfterEach, OptionValues}
 import de.qaware.findfacts.common.dt.{CodeblockEt, ConstantEt, FactEt, TypeEt}
 import de.qaware.findfacts.importer.TheoryView.Position
+import org.scalatest.matchers.should.Matchers
 
-class StepContextTest extends org.scalatest.FunSuite with Matchers with BeforeAndAfterEach with OptionValues {
+class StepContextTest extends org.scalatest.funsuite.AnyFunSuite with Matchers with BeforeAndAfterEach with OptionValues {
 
   val block: CodeblockEt = CodeblockEt("thy1.0.10", "thy1", 1, "lemma", "...", "src", "other stuff", List.empty)
   val const: ConstantEt = ConstantEt("Const.thy1.some_const", "some_const", List.empty, "'a -> 'a")
@@ -24,9 +26,9 @@ class StepContextTest extends org.scalatest.FunSuite with Matchers with BeforeAn
     val ctx = StepContext()
 
     ctx.blocks.add(block)
-    ctx.consts.addBinding(pos, const)
-    ctx.facts.addBinding(pos, fact)
-    ctx.types.addBinding(pos1, typ)
+    ctx.consts.put(pos, mutable.Set(const))
+    ctx.facts.put(pos, mutable.Set(fact))
+    ctx.types.put(pos1, mutable.Set(typ))
 
     ctx
   }

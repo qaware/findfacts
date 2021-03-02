@@ -1,15 +1,13 @@
 package de.qaware.findfacts.common.solr
 
-import enumeratum.EnumEntry
-import io.circe.generic.auto._
-import org.scalatest.FunSuite
-
 import de.qaware.findfacts.common.da.api.Variant.Discriminator
 import de.qaware.findfacts.common.da.api.{ChildrenField, MultiValuedField, SingleValuedField}
-import de.qaware.findfacts.common.solr.mapper.{FromSolrDoc, ToSolrDoc}
 import de.qaware.findfacts.common.utils.DefaultEnum
+import enumeratum.EnumEntry
+import io.circe.generic.auto._
+import org.scalatest.funsuite.AnyFunSuite
 
-class MapperTest extends FunSuite {
+class MapperTest extends AnyFunSuite {
 
   case object SingleField extends SingleValuedField[String] {
     override val name: String = "Single"

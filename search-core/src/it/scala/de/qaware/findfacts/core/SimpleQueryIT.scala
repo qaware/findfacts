@@ -1,16 +1,17 @@
 package de.qaware.findfacts.core
 
-import org.apache.solr.client.solrj.SolrQuery
-import org.scalatest.{BeforeAndAfterAll, FunSuite, Inside, Matchers}
-
 import de.qaware.findfacts.common.dt.EtField.{StartLine, Uses}
 import de.qaware.findfacts.common.dt._
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
 import de.qaware.findfacts.common.solr.{LocalSolr, SolrRepository}
 import de.qaware.findfacts.core.solrimpl.SolrQueryModule
+import org.apache.solr.client.solrj.SolrQuery
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, Inside}
 
 /** Test base functionality of query module with a setup that's as simple as possible.  */
-class SimpleQueryIT extends FunSuite with BeforeAndAfterAll with Matchers with Inside {
+class SimpleQueryIT extends AnyFunSuite with BeforeAndAfterAll with Matchers with Inside {
   final val itSolr = ITSolr()
   final val queryModule: QueryModule = new SolrQueryModule {
     override lazy val solr: SolrRepository = itSolr

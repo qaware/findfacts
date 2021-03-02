@@ -1,9 +1,10 @@
 package de.qaware.findfacts.common.da.api
 
 import io.circe.generic.auto._
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class FieldTest extends FunSuite with Matchers {
+class FieldTest extends AnyFunSuite with Matchers {
 
   test("Test field implicits") {
     assertCompiles("case object Test extends MultiValuedField[Float] { override val implicits = FieldImplicits() }")

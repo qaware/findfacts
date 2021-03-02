@@ -14,7 +14,6 @@ val schemaVersion = "0.3.1"
 ThisBuild / organization := "de.qaware.findfacts"
 ThisBuild / version := projectVersion
 ThisBuild / scalaVersion := "2.13.4"
-ThisBuild / resolvers ++= Resolvers.all
 // Use java 11
 ThisBuild / javacOptions ++= Seq("-source", "15", "-target", "15")
 // Parallel execution causes logging issues
@@ -168,7 +167,7 @@ lazy val `importer-it` = project
 
         // Run dump and dump_importer in Isabelle
         (run in isabelle)
-          .toTask(" -A markup,theory -b HOL -D " + thyDir + " -O " + dumpDir)
+          .toTask(" dump -A markup,theory -b HOL -D " + thyDir + " -O " + dumpDir)
           .zip((run in `importer-isabelle`).toTask(" -l " + solrDir + " Spec-Tests " + dumpDir))
           .flatMap { case (t1, t2) => t1 && t2 } && testTask
       } else {

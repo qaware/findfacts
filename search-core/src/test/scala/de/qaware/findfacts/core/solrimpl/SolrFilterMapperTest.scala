@@ -3,16 +3,16 @@ package de.qaware.findfacts.core.solrimpl
 import scala.util.Success
 
 import org.mockito.{ArgumentMatchersSugar, MockitoSugar}
-import org.scalatest.{FunSuite, Matchers}
-
 import de.qaware.findfacts.common.dt.EtField
 import de.qaware.findfacts.common.dt.EtField.Uses
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.core
 import de.qaware.findfacts.core.QueryService.ResultList
 import de.qaware.findfacts.core.{Exact, FieldFilter, InRange, InResult, Term}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.funsuite.AnyFunSuite
 
-class SolrFilterMapperTest extends FunSuite with Matchers with MockitoSugar with ArgumentMatchersSugar {
+class SolrFilterMapperTest extends AnyFunSuite with Matchers with MockitoSugar with ArgumentMatchersSugar {
 
   implicit val queryService: SolrQueryService = mock[SolrQueryService]
   implicit val index: String = "default"

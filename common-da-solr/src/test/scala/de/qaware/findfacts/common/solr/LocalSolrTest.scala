@@ -3,13 +3,13 @@ package de.qaware.findfacts.common.solr
 import java.io.{File => JFile}
 
 import better.files.File
+import de.qaware.findfacts.scala.Using
 import org.apache.solr.client.solrj.SolrQuery
 import org.apache.solr.common.SolrInputDocument
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-import de.qaware.findfacts.scala.Using
-
-class LocalSolrTest extends FunSuite with Matchers {
+class LocalSolrTest extends AnyFunSuite with Matchers {
 
   test("Test without config") {
     assertThrows[IllegalArgumentException] {
