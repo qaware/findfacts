@@ -19,9 +19,6 @@ build:
       - "/root/.elm"
   before_script:
     - ./ci-scripts/install-isabelle.sh
-    - echo 'ISABELLE_TOOL_JAVA_OPTIONS="-Xms1600m -Xmx1600m"' >> /root/.isabelle/etc/settings
-    - echo 'ML_OPTIONS="--minheap 1800M --maxheap 1800M"' >> /root/.isabelle/etc/settings
-    - echo 'init_component "'$PWD'/importer-isabelle/target/scala-2.12"' >> /root/.isabelle/etc/settings
     - ./ci-scripts/install-elm.sh
   script:
     - ./sbt -Dprofiles=$profiles clean coverage test

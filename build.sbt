@@ -34,7 +34,7 @@ ThisBuild / assembly / test := {}
 // Virtual sub-projects
 
 // Root project aggregates all
-lazy val root = (project in file("."))
+lazy val findfacts = (project in file("."))
   .settings(
     publish / skip := true,
     sonarProjects := Seq(
@@ -127,23 +127,14 @@ lazy val `importer-base` = project
 // Importer
 
 // Isabelle project dependency
-lazy val isabelle = project
-  .settings(
-    publish / skip := true,
-    unmanagedJars in Compile ++= (baseDirectory.value / "lib" / "classes" ** "*.jar").get(),
-    libraryDependencies ++= isabelleDependencies,
-    isabelleExecutable := baseDirectory.value / "bin" / "isabelle",
-    isabelleCommand := "dump"
-  )
-  .enablePlugins(IsabellePlugin)
+lazy val isabelle = project.enablePlugins(IsabellePlugin)
 
 // Importer Isabelle projects. Follows Isabelle conventions.
 lazy val `importer-isabelle` = project
   .settings(
     publish / skip := true,
-    isabelleCommand := "dump_importer",
-    isabelleExecutable := (baseDirectory in isabelle).value / "bin" / "isabelle",
-    isabelleSettings := Seq("SOLR_CONFIGSET=theorydata-" + schemaVersion),
+    isabelleCommand := "dump_importer -C theorydata-" + schemaVersion,
+    isabelleProject := isabelle,
     libraryDependencies ++= loggingBackend
   )
   .dependsOn(`importer-base`, `isabelle`)

@@ -11,7 +11,11 @@ Project to make Isabelle and the AFP easily searchable. Structured in:
 - **importer**: importer pipeline to import Isabelle `dump` into search index
 
 ## Usage
-Requirements: `java` 11
+Requirements: `java` 15
+
+## Build
+- `./sbt compile`
+- `./sbt -Dprofiles=loader,memory test it:test`
 
 ### Importer Isabelle tool
 
@@ -21,15 +25,8 @@ Requirements: `java` 11
    ```shell
    git submodule init
    git submodule update
-   ci-scripts/install-isabelle
    ```
-   
-3. Register `importer-isabelle` external component (for local installation, use your own `settings` file)
-   ```shell
-   echo 'init_component "path/to/isabelle-afp-search/importer-isabelle/target/scala-2.12"' >> isabelle/etc/settings
-   ```
-   
-4. Run
+3. Run
     ```shell
     ./sbt "project importer-isabelle" "run <OPTIONS>"
    ```
@@ -37,17 +34,6 @@ Requirements: `java` 11
     ```shell
    ./sbt "project importer-isabelle" "run ../dump localhost 8983" 
    ``` 
-
-#### Using local Isabelle installation
-1. Download published artifact (TODO publish)
-2. Add Isabelle component (to Isabelle `etc/settings` file):
-   ```shell
-   init_component /path/to/download/folder
-   ```
-3. Run
-   ```env
-   isabelle dump_importer -?
-   ```
 
 ### Search webapp
 Run:

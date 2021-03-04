@@ -1,0 +1,9 @@
+#-*- shell-script -*- :mode=shellscript:
+
+init_components "$ISABELLE_COMPONENTS_BASE" "$ISABELLE_HOME/Admin/components/main"
+init_component "$ISABELLE_HOME_USER/../importer-isabelle/target"
+
+ISABELLE_TOOL_JAVA_OPTIONS="-Xms1600m -Xmx1600m"
+ML_OPTIONS="--minheap 1800M --maxheap 1800M"
+
+JEDIT_JAVA_OPTIONS="-Xms2g"
