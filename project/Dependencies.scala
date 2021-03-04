@@ -4,7 +4,7 @@ object Dependencies {
   val SCALA_MAJOR_VERSION = "2.13"
   val SCALA_VERSION = s"$SCALA_MAJOR_VERSION.4"
 
-  val SOLR_VERSION = "8.2.0"
+  val SOLR_VERSION = "8.3.1"
   val PLAY_VERSION = "2.8.7"
 
   val CIRCE_VERSION = "0.12.0"

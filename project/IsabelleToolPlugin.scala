@@ -21,6 +21,7 @@ object IsabelleToolPlugin extends AutoPlugin {
     Seq(
       assemblyMergeStrategy in assembly := {
         case PathList("META-INF", "versions", "9", "module-info.class") => MergeStrategy.first
+        case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.first
         case x => (assemblyMergeStrategy in assembly).value.apply(x)
       },
       assembly := {

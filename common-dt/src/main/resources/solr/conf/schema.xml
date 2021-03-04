@@ -20,9 +20,9 @@
         <field name="_version_" type="plong" indexed="false" stored="false" multiValued="false"/>
     </fields>
 
-    <copyField source="theory" dest="theory_facet"/>
-    <copyField source="name" dest="name_facet"/>
-    <copyField source="type" dest="type_facet"/>
+    <copyField source="theory" dest="theory_facet" maxChars="3276"/>
+    <copyField source="name" dest="name_facet" maxChars="3276"/>
+    <copyField source="type" dest="type_facet" maxChars="3276"/>
 
     <uniqueKey>id</uniqueKey>
 
