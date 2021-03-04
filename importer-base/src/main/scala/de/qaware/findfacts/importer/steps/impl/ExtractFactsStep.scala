@@ -1,7 +1,5 @@
 package de.qaware.findfacts.importer.steps.impl
 
-import scala.collection.mutable
-
 import com.typesafe.scalalogging.Logger
 import de.qaware.findfacts.common.dt.{FactEt, Kind}
 import de.qaware.findfacts.importer.steps.impl.thy.{ProofExtractor, PropExtractor}
@@ -27,20 +25,17 @@ class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor, proof
     val defNames: Set[String] = (theory.constdefs.map(_.axiomName) ++ theory.typedefs.map(_.axiomName)).toSet
 
     // Add axioms
-    theory.axioms.filterNot(ax => defNames.contains(ax.entity.name)) map { axiom =>
+    theory.axioms.filterNot(ax => defNames.contains(ax.entity.name)) foreach { axiom =>
       val uses = idBuilder.getIds(Kind.Type, propExtractor.referencedTypes(axiom.prop).toList) ++
         idBuilder.getIds(Kind.Constant, propExtractor.referencedConsts(axiom.prop).toList)
 
       val fullName = axiom.entity.name
       val name = fullName.split('.').drop(1).mkString(".")
-      ctx.facts.getOrElseUpdate(axiom.entity.pos, { mutable.Set.empty }).addOne(FactEt(
-        idBuilder.theoryEtId(Kind.Fact, fullName),
-        name,
-        uses))
+      ctx.putFact(axiom.entity.pos, FactEt(idBuilder.theoryEtId(Kind.Fact, fullName), name, uses))
     }
 
     // Add theorems
-    theory.thms map { thm =>
+    theory.thms foreach { thm =>
       val fullName = thm.entity.name
 
       // Find usages
@@ -57,8 +52,9 @@ class ExtractFactsStep(idBuilder: IdBuilder, propExtractor: PropExtractor, proof
         (thm.deps ++ proofExtractor.referencedFacts(thm.proof).filterNot(fullName.equals)).distinct)
 
       val name = fullName.split('.').drop(1).mkString(".")
-      ctx.facts.getOrElseUpdate(thm.entity.pos, { mutable.Set.empty })
-        .addOne(FactEt(idBuilder.theoryEtId(Kind.Fact, fullName), name, usedTypes ++ usedConsts ++ usedFacts))
+      ctx.putFact(
+        thm.entity.pos,
+        FactEt(idBuilder.theoryEtId(Kind.Fact, fullName), name, usedTypes ++ usedConsts ++ usedFacts))
     }
 
     logger.debug("Finished importing facts")

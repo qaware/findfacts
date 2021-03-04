@@ -37,7 +37,7 @@ class ExtractBlocksStep(idBuilder: IdBuilder) extends ImportStep {
             inner,
             after,
             List.empty)
-        ctx.blocks.add(block)
+        ctx.putBlock(block)
         None
       }
     }

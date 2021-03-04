@@ -1,6 +1,6 @@
 package de.qaware.findfacts.importer
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.IndexedSeq
 import scala.collection.mutable.ListBuffer
 import scala.reflect.runtime.universe._
@@ -8,15 +8,16 @@ import scala.reflect.runtime.{currentMirror, universe}
 import scala.tools.reflect.ToolBox
 
 import better.files.{File, Resource}
-import io.github.classgraph.ClassGraph
-import org.apache.solr.client.solrj.SolrQuery
-import org.scalatest.{FunSuite, Matchers, Suite}
-
 import de.qaware.findfacts.common.dt.CodeblockEt
 import de.qaware.findfacts.common.solr.LocalSolr
 import de.qaware.findfacts.common.solr.mapper.FromSolrDoc
 import de.qaware.findfacts.importer.SpecTestExecutor.SESSION
 import de.qaware.findfacts.scala.Using
+import io.github.classgraph.ClassGraph
+import org.apache.solr.client.solrj.SolrQuery
+import org.scalatest.Suite
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 /**
  * Context for spec tests.
@@ -40,7 +41,7 @@ class SpecTestExecutor extends AnyFunSuite with Matchers {
 
   override lazy val nestedSuites: IndexedSeq[Suite] = {
     // Discover theory spec files
-    val thyFiles = Using.resource(new ClassGraph().whitelistPathsNonRecursive("").scan) { scan =>
+    val thyFiles = Using.resource(new ClassGraph().acceptPathsNonRecursive("").scan) { scan =>
       scan.getResourcesWithExtension(".thy").getPaths.asScala.toIndexedSeq
     }
 
@@ -102,7 +103,7 @@ class SpecTestExecutor extends AnyFunSuite with Matchers {
     // Build test suite creator (function that takes all the contexts and makes them available in the testsuite)
     val buildTestSuiteAst =
       q"""(contexts: List[de.qaware.findfacts.importer.SpecTestContext]) =>
-          new org.scalatest.funsuite.AnyFunSuite with org.scalatest.Matchers {
+          new org.scalatest.funsuite.AnyFunSuite with org.scalatest.matchers.should.Matchers {
             import de.qaware.findfacts.common.dt._
 
             val blocks = contexts.map(_.block)

@@ -79,7 +79,7 @@ class ExtractConstantsStep(
       // Add entity to context
       val et =
         ConstantEt(idBuilder.theoryEtId(Kind.Constant, fullName), name, uses, typExtractor.prettyPrint(const.typ))
-      ctx.consts.getOrElseUpdate(const.entity.pos, { mutable.Set.empty }).addOne(et)
+      ctx.putConst(const.entity.pos, et)
     }
 
     logger.debug(s"Finished importing constants with ${errors.size} errors")

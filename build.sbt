@@ -14,6 +14,12 @@ val schemaVersion = "0.3.1"
 ThisBuild / organization := "de.qaware.findfacts"
 ThisBuild / version := projectVersion
 ThisBuild / scalaVersion := "2.13.4"
+ThisBuild / resolvers ++= Seq(
+  "Restlet" at "https://maven.restlet.com/",
+  Resolver.sonatypeRepo("releases"),
+  Resolver.sonatypeRepo("snapshots"),
+  Resolver.mavenLocal
+)
 // Use java 11
 ThisBuild / javacOptions ++= Seq("-source", "15", "-target", "15")
 // Parallel execution causes logging issues

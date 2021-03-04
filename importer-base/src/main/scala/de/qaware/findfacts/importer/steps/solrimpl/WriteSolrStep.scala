@@ -23,7 +23,7 @@ class WriteSolrStep(index: String, solr: SolrRepository) extends ImportStep {
 
   override def execute(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
     solr.createIndex(index)
-    val entities = ctx.blocks
+    val entities = ctx.getBlocks
 
     if (entities.isEmpty) {
       logger.debug(s"Nothing to import")

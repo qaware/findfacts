@@ -42,7 +42,7 @@ object Importer {
 
       val isabelle_theory = Export_Theory.read_theory(theory_provider, session_name, theory_name)
 
-      val markup_xml = theory_provider.uncompressed_yxml("markup.yxml")
+      val markup_xml = theory_provider.uncompressed_yxml(Export.MARKUP)
       val markup_blocks = Markup_Blocks.from_XML(markup_xml)
 
       // Create accessor for importer

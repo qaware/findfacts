@@ -6,6 +6,7 @@ import de.qaware.findfacts.common.utils.DefaultEnum
 import enumeratum.EnumEntry
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
+import de.qaware.findfacts.common.solr.mapper.{FromSolrDoc, ToSolrDoc}
 
 class MapperTest extends AnyFunSuite {
 
