@@ -21,7 +21,7 @@ ThisBuild / resolvers ++= Seq(
   Resolver.mavenLocal
 )
 // Use java 11
-ThisBuild / javacOptions ++= Seq("-source", "15", "-target", "15")
+ThisBuild / javacOptions ++= Seq("-source", "11", "-target", "15")
 // Parallel execution causes logging issues
 ThisBuild / Test / parallelExecution := false
 // Enable deprecation warnings
@@ -129,7 +129,7 @@ lazy val `importer-base` = project
 // Isabelle project dependency
 lazy val isabelle = project.enablePlugins(IsabellePlugin)
 
-// Importer Isabelle projects. Follows Isabelle conventions.
+// Importer Isabelle projects. Follows Isabelle conventions loosely.
 lazy val `importer-isabelle` = project
   .settings(
     publish / skip := true,
@@ -138,6 +138,16 @@ lazy val `importer-isabelle` = project
     libraryDependencies ++= loggingBackend
   )
   .dependsOn(`importer-base`, `isabelle`)
+  .enablePlugins(IsabelleToolPlugin)
+
+lazy val `importer-isabelle-build` = project
+  .settings(
+    publish / skip := true,
+    isabelleCommand := "build_importer -C theorydata-" + schemaVersion,
+    isabelleProject := isabelle,
+    libraryDependencies ++= loggingBackend
+  )
+  .dependsOn(`importer-isabelle`)
   .enablePlugins(IsabelleToolPlugin)
 
 // Integration test to check integration between Isabelle dump and dump_importer

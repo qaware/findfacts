@@ -97,7 +97,7 @@ object WebappModule {
       RemoteSolr(config.getString(HOST), config.getInt(PORT), config.getString(CONFIGSET))
     } else {
       CloudSolr(
-        config.getObjectList(ZK_HOSTS).asScala.map(c => zkHostLoader.load(c.toConfig, ZK_HOST)),
+        config.getObjectList(ZK_HOSTS).asScala.map(c => zkHostLoader.load(c.toConfig, ZK_HOST)).toSeq,
         config.getString(CONFIGSET),
         config.getInt(NUM_SHARDS),
         config.getInt(NUM_REPLICAS)

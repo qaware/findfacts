@@ -23,8 +23,9 @@ Generally:
 Use `-?` to get information about the tool usage.
 Example invocation:
 ```shell
-./sbt "project importer-isabelle" "run -r localhost:8983 -i Isabelle2021_AFP2021 -a dump/" 
+./sbt "project importer-isabelle" "run -r localhost:8983 -i 2021_Isabelle2021_AFP2021 -a dump/" 
 ``` 
+[Isabelle settings](.isabelle/etc/settings): Increase memory a bit: `-Xss16m` `-Xmx8g`
 
 ### Search webapp
 Run:

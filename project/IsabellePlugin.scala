@@ -1,5 +1,7 @@
 import scala.sys.process.Process
 
+import com.typesafe.sbt.SbtNativePackager.{Universal, UniversalSrc}
+import com.typesafe.sbt.packager.Keys.{dist, stage}
 import sbt.Keys._
 import sbt._
 import sbt.complete.DefaultParsers._
@@ -22,9 +24,8 @@ object IsabellePlugin extends AutoPlugin {
   override def projectSettings: Seq[Def.Setting[_]] = {
     Seq(
       publish / skip := true,
-      compile / skip := true,
       libraryDependencies += "org.tukaani" % "xz" % "1.8",
-      scalaSource in Compile := baseDirectory.value / "src",
+      scalaSource in Runtime := baseDirectory.value / "src",
       unmanagedJars in Compile ++= {
         val isabelleExecutable = baseDirectory.value / "bin" / "isabelle"
         val projectDir = baseDirectory.value / ".."

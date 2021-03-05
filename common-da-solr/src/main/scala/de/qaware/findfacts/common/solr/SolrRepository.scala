@@ -74,7 +74,7 @@ final class LocalSolr private (
         val confResourceDir = s"$solrResourceDir/${LocalSolr.SOLR_CONF_DIR}"
         // List solr config files
         val confFiles = Using.resource(new ClassGraph().acceptPathsNonRecursive(confResourceDir).scan) { scan =>
-          scan.getAllResources.getPaths.asScala.toList
+          scan.getAllResources.getPaths.asScala.toList.distinct
         }
 
         if (confFiles.isEmpty) {

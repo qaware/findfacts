@@ -1,13 +1,13 @@
+import com.typesafe.sbt.packager.Keys.stage
+import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import sbt.Keys._
 import sbt._
 import sbt.complete.DefaultParsers._
 import sbt.io.IO
-import sbtassembly.AssemblyPlugin
-import sbtassembly.AssemblyPlugin.autoImport._
 
 /** Plugin for sbt projects defining a tool as Isabelle component. */
 object IsabelleToolPlugin extends AutoPlugin {
-  override def requires: Plugins = AssemblyPlugin
+  override def requires: Plugins = JavaAppPackaging
 
   object autoImport {
     lazy val isabelleProject = settingKey[Project]("isabelle project")
@@ -19,19 +19,13 @@ object IsabelleToolPlugin extends AutoPlugin {
 
   override def projectSettings: Seq[Def.Setting[_]] =
     Seq(
-      assemblyMergeStrategy in assembly := {
-        case PathList("META-INF", "versions", "9", "module-info.class") => MergeStrategy.first
-        case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.first
-        case x => (assemblyMergeStrategy in assembly).value.apply(x)
-      },
-      assembly := {
-        // Assemble fat jar for isabelle tool
-        val fatJarName = assembly.value.getName
+      stage := {
+        val deps = (stage.value ** "*.jar").get()
         val toolClass = (mainClass in (Compile, run)).value
 
         // Write settings file
         val file = (target in Compile).value / "etc" / "settings"
-        val contents = "classpath \"$COMPONENT/" + crossTarget.value.getName + "/" + fatJarName + "\"\n" +
+        val contents = deps.map(dep => "classpath \"" + dep.getAbsolutePath + "\"\n").mkString +
           toolClass.map("isabelle_scala_service \"" + _ + "\"\n").getOrElse("")
         IO.write(file, contents)
 
@@ -41,7 +35,7 @@ object IsabelleToolPlugin extends AutoPlugin {
         // Execute isabelle run config for custom tool
         Def.inputTaskDyn {
           // Build tool assembly
-          assembly.value
+          stage.value
           // Parse tool args
           val args = spaceDelimited("<arg>").parsed
           // Run
