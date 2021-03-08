@@ -1,7 +1,5 @@
 import scala.sys.process.Process
 
-import com.typesafe.sbt.SbtNativePackager.{Universal, UniversalSrc}
-import com.typesafe.sbt.packager.Keys.{dist, stage}
 import sbt.Keys._
 import sbt._
 import sbt.complete.DefaultParsers._
@@ -12,8 +10,9 @@ import sbt.complete.DefaultParsers._
 object IsabellePlugin extends AutoPlugin {
   val USER_HOME = "USER_HOME"
 
-  private def runIsabelle(bin: File, root: File, cmd: Seq[String], logger: Logger): Unit = {
-    val process = Process(bin.getAbsolutePath +: cmd, root, USER_HOME -> root.getAbsolutePath).run(logger)
+  private def runIsabelle(bin: File, root: File, args: Seq[String], logger: Logger): Unit = {
+    val cmd = (bin.getAbsolutePath +: args).mkString(" ")
+    val process = Process(cmd, root, USER_HOME -> root.getAbsolutePath).run(logger)
     val resultCode = process.exitValue()
     // Throw exception to trigger build breaks and the such
     if (resultCode != 0) {
@@ -21,35 +20,36 @@ object IsabellePlugin extends AutoPlugin {
     }
   }
 
-  override def projectSettings: Seq[Def.Setting[_]] = {
-    Seq(
-      publish / skip := true,
-      libraryDependencies += "org.tukaani" % "xz" % "1.8",
-      scalaSource in Runtime := baseDirectory.value / "src",
-      unmanagedJars in Compile ++= {
-        val isabelleExecutable = baseDirectory.value / "bin" / "isabelle"
-        val projectDir = baseDirectory.value / ".."
-        val logger = streams.value.log
+  override def projectSettings: Seq[Def.Setting[_]] = Seq(
+    publish / skip := true,
+    scalaSource in Compile := baseDirectory.value / "src", // Register sources for IDE support
+    compile / skip := true, // Skip actual compilation (since isabelle scripts will do that)
+    Compile / doc := { file("") }, // Skip doc compilation
+    libraryDependencies += "org.tukaani" % "xz" % "1.8", // Pure compile-time deps
+    unmanagedJars in Compile ++= {
+      // Build and Register pure jar
+      val isabelleExecutable = baseDirectory.value / "bin" / "isabelle"
+      val projectDir = baseDirectory.value / ".."
+      val logger = streams.value.log
 
-        // Get components and build jars
-        runIsabelle(isabelleExecutable, projectDir, Seq("components", "-a"), logger)
-        runIsabelle(isabelleExecutable, projectDir, Seq("jedit", "-b"), logger)
+      // Get components and build jars
+      runIsabelle(isabelleExecutable, projectDir, Seq("components", "-a"), logger)
+      runIsabelle(isabelleExecutable, projectDir, Seq("jedit", "-b"), logger)
 
-        // Return jar
-        (baseDirectory.value / "lib" / "classes" ** "*.jar").get()
-      },
-      run := {
-        val isabelleExecutable = baseDirectory.value / "bin" / "isabelle"
-        val projectDir = baseDirectory.value / ".."
-        val logger = streams.value.log
+      // Return jar
+      (baseDirectory.value / "lib" / "classes" ** "*.jar").get()
+    },
+    run := {
+      val isabelleExecutable = baseDirectory.value / "bin" / "isabelle"
+      val projectDir = baseDirectory.value / ".."
+      val logger = streams.value.log
 
-        // Parse user invocation
-        val args = spaceDelimited("<arg>").parsed
-        logger.info("Running isabelle " + args.mkString(" "))
+      // Parse user invocation
+      val args = spaceDelimited("<arg>").parsed
+      logger.info("Running isabelle " + args.mkString(" "))
 
-        // Run
-        runIsabelle(isabelleExecutable, projectDir, args, logger)
-      }
-    )
-  }
+      // Run
+      runIsabelle(isabelleExecutable, projectDir, args, logger)
+    }
+  )
 }

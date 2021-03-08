@@ -21,7 +21,7 @@ ThisBuild / resolvers ++= Seq(
   Resolver.mavenLocal
 )
 // Use java 11
-ThisBuild / javacOptions ++= Seq("-source", "11", "-target", "15")
+ThisBuild / javacOptions ++= Seq("-source", "15", "-target", "15")
 // Parallel execution causes logging issues
 ThisBuild / Test / parallelExecution := false
 // Enable deprecation warnings

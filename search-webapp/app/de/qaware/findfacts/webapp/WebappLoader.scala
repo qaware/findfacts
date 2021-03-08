@@ -92,7 +92,7 @@ object WebappModule {
   implicit val repositoryLoader: ConfigLoader[SolrRepository] = (rootConfig: Config, path: String) => {
     val config = rootConfig.getConfig(path)
     if (config.hasPath(SOLR_HOME)) {
-      LocalSolr(new File(config.getString(SOLR_HOME)), config.getString(CORE))
+      LocalSolr(new File(config.getString(SOLR_HOME)))
     } else if (config.hasPath(HOST) && config.hasPath(PORT)) {
       RemoteSolr(config.getString(HOST), config.getInt(PORT), config.getString(CONFIGSET))
     } else {
