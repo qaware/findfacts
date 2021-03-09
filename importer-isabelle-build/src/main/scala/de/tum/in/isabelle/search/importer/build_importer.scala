@@ -63,7 +63,7 @@ Usage: isabelle build_importer [OPTIONS] SESSIONS...
         val importer_module = new SolrImporterModule(solr_repository)
 
         val progress = new Console_Progress()
-        val options = Options.init()
+        val options = Options.init() + "export_theory"
 
         // Build
         build(
