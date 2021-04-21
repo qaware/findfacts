@@ -2,11 +2,12 @@ package de.qaware.findfacts.core
 
 import io.circe.generic.auto._
 import io.circe.syntax._
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import de.qaware.findfacts.common.dt.EtField
 
-class QueryTest extends FunSuite with Matchers {
+class QueryTest extends AnyFunSuite with Matchers {
   test("Json encoding/decoding for filter query") {
     val query: FilterQuery = FilterQuery(List(FieldFilter(EtField.Name, Exact("*gauss*"))), 10)
     val json = query.asJson

@@ -1,6 +1,6 @@
 package de.qaware.findfacts.core.solrimpl
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 import cats.instances.list._
@@ -166,19 +166,20 @@ class SolrQueryService(solr: SolrRepository, mapper: SolrQueryMapper) extends Qu
   }
 
   override def getResultResolved(id: EtField.Id.T)(implicit index: String): Try[Option[ResolvedThyEt]] = {
-    val res: Try[Option[Try[ResolvedThyEt]]] = for {
-      resOpt <- getRes[BaseEt, Option[BaseEt]](idsFilterQuery(id), mapper.buildFilterQuery, mapSingle)
-    } yield for {
-      elem <- resOpt
-    } yield elem match {
-      case ConstantEt(id, _, uses, constantType, _) =>
-        for { resolved <- resolve(uses) } yield dt.ResolvedConstant(id, constantType, resolved.toList)
-      case FactEt(id, _, uses, _) =>
-        for { resolved <- resolve(uses) } yield dt.ResolvedFact(id, resolved.toList)
-      case TypeEt(id, _, uses, _) =>
-        for { resolved <- resolve(uses) } yield dt.ResolvedType(id, resolved.toList)
-      case _ => return Success(None)
-    }
+    val res: Try[Option[Try[ResolvedThyEt]]] =
+      for {
+        resOpt <- getRes[BaseEt, Option[BaseEt]](idsFilterQuery(id), mapper.buildFilterQuery, mapSingle)
+      } yield for {
+        elem <- resOpt
+      } yield elem match {
+        case ConstantEt(id, _, uses, constantType, _) =>
+          for { resolved <- resolve(uses) } yield dt.ResolvedConstant(id, constantType, resolved.toList)
+        case FactEt(id, _, uses, _) =>
+          for { resolved <- resolve(uses) } yield dt.ResolvedFact(id, resolved.toList)
+        case TypeEt(id, _, uses, _) =>
+          for { resolved <- resolve(uses) } yield dt.ResolvedType(id, resolved.toList)
+        case _ => return Success(None)
+      }
     res.map(_.map(_.toEither.left.map(t => return Failure(t)).merge))
   }
 

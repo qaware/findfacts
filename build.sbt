@@ -13,10 +13,15 @@ val schemaVersion = "0.3.1"
 // Project-wide settings
 ThisBuild / organization := "de.qaware.findfacts"
 ThisBuild / version := projectVersion
-ThisBuild / scalaVersion := "2.12.10"
-ThisBuild / resolvers ++= Resolvers.all
+ThisBuild / scalaVersion := "2.13.4"
+ThisBuild / resolvers ++= Seq(
+  "Restlet" at "https://maven.restlet.com/",
+  Resolver.sonatypeRepo("releases"),
+  Resolver.sonatypeRepo("snapshots"),
+  Resolver.mavenLocal
+)
 // Use java 11
-ThisBuild / javacOptions ++= Seq("-source", "11", "-target", "11")
+ThisBuild / javacOptions ++= Seq("-source", "15", "-target", "15")
 // Parallel execution causes logging issues
 ThisBuild / Test / parallelExecution := false
 // Enable deprecation warnings
@@ -29,7 +34,7 @@ ThisBuild / assembly / test := {}
 // Virtual sub-projects
 
 // Root project aggregates all
-lazy val root = (project in file("."))
+lazy val findfacts = (project in file("."))
   .settings(
     publish / skip := true,
     sonarProjects := Seq(
@@ -122,26 +127,27 @@ lazy val `importer-base` = project
 // Importer
 
 // Isabelle project dependency
-lazy val isabelle = project
-  .settings(
-    publish / skip := true,
-    unmanagedJars in Compile ++= (baseDirectory.value / "lib" / "classes" ** "*.jar").get(),
-    libraryDependencies ++= isabelleDependencies,
-    isabelleExecutable := baseDirectory.value / "bin" / "isabelle",
-    isabelleCommand := "dump"
-  )
-  .enablePlugins(IsabellePlugin)
+lazy val isabelle = project.enablePlugins(IsabellePlugin)
 
-// Importer Isabelle projects. Follows Isabelle conventions.
+// Importer Isabelle projects. Follows Isabelle conventions loosely.
 lazy val `importer-isabelle` = project
   .settings(
     publish / skip := true,
-    isabelleCommand := "dump_importer",
-    isabelleExecutable := (baseDirectory in isabelle).value / "bin" / "isabelle",
-    isabelleSettings := Seq("SOLR_CONFIGSET=theorydata-" + schemaVersion),
+    isabelleCommand := "dump_importer -C theorydata-" + schemaVersion,
+    isabelleProject := isabelle,
     libraryDependencies ++= loggingBackend
   )
   .dependsOn(`importer-base`, `isabelle`)
+  .enablePlugins(IsabelleToolPlugin)
+
+lazy val `importer-isabelle-build` = project
+  .settings(
+    publish / skip := true,
+    isabelleCommand := "build_importer -C theorydata-" + schemaVersion,
+    isabelleProject := isabelle,
+    libraryDependencies ++= loggingBackend
+  )
+  .dependsOn(`importer-isabelle`)
   .enablePlugins(IsabelleToolPlugin)
 
 // Integration test to check integration between Isabelle dump and dump_importer
@@ -168,7 +174,7 @@ lazy val `importer-it` = project
 
         // Run dump and dump_importer in Isabelle
         (run in isabelle)
-          .toTask(" -A markup,theory -b HOL -D " + thyDir + " -O " + dumpDir)
+          .toTask(" dump -A markup,theory -b HOL -D " + thyDir + " -O " + dumpDir)
           .zip((run in `importer-isabelle`).toTask(" -l " + solrDir + " Spec-Tests " + dumpDir))
           .flatMap { case (t1, t2) => t1 && t2 } && testTask
       } else {

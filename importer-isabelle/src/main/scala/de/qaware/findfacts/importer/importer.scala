@@ -2,7 +2,7 @@
     Author:     Fabian Huch, TU Munich/QAware GmbH
 
 Isabelle dump importer.
-*/
+ */
 
 package de.qaware.findfacts.importer
 
@@ -11,20 +11,17 @@ import de.qaware.findfacts.importer.Theory._
 import de.qaware.findfacts.importer.solrimpl.SolrImporterModule
 import isabelle._
 
-
-object Importer
-{
+object Importer {
 
   /* import a session to solr */
 
   def solr_import(
-     index_name: String,
-     provider: Export.Provider,
-     session_name: String,
-     theory_names: List[String],
-     solr_repository: SolrRepository,
-     progress: Progress = new Progress)
-  {
+      index_name: String,
+      provider: Export.Provider,
+      session_name: String,
+      theory_names: List[String],
+      solr_repository: SolrRepository,
+      progress: Progress = new Progress): Unit = {
     val importer = new SolrImporterModule(solr_repository)
     import_session(index_name, provider, session_name, theory_names, importer, progress)
   }
@@ -32,13 +29,12 @@ object Importer
   /* import a session with a generic importer */
 
   def import_session(
-    index_name: String,
-    provider: Export.Provider,
-    session_name: String,
-    theory_names: List[String],
-    importer: ImporterModule,
-    progress: Progress = new Progress)
-  {
+      index_name: String,
+      provider: Export.Provider,
+      session_name: String,
+      theory_names: List[String],
+      importer: ImporterModule,
+      progress: Progress = new Progress): Unit = {
     progress.echo("importing " + session_name + " with " + theory_names.size + " theories...")
 
     val theories = theory_names map { theory_name =>
@@ -46,7 +42,7 @@ object Importer
 
       val isabelle_theory = Export_Theory.read_theory(theory_provider, session_name, theory_name)
 
-      val markup_xml = theory_provider.uncompressed_yxml("markup.yxml")
+      val markup_xml = theory_provider.uncompressed_yxml(Export.MARKUP)
       val markup_blocks = Markup_Blocks.from_XML(markup_xml)
 
       // Create accessor for importer
@@ -70,17 +66,21 @@ object Importer
 
   /* Isabelle tool wrapper */
 
-  val isabelle_tool = Isabelle_Tool("dump_importer", "Import dump into solr", args =>
-  {
-    /* arguments */
+  val isabelle_tool = Isabelle_Tool(
+    "dump_importer",
+    "Import dump into solr",
+    Scala_Project.here,
+    args => {
+      /* arguments */
 
-    var index_name = "theorydata"
-    var all_sessions = false
-    var configset = Isabelle_System.getenv("SOLR_CONFIGSET")
-    var local_solr = ""
-    var remote_solr: List[String] = Nil
+      var index_name = "theorydata"
+      var all_sessions = false
+      var configset = Isabelle_System.getenv("SOLR_CONFIGSET")
+      var local_solr = ""
+      var remote_solr: List[String] = Nil
 
-    val getopts = Getopts("""
+      val getopts = Getopts(
+        """
 Usage: isabelle dump_importer [OPTIONS] [SESSIONS ...] DUMPDIR
 
   Options are:
@@ -95,51 +95,53 @@ Usage: isabelle dump_importer [OPTIONS] [SESSIONS ...] DUMPDIR
   argument or environment variable 'SOLR_CONFIGSET').
   Index name usually has form '${NAME}_${ISABELLE_VERSION}_${AFP_VERSION}'.
 """,
-      "a" -> (_ => all_sessions = true),
-      "i:" -> (arg => index_name = arg),
-      "C:" -> (arg => configset = arg),
-      "l:" -> (arg => local_solr = arg),
-      "r:" -> (arg => remote_solr = Library.distinct(space_explode(':', arg))))
+        "a" -> (_ => all_sessions = true),
+        "i:" -> (arg => index_name = arg),
+        "C:" -> (arg => configset = arg),
+        "l:" -> (arg => local_solr = arg),
+        "r:" -> (arg => remote_solr = Library.distinct(space_explode(':', arg)))
+      )
 
-    val more_args = getopts(args)
+      val more_args = getopts(args)
 
-    val dump_dir = more_args match {
-      case Nil => getopts.usage
-      case opts => Path.explode(opts.last)
-    }
-    val dump_theory_dirs = File.read_dir(dump_dir)
+      val dump_dir = more_args match {
+        case Nil => getopts.usage()
+        case opts => Path.explode(opts.last)
+      }
+      val dump_theory_dirs = File.read_dir(dump_dir)
 
-    val sessions = (more_args.dropRight(1), all_sessions) match {
-      case (Nil, true) => dump_theory_dirs.map(_.split('.').head).distinct
-      case (session_list, false) => session_list
-      case _ => getopts.usage
-    }
+      val sessions = (more_args.dropRight(1), all_sessions) match {
+        case (Nil, true) => dump_theory_dirs.map(_.split('.').head).distinct
+        case (session_list, false) => session_list
+        case _ => getopts.usage()
+      }
 
-    val solr_repository = (local_solr, remote_solr) match {
-      case (dir, _) if !dir.isBlank => LocalSolr(Path.explode(dir).absolute_file)
-      case (_, host :: port :: Nil) if !host.isBlank && !configset.isBlank =>
-        RemoteSolr(host, Value.Int.parse(port), configset)
-      case _ => getopts.usage()
-    }
+      val solr_repository = (local_solr, remote_solr) match {
+        case (dir, _) if !dir.isBlank => LocalSolr(Path.explode(dir).absolute_file)
+        case (_, host :: port :: Nil) if !host.isBlank && !configset.isBlank =>
+          RemoteSolr(host, Value.Int.parse(port), configset)
+        case _ => getopts.usage()
+      }
 
-    using(solr_repository) { solr_repository =>
-      val importer_module = new SolrImporterModule(solr_repository)
+      using(solr_repository) { solr_repository =>
+        val importer_module = new SolrImporterModule(solr_repository)
 
-      val progress = new Console_Progress()
+        val progress = new Console_Progress()
 
-      // run import
+        // run import
 
-      sessions map { session =>
-        Future.fork {
-          val theory_dirs = dump_theory_dirs.filter(dir => dir == session || dir.startsWith(session + "."))
-          val theory_names = theory_dirs map { theory_dir =>
-            if (theory_dir.length > session.length) theory_dir else session
+        sessions map { session =>
+          Future.fork {
+            val theory_dirs = dump_theory_dirs.filter(dir => dir == session || dir.startsWith(session + "."))
+            val theory_names = theory_dirs map { theory_dir =>
+              if (theory_dir.length > session.length) theory_dir else session
+            }
+            val provider = Export.Provider.directory(dump_dir, XML.Cache.make(), session, "dummy")
+
+            import_session(index_name, provider, session, theory_names, importer_module, progress)
           }
-          val provider = Export.Provider.directory(dump_dir, session, "dummy")
-
-          import_session(index_name, provider, session, theory_names, importer_module, progress)
-        }
-      } foreach (_.join)
+        } foreach (_.join)
+      }
     }
-  })
+  )
 }

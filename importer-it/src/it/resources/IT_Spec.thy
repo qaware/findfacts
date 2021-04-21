@@ -30,14 +30,14 @@ datatype 'a li = N | C 'a "'a li"
     // Check c-tors
     val cCtor = constants.find(_.name == "li.C").get
     cCtor.constantType should equal ("'a ⇒ 'a IT_Spec.li ⇒ 'a IT_Spec.li")
-    cCtor.uses should contain ("Type.IT_Spec.li")
+    cCtor.uses.toList should contain ("Type.IT_Spec.li")
 
     val nCtor = constants.find(_.name == "li.N").get
     nCtor.constantType should equal("'a IT_Spec.li")
-    nCtor.uses should contain ("Type.IT_Spec.li")
+    nCtor.uses.toList should contain ("Type.IT_Spec.li")
 
     // There should be an constant that uses type constructors and self type
-    atLeast(1, constants.map(_.uses)) should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.li.C", "Constant.IT_Spec.li.N")
+    atLeast(1, constants.map(_.uses.toList)) should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.li.C", "Constant.IT_Spec.li.N")
 SPEC:END*)
 
 (*SPEC:BEGIN:Check value*)
@@ -61,7 +61,7 @@ type_synonym nLi = "nat li"
     t.name should equal("nLi")
 
     // Type should use "li" and "nat"
-    t.uses should contain theSameElementsAs Seq("Type.IT_Spec.li", "Type.Nat.nat")
+    t.uses.toList should contain theSameElementsAs Seq("Type.IT_Spec.li", "Type.Nat.nat")
 SPEC:END*)
 
 (*SPEC:BEGIN:Check fun*)
@@ -77,7 +77,7 @@ fun app where
     constants.map(_.constantType) should contain ("'a IT_Spec.li ⇒ 'a ⇒ 'a IT_Spec.li")
 
     // Check uses of a constant
-    atLeast(1, constants.map(_.uses)) should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.li.N", "Constant.IT_Spec.li.C")
+    atLeast(1, constants.map(_.uses.toList)) should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.li.N", "Constant.IT_Spec.li.C")
 SPEC:END*)
 
 (*SPEC:BEGIN:Check primrec and const dependencies*)
@@ -93,7 +93,7 @@ primrec rev :: "'a li \<Rightarrow> 'a li" where
     const.name should equal("rev")
     const.constantType should equal("'a IT_Spec.li ⇒ 'a IT_Spec.li")
     // "Constant.IT_Spec.li.C" is at argument position and thus not present here
-    const.uses should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.li.N", "Constant.IT_Spec.app")
+    const.uses.toList should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.li.N", "Constant.IT_Spec.app")
 SPEC:END*)
 
 (*SPEC:BEGIN:Check short lemma and proposition dependencies*)
@@ -107,10 +107,10 @@ lemma rev_app [simp]: "rev (app xs x) = C x (rev xs)"
     facts should have size 1
     val fact = facts.head
     fact.name should equal("rev_app")
-    fact.uses should contain allOf("Constant.IT_Spec.app", "Constant.IT_Spec.rev")
+    fact.uses.toList should contain allOf("Constant.IT_Spec.app", "Constant.IT_Spec.rev")
 
     // Check implicit proposition dependencies
-    fact.uses should contain ("Type.IT_Spec.li")
+    fact.uses.toList should contain ("Type.IT_Spec.li")
 SPEC:END*)
 
 (*SPEC:BEGIN:Check long Isar-style theorem and proof dependencies*)
@@ -131,10 +131,10 @@ qed (simp)
     facts should have size 1
     val fact = facts.head
     fact.name should not be(empty)
-    fact.uses should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.rev")
+    fact.uses.toList should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.rev")
 
     // Check proof-only dependency
-    fact.uses should contain ("Fact.IT_Spec.rev_app")
+    fact.uses.toList should contain ("Fact.IT_Spec.rev_app")
 SPEC:END*)
 
 (*SPEC:BEGIN:Check definition and HOL dependency*)
@@ -147,10 +147,10 @@ definition"palindrome \<equiv> \<lambda> xs. rev xs = xs"
     val const = constants.head
     const.name should equal("palindrome")
     const.constantType should equal("'a IT_Spec.li ⇒ HOL.bool")
-    const.uses should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.rev")
+    const.uses.toList should contain allOf("Type.IT_Spec.li", "Constant.IT_Spec.rev")
     
     // Check HOL usage
-    const.uses should contain("Type.HOL.bool")
+    const.uses.toList should contain("Type.HOL.bool")
 SPEC:END*)
 
 end

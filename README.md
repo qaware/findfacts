@@ -11,43 +11,21 @@ Project to make Isabelle and the AFP easily searchable. Structured in:
 - **importer**: importer pipeline to import Isabelle `dump` into search index
 
 ## Usage
-Requirements: `java` 11
+- Requirements: `java 15`
+- Build: `./sbt -Dprofiles=ui,loader clean compile test it:test`
+- Preparation: Initialize git submodules (`git submodule init && git submodule update`)
 
-### Importer Isabelle tool
-
-#### From source
-1. Check out and `cd` into repo
-2. Check out, initialize and build **Isabelle** submodule
-   ```shell
-   git submodule init
-   git submodule update
-   ci-scripts/install-isabelle
-   ```
-   
-3. Register `importer-isabelle` external component (for local installation, use your own `settings` file)
-   ```shell
-   echo 'init_component "path/to/isabelle-afp-search/importer-isabelle/target/scala-2.12"' >> isabelle/etc/settings
-   ```
-   
-4. Run
-    ```shell
-    ./sbt "project importer-isabelle" "run <OPTIONS>"
-   ```
-    Use `-?` to get information about the tool usage. Example invocation:
-    ```shell
-   ./sbt "project importer-isabelle" "run ../dump localhost 8983" 
-   ``` 
-
-#### Using local Isabelle installation
-1. Download published artifact (TODO publish)
-2. Add Isabelle component (to Isabelle `etc/settings` file):
-   ```shell
-   init_component /path/to/download/folder
-   ```
-3. Run
-   ```env
-   isabelle dump_importer -?
-   ```
+### Importer tool
+Generally:
+```shell
+./sbt "project importer-isabelle" "run <OPTIONS>"
+```
+Use `-?` to get information about the tool usage.
+Example invocation:
+```shell
+./sbt "project importer-isabelle" "run -r localhost:8983 -i 2021_Isabelle2021_AFP2021 -a dump/" 
+``` 
+[Isabelle settings](.isabelle/etc/settings): Increase memory a bit: `-Xss16m` `-Xmx8g`
 
 ### Search webapp
 Run:
@@ -70,6 +48,6 @@ This project uses the [databricks style guide](https://github.com/databricks/sca
 - __monadic chaining__: Use for-comprehensions to easily chain monads in an understandable and readable way.
 - __multiple parameter lists__: Use multiple parameter list for partially applicable functions or to improve type inference.
 
-(Most) formatting is automated via scalafmt.
+Formatting is automated via scalafmt.
 
 The `importer-isabelle` submodule instead adheres to the Isabelle code style.

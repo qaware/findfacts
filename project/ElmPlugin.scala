@@ -52,12 +52,13 @@ object ElmPlugin extends AutoPlugin {
           val logger = bufferingLogger
           val exitStatus = Process(command, (elmProjectJson in elmMake).value.getParentFile) ! logger
 
-          val result = if (exitStatus == 0) {
-            OpSuccess(srcs.toSet, Set((elmOutput in elmMake).value))
-          } else {
-            CompileProblems.report(rep, Seq(new GeneralProblem(logger.buffer.mkString("\n"), file("src/Main.elm"))))
-            OpFailure
-          }
+          val result =
+            if (exitStatus == 0) {
+              OpSuccess(srcs.toSet, Set((elmOutput in elmMake).value))
+            } else {
+              CompileProblems.report(rep, Seq(new GeneralProblem(logger.buffer.mkString("\n"), file("src/Main.elm"))))
+              OpFailure
+            }
 
           (Map(() -> result), ())
       }

@@ -217,7 +217,7 @@ object TheoryView {
     def contains(entity: Entity): Boolean
 
     override def toString: String =
-      (text.linesWithSeparators.zipWithIndex map { case (s, l) => s"${startLine + s}: $l" }).mkString
+      (text.linesWithSeparators.zipWithIndex map { case (s, l) => s"$startLine$s: $l" }).mkString
   }
 
   object Block {

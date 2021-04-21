@@ -1,60 +1,46 @@
-import scala.sys.process.Process
-
-import IsabellePlugin.autoImport.{isabelleCommand, isabelleExecutable}
+import com.typesafe.sbt.packager.Keys.stage
+import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import sbt.Keys._
 import sbt._
 import sbt.complete.DefaultParsers._
 import sbt.io.IO
-import sbtassembly.AssemblyPlugin
-import sbtassembly.AssemblyPlugin.autoImport._
 
 /** Plugin for sbt projects defining a tool as Isabelle component. */
 object IsabelleToolPlugin extends AutoPlugin {
-  override def requires: Plugins = IsabellePlugin && AssemblyPlugin
+  override def requires: Plugins = JavaAppPackaging
 
   object autoImport {
-    lazy val isabelleSettings = settingKey[Seq[String]]("isabelle tool additional settings")
-    lazy val isabelleComponentAssembly = taskKey[File]("isabelle component assembly task")
+    lazy val isabelleProject = settingKey[Project]("isabelle project")
+    lazy val isabelleCommand =
+      settingKey[String]("isabelle tool command")
   }
 
   import autoImport._
 
   override def projectSettings: Seq[Def.Setting[_]] =
     Seq(
-      assemblyMergeStrategy in assembly := {
-        case PathList("META-INF", "versions", "9", "module-info.class") => MergeStrategy.first
-        case x => (assemblyMergeStrategy in assembly).value.apply(x)
-      },
-      isabelleComponentAssembly := {
-        // Assemble fat jar for isabelle tool
-        val fatJarName = assembly.value.getName
+      stage := {
+        val deps = (stage.value ** "*.jar").get()
         val toolClass = (mainClass in (Compile, run)).value
-          .getOrElse(throw new IllegalArgumentException("No tool (main) class specified!"))
 
         // Write settings file
-        val file = (crossTarget in Compile).value / "etc" / "settings"
-        val contents = "classpath \"$COMPONENT/" + fatJarName + "\"\n" +
-          "isabelle_scala_service \"" + toolClass + "\"\n" +
-          isabelleSettings.value.mkString("\n")
+        val file = (target in Compile).value / "etc" / "settings"
+        val contents = deps.map(dep => "classpath \"" + dep.getAbsolutePath + "\"\n").mkString +
+          toolClass.map("isabelle_scala_service \"" + _ + "\"\n").getOrElse("")
         IO.write(file, contents)
 
         file
       },
       run := {
-        isabelleComponentAssembly.value
-
-        // Parse tool args
-        val args = spaceDelimited("<arg>").parsed
-
-        // Run isabelle process
-        val logger = streams.value.log
-        logger.info("Running isabelle " + isabelleCommand.value + " " + args.mkString(" "))
-
-        val resultCode = Process(isabelleExecutable.value.getAbsolutePath, isabelleCommand.value +: args).!(logger)
-
-        if (resultCode != 0) {
-          throw new IllegalStateException("Running isabelle tool failed with exit code " + resultCode)
-        }
+        // Execute isabelle run config for custom tool
+        Def.inputTaskDyn {
+          // Build tool assembly
+          stage.value
+          // Parse tool args
+          val args = spaceDelimited("<arg>").parsed
+          // Run
+          (run in isabelleProject.value).toTask(" " + (isabelleCommand.value +: args).mkString(" "))
+        }.evaluated
       }
     )
 }

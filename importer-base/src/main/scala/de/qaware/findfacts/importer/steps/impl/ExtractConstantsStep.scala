@@ -1,9 +1,9 @@
 package de.qaware.findfacts.importer.steps.impl
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 import com.typesafe.scalalogging.Logger
-
 import de.qaware.findfacts.common.dt.{ConstantEt, Kind}
 import de.qaware.findfacts.importer.TheoryView.Const
 import de.qaware.findfacts.importer.steps.impl.thy.{PropExtractor, TermExtractor, TypExtractor}
@@ -52,7 +52,9 @@ class ExtractConstantsStep(
     // Convert mapping to Map
     val axiomNamesByConst = theory.constdefs
       .groupBy(_.name)
+      .view
       .mapValues(_.map(_.axiomName))
+      .toMap
 
     // Build entities
     theory.consts foreach { const =>
@@ -77,7 +79,7 @@ class ExtractConstantsStep(
       // Add entity to context
       val et =
         ConstantEt(idBuilder.theoryEtId(Kind.Constant, fullName), name, uses, typExtractor.prettyPrint(const.typ))
-      ctx.consts.addBinding(const.entity.pos, et)
+      ctx.putConst(const.entity.pos, et)
     }
 
     logger.debug(s"Finished importing constants with ${errors.size} errors")

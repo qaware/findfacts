@@ -1,9 +1,8 @@
 package de.qaware.findfacts.importer.steps.solrimpl
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import com.typesafe.scalalogging.Logger
-
 import de.qaware.findfacts.common.dt.BaseEt
 import de.qaware.findfacts.common.solr.SolrRepository
 import de.qaware.findfacts.common.solr.mapper.ToSolrDoc
@@ -24,7 +23,7 @@ class WriteSolrStep(index: String, solr: SolrRepository) extends ImportStep {
 
   override def execute(theory: Theory)(implicit ctx: StepContext): List[ImportError] = {
     solr.createIndex(index)
-    val entities = ctx.blocks
+    val entities = ctx.getBlocks
 
     if (entities.isEmpty) {
       logger.debug(s"Nothing to import")

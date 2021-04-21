@@ -22,7 +22,7 @@
 -->
 <config>
 
-  <luceneMatchVersion>8.2.0</luceneMatchVersion>
+  <luceneMatchVersion>8.3.1</luceneMatchVersion>
 
   <!-- Data Directory
 

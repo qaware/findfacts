@@ -20,22 +20,24 @@ class JoinBlockEntitiesStep(idBuilder: IdBuilder) extends ImportStep {
 
   @SuppressWarnings(Array("TraversableHead"))
   override def execute(theory: TheoryView.Theory)(implicit ctx: StepContext): List[ImportError] = {
-    logger.debug(s"Joining ${ctx.blocks.size} blocks with ${ctx.theoryEts.size}...")
+    val blocks = ctx.getBlocks
+    logger.debug(s"Joining ${blocks.size} blocks with ${ctx.theoryEts.size}...")
 
     val errors = ListBuffer.empty[ImportError]
 
     // Create map from blocks by their id
     val blocksMap: mutable.Map[String, CodeblockEt] = mutable.Map(
-      ctx.blocks.toList
+      blocks.toList
         .groupBy(_.id)
-        .toSeq
+        .view
         .map {
           case (id, List(block)) => id -> block
           case (id, blocks) =>
             // Add error about duplicates, but keep block
             errors += ImportError(this, id, "Duplicate block id", s"For blocks: ${blocks.mkString(",")}")
             id -> blocks.head
-        }: _*)
+        }
+        .toSeq: _*)
 
     // Go through entity positions
     val joinErrors = ctx.theoryEtsByPosition flatMap {
@@ -56,8 +58,8 @@ class JoinBlockEntitiesStep(idBuilder: IdBuilder) extends ImportStep {
     }
 
     // Store updated blocks in context
-    ctx.blocks.clear()
-    blocksMap.values.foreach(ctx.blocks.add)
+    ctx.clearBlocks()
+    blocksMap.values.foreach(ctx.putBlock)
 
     logger.debug(s"Finished joining blocks with ${joinErrors.size + errors.size} errors")
     joinErrors.toList ++ errors.toList

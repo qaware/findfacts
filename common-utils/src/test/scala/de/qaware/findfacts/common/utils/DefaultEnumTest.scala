@@ -1,9 +1,11 @@
 package de.qaware.findfacts.common.utils
 
 import enumeratum.EnumEntry
-import org.scalatest.{FunSuite, Matchers, TryValues}
+import org.scalatest.TryValues
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class DefaultEnumTest extends FunSuite with Matchers with TryValues {
+class DefaultEnumTest extends AnyFunSuite with Matchers with TryValues {
   sealed trait TestEnum extends EnumEntry
   object TestEnum extends DefaultEnum[TestEnum] {
     override final val values = findValues

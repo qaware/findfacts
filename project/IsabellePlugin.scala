@@ -5,33 +5,51 @@ import sbt._
 import sbt.complete.DefaultParsers._
 
 /**
- * Isabelle plugin wrapper. Preparation of the Isabelle instance isn't done here
- * as that lifecycle is different from the lifecycle of the SBT session.
+ * Isabelle plugin wrapper. Run the repo Isabelle Instance only using this wrapper.
  */
 object IsabellePlugin extends AutoPlugin {
+  val USER_HOME = "USER_HOME"
 
-  object autoImport {
-    lazy val isabelleExecutable = settingKey[File]("Compile isabelle jars")
-    lazy val isabelleCommand = settingKey[String]("isabelle command for run task")
+  private def runIsabelle(bin: File, root: File, args: Seq[String], logger: Logger): Unit = {
+    val cmd = (bin.getAbsolutePath +: args).mkString(" ")
+    val process = Process(cmd, root, USER_HOME -> root.getAbsolutePath).run(logger)
+    val resultCode = process.exitValue()
+    // Throw exception to trigger build breaks and the such
+    if (resultCode != 0) {
+      throw new IllegalStateException(s"Running Isabelle command failed with exit code $resultCode")
+    }
   }
 
-  import autoImport._
+  override def projectSettings: Seq[Def.Setting[_]] = Seq(
+    publish / skip := true,
+    scalaSource in Compile := baseDirectory.value / "src", // Register sources for IDE support
+    compile / skip := true, // Skip actual compilation (since isabelle scripts will do that)
+    Compile / doc := { file("") }, // Skip doc compilation
+    libraryDependencies += "org.tukaani" % "xz" % "1.8", // Pure compile-time deps
+    unmanagedJars in Compile ++= {
+      // Build and Register pure jar
+      val isabelleExecutable = baseDirectory.value / "bin" / "isabelle"
+      val projectDir = baseDirectory.value / ".."
+      val logger = streams.value.log
 
-  override def projectSettings: Seq[Def.Setting[_]] =
-    Seq(
-      run := {
-        // Parse tool args
-        val args = spaceDelimited("<arg>").parsed
+      // Get components and build jars
+      runIsabelle(isabelleExecutable, projectDir, Seq("components", "-a"), logger)
+      runIsabelle(isabelleExecutable, projectDir, Seq("jedit", "-b"), logger)
 
-        // Run isabelle process
-        val logger = streams.value.log
-        logger.info("Running isabelle " + isabelleCommand.value + " " + args.mkString(" "))
+      // Return jar
+      (baseDirectory.value / "lib" / "classes" ** "*.jar").get()
+    },
+    run := {
+      val isabelleExecutable = baseDirectory.value / "bin" / "isabelle"
+      val projectDir = baseDirectory.value / ".."
+      val logger = streams.value.log
 
-        val resultCode = Process(isabelleExecutable.value.getAbsolutePath, isabelleCommand.value +: args).!(logger)
+      // Parse user invocation
+      val args = spaceDelimited("<arg>").parsed
+      logger.info("Running isabelle " + args.mkString(" "))
 
-        if (resultCode != 0) {
-          throw new IllegalStateException(s"Running isabelle command failed with exit code $resultCode")
-        }
-      }
-    )
+      // Run
+      runIsabelle(isabelleExecutable, projectDir, args, logger)
+    }
+  )
 }

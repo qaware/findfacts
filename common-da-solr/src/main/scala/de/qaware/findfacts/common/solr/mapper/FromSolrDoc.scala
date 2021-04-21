@@ -2,7 +2,7 @@ package de.qaware.findfacts.common.solr.mapper
 
 import java.util.{List => JList}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
@@ -12,7 +12,14 @@ import shapeless.tag.{@@, Tagged}
 import shapeless.{:+:, ::, CNil, Coproduct, Generic, HList, HNil, Inl, Inr, Lazy, Witness}
 
 import de.qaware.findfacts.common.da.api.Variant.Discriminator
-import de.qaware.findfacts.common.da.api.{ChildrenField, Field, MultiValuedField, OptionalField, SingleValuedField, Variant}
+import de.qaware.findfacts.common.da.api.{
+  ChildrenField,
+  Field,
+  MultiValuedField,
+  OptionalField,
+  SingleValuedField,
+  Variant
+}
 
 /**
  * Solr document mapper type class.
@@ -85,8 +92,10 @@ object FromSolrDoc {
 
           // For complex co-products, the variant type of the document might be null for the expected variant enum.
           // This is because the other types in the coproduct might define other variant enums in nested types.
-          if (actualVariantValue != null && variantField.fromJsonString(
-              actualVariantValue.toString) == expectedVariant) {
+          if (
+            actualVariantValue != null && variantField.fromJsonString(
+              actualVariantValue.toString) == expectedVariant
+          ) {
             // Right type of entity found (it is L)
             lMapper.value.fromSolrDoc(doc).map(_.asInstanceOf[L @@ Variant[_, F, V]]).map(Inl(_))
           } else {

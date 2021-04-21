@@ -1,7 +1,7 @@
 import com.sksamuel.scapegoat.sbt.ScapegoatSbtPlugin
 import com.sksamuel.scapegoat.sbt.ScapegoatSbtPlugin.autoImport._
 import sbt.Def.Setting
-import sbt.Keys.{aggregate, name, sourceDirectory, target}
+import sbt.Keys.{aggregate, crossTarget, name, sourceDirectory}
 import sbt.io.syntax._
 import sbt.{AutoPlugin, Compile, Def, IntegrationTest, Plugins, ProjectReference, SettingKey, Test}
 import sbtsonar.SonarPlugin
@@ -41,16 +41,16 @@ object SonarConfiguration extends AutoPlugin {
               .filterNot(sourceDir.contains(_))
               .mkString(",")
 
-          val targetDir = (project / Compile / target).value
+          val crossTargetDir = (project / Compile / crossTarget).value
           // Build sonar config map
           Seq(
             s"$projectName.sonar.sources" -> sourceDir,
             s"$projectName.sonar.tests" -> testSources,
-            s"$projectName.sonar.junit.reportPaths" -> (targetDir / "test-reports").getPath,
+            s"$projectName.sonar.junit.reportPaths" -> (crossTargetDir / ".." / "test-reports").getPath,
             s"$projectName.sonar.scala.coverage.reportPaths" ->
-              (targetDir / "scala-2.12" / "scoverage-report" / "scoverage.xml").getPath,
+              (crossTargetDir / "scoverage-report" / "scoverage.xml").getPath,
             s"$projectName.sonar.scala.scapegoat.reportPaths" ->
-              (targetDir / "scala-2.12" / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath
+              (crossTargetDir / "scapegoat-report" / "scapegoat-scalastyle.xml").getPath
           )
         }
       }
@@ -69,6 +69,6 @@ object SonarConfiguration extends AutoPlugin {
 
   override def buildSettings: Seq[Def.Setting[_]] =
     Seq(
-      scapegoatVersion := "1.3.8"
+      scapegoatVersion := Dependencies.SCAPEGOAT_VERSION
     )
 }

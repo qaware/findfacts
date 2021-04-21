@@ -1,14 +1,15 @@
 package de.qaware.findfacts.common.dt
 
-import scala.collection.JavaConverters._
-
-import org.apache.solr.client.solrj.SolrQuery
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite, Matchers}
+import scala.jdk.CollectionConverters._
 
 import de.qaware.findfacts.common.solr.LocalSolr
 import de.qaware.findfacts.common.solr.mapper.{FromSolrDoc, ToSolrDoc}
+import org.apache.solr.client.solrj.SolrQuery
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-class SolrMappingIT extends FunSuite with Matchers with BeforeAndAfterEach with BeforeAndAfterAll {
+class SolrMappingIT extends AnyFunSuite with Matchers with BeforeAndAfterEach with BeforeAndAfterAll {
 
   final val solr = ITSolr()
 

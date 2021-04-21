@@ -4,10 +4,11 @@ import java.io.{IOException, File => JFile}
 import java.net.URL
 import java.nio.file.{Files, StandardCopyOption}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import better.files.{File, Resource}
 import com.typesafe.scalalogging.Logger
+import de.qaware.findfacts.scala.Using
 import io.github.classgraph.ClassGraph
 import org.apache.solr.client.solrj.SolrRequest.METHOD
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
@@ -16,8 +17,6 @@ import org.apache.solr.client.solrj.request.{CollectionAdminRequest, CoreAdminRe
 import org.apache.solr.client.solrj.{SolrClient, SolrRequest, SolrResponse}
 import org.apache.solr.common.params.CoreAdminParams.CoreAdminAction
 import org.apache.solr.common.util.NamedList
-
-import de.qaware.findfacts.scala.Using
 
 /** Repository to provide connections to different types of solr instances. */
 sealed trait SolrRepository extends SolrClient with AutoCloseable {
@@ -70,12 +69,12 @@ final class LocalSolr private (
         false
       } else {
         // Prepare core
-        coreConfDir.createDirectories
+        coreConfDir.createDirectories()
 
         val confResourceDir = s"$solrResourceDir/${LocalSolr.SOLR_CONF_DIR}"
         // List solr config files
-        val confFiles = Using.resource(new ClassGraph().whitelistPathsNonRecursive(confResourceDir).scan) { scan =>
-          scan.getAllResources.getPaths.asScala.toList
+        val confFiles = Using.resource(new ClassGraph().acceptPathsNonRecursive(confResourceDir).scan) { scan =>
+          scan.getAllResources.getPaths.asScala.toList.distinct
         }
 
         if (confFiles.isEmpty) {
@@ -134,7 +133,7 @@ object LocalSolr {
 
     val home = File(solrHome.getAbsolutePath)
     require(home.isDirectory, s"Solr home $home does not exist")
-    require(home.isWriteable, s"No write access to solr home directory $home")
+    require(home.isWritable, s"No write access to solr home directory $home")
 
     // Fill home
     Using.resource(Resource.getAsStream(solrConfFile)) { stream =>
