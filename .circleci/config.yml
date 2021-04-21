@@ -9,7 +9,9 @@ jobs:
       - run: ./ci-scripts/install-elm.sh
       - restore_cache:
           key: sbt-cache
-      - run: ./sbt -Dprofiles=ui,loader clean compile test it:test
+      - run:
+          command: ./sbt -Dprofiles=ui,loader clean compile test it:test
+          no_output_timeout: 30min
       - save_cache:
           key: sbt-cache
           paths:
