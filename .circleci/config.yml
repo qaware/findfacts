@@ -11,7 +11,7 @@ jobs:
           key: sbt-cache
       - run:
           command: ./sbt -Dprofiles=ui,loader clean compile test it:test
-          no_output_timeout: 30min
+          no_output_timeout: 30m
       - save_cache:
           key: sbt-cache
           paths:
