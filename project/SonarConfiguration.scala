@@ -60,7 +60,7 @@ object SonarConfiguration extends AutoPlugin {
   override lazy val projectSettings: Seq[Setting[_]] = Seq(
     sonarProperties ++= Map(
       "sonar.projectName" -> "Isabelle AFP Search",
-      "sonar.projectKey" -> "de.qaware.isabelle-afp-search:root",
+      "sonar.projectKey" -> "de.qaware.findfacts:root",
       "sonar.exclusions" -> "**/scala/Using*",
       "sonar.modules" -> sonarModules.value
     ) ++ sonarModuleSettings.value,

@@ -30,7 +30,7 @@ view version =
         ]
     , p [ Typography.body1 ]
         [ text "Source code can be found in the "
-        , a [ href "https://github.com/qaware/isabelle-afp-search" ] [ text "github repository" ]
+        , a [ href "https://github.com/qaware/findfacts" ] [ text "github repository" ]
         , text "."
         ]
     , p [ Typography.body1 ]
